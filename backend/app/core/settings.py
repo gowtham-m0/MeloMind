@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     llm_provider: str = ""
     llm_model: str = ""
     llm_api_key: SecretStr = SecretStr("")
+    llm_fallback_provider: str = ""
+    llm_fallback_model: str = ""
+    llm_fallback_api_key: SecretStr = SecretStr("")
 
     # Agent and limits
     agent_max_tool_calls: int = 12

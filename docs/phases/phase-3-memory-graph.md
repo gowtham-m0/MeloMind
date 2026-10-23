@@ -56,9 +56,9 @@
 
 ---
 
-## C: resolver, link suggestions, personal prompts (≈ 10 h)
+## Agent: resolver, link suggestions, personal prompts (≈ 10 h)
 
-### C1. The `resolve_favourite` workflow
+### Agent 1. The `resolve_favourite` workflow
 - It climbs the hint ladder from `CLAUDE.md`, logging each rung.
 - At most `RESOLVE_MAX_SEARCHES` (5) searches.
 - It checks type, year and name before accepting a match.
@@ -66,32 +66,32 @@
 
 This also improves coverage for older and Indian titles.
 
-### C2. The `find_memory_nodes` tool
+### Agent 2. The `find_memory_nodes` tool
 A thin wrapper over the memory repository port. It includes pending nodes, so rejected suggestions can be recognised.
 
-### C3. The `link_memory` workflow
+### Agent 3. The `link_memory` workflow
 1. **Extract mentions** with structured output: people, places, years or decades, songs, artists, films, TV shows and books.
 2. **Resolve the songs, artists, films, TV shows and books** with the hint ladder. Stay within `LINK_MAX_SEARCHES` (10) in total.
 3. **Match people and places** to existing nodes with `find_memory_nodes`. Create pending nodes for new ones.
 4. **Skip anything already rejected** for this note.
 5. **Save the suggestions** with `propose_links`, each with a short reason.
 
-### C4. Personal prompts in `compose`
+### Agent 4. Personal prompts in `compose`
 - For each item, load confirmed links from the item (and from its artist or film) to person, place, memory and decade nodes with "Use in prompts" on.
 - Send the LLM only those nodes' **titles**.
 - Prompts stay open and gentle. For example: "This came out the year of the Saturday dances. What was the music like there?"
 - The template fallback can use a place or a decade.
 
-### C5. Record why each item was picked
-`select_items` stores `because_of_ref` on each session item: the favourite or signal that led to it. B's auto-links use it.
+### Agent 5. Record why each item was picked
+`select_items` stores `because_of_ref` on each session item: the favourite or signal that led to it. The backend's auto-links use it.
 
-### C6. Demo memories
+### Agent 6. Demo memories
 For each sample profile:
 - 4–6 hand-written notes covering people, places and occasions;
 - their links;
 - everything marked `"demo": true`.
 
-### C7. Tests
+### Agent 7. Tests
 - **Note text never reaches the Qloo adapter** (use a spy adapter).
 - The ladder stops at 5 searches, and a link run stops at 10.
 - Nodes with "Use in prompts" off never reach `compose`.
@@ -122,15 +122,15 @@ Run ruff and pytest.
 
 ---
 
-## B: memory storage, auto-links, routes (≈ 10 h)
+## Backend: memory storage, auto-links, routes (≈ 10 h)
 
-### B1. Migration and repositories
+### Backend 1. Migration and repositories
 - `memory_nodes` and `memory_links`, with RLS on.
 - A unique key on `(from_id, to_id, kind)`.
 - Add `because_of_ref` to `session_items`.
 - In-memory and Postgres repositories.
 
-### B2. `MemoryService`
+### Backend 2. `MemoryService`
 - Create, edit and delete nodes and notes.
 - Manual links, saved as confirmed.
 - Confirming a suggestion clears `pending` on its target node.
@@ -141,7 +141,7 @@ Run ruff and pytest.
 - **The timeline:** nodes grouped by decade.
 - Deleting a profile deletes its memory.
 
-### B3. Automatic links
+### Backend 3. Automatic links
 These live in the services, never in routes:
 - **A favourite is added:** create its node, plus an `in_decade` link.
 - **Places lived:** create place nodes, plus `lived_in` links.
@@ -150,18 +150,18 @@ These live in the services, never in routes:
   - add a `reacted` link from the session node;
   - add a `because_of` link to the favourite in `because_of_ref`.
 
-### B4. Routes
+### Backend 4. Routes
 - The whole contract, with ownership checks.
 - `suggest-links` and `favourites/resolve` start agent runs (kinds `link` and `resolve`), polled like planning.
 
-### B5. Promote to favourite
+### Backend 5. Promote to favourite
 A song, artist, film, TV show or book node becomes a favourite. It's verified when it has a Qloo ID.
 
-### B6. Demo seed
-- Add C's demo memories.
+### Backend 6. Demo seed
+- Add the agent's demo memories.
 - Resolve their song, artist and film nodes by name through `TasteService.search`, as with favourites.
 
-### B7. Tests
+### Backend 7. Tests
 - Cross-user access is denied.
 - The graph respects its cap.
 - Pending nodes stay hidden.
@@ -182,7 +182,7 @@ decade timeline, cascade deletes. Add automatic links in the services: favourite
 node + in_decade; places lived -> place nodes + lived_in; positive reaction or ♥ ->
 item node + reacted (from the session node) + because_of (to because_of_ref).
 Implement all Phase 3 routes with ownership checks; suggest-links and
-favourites/resolve start agent runs. Seed C's demo memories, resolving media nodes
+favourites/resolve start agent runs. Seed the agent's demo memories, resolving media nodes
 by name. Tests: cross-user 404, graph cap, pending hidden, rejected stays rejected,
 auto-links, promote, cascade delete. Run ruff and pytest.
 ```
@@ -191,30 +191,30 @@ auto-links, promote, cascade delete. Run ruff and pytest.
 
 ---
 
-## A: memory screens and the lyric box (≈ 10 h)
+## Frontend: memory screens and the lyric box (≈ 10 h)
 
-### A1. Pick the graph library (first hour)
+### Frontend 1. Pick the graph library (first hour)
 - Try react-force-graph and Cytoscape.js against the graph response.
 - Pick one, and tell the team (`CLAUDE.md`, rule 17).
 
-### A2. Memory note editor
+### Frontend 2. Memory note editor
 - A title, the text, and a year or decade.
 - The hint "Please don't add medical details."
 - Typing `[[` opens a picker. It searches nodes and can create a new person, place or other node inline.
 
-### A3. Suggested links panel
+### Frontend 3. Suggested links panel
 - After saving a note, the agent's run is polled, and its log is shown.
 - Suggestions appear as chips, such as "Ruth · person", each with ✓ and ✗.
 - A "Confirm all" option.
 
-### A4. Node page
+### Frontend 4. Node page
 - The node's title, kind, text and links.
 - **Backlinks.**
 - The "Use in prompts" switch.
 - "Add as favourite", for song, artist, film, TV and book nodes.
 - Delete.
 
-### A5. Views (`/profiles/:id/memories`)
+### Frontend 5. Views (`/profiles/:id/memories`)
 - **List:** the default on phones, with filtering by kind and search.
 - **Timeline:** grouped by decade.
 - **Graph:**
@@ -223,13 +223,13 @@ auto-links, promote, cascade delete. Run ruff and pytest.
   - tapping a node opens its page;
   - an empty state that suggests adding a first memory.
 
-### A6. "Type a line you remember" (favourites editor)
+### Frontend 6. "Type a line you remember" (favourites editor)
 1. It sends the text to `favourites/resolve` and polls the run.
 2. It shows up to 3 proposals, with type and year.
 3. The caregiver taps one to confirm it, or adds a hint (singer, film or year) to run it again.
 4. The box clears afterwards. The lyric is never shown again or saved.
 
-### A7. Caregiver conversation (Wednesday)
+### Frontend 7. Caregiver conversation (Wednesday)
 - Show the app, and note the feedback.
 - Ask for a quote you're allowed to use.
 

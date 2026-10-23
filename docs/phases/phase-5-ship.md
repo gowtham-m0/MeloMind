@@ -5,13 +5,13 @@
 **Goal:** submit by **11 PM IST**, with a live app that judges can use without signing up and that stays up until judging ends.
 
 **Rules for today:**
-- **If the deploy fails, fix it first. Nothing else matters until the live site works.** (Deploying was B's Phase 4 task, Thursday night.)
+- **If the deploy fails, fix it first. Nothing else matters until the live site works.** (Deploying was the backend's Phase 4 task, Thursday night.)
 - Bug fixes only. No new features.
 - The hard deadline is **Sat 31 Oct, 9:15 AM IST**. Treat the overnight gap as an emergency buffer, not working time.
 
 ---
 
-## A: screenshots, video, final UI check (≈ 5 h)
+## Frontend: screenshots, video, final UI check (≈ 5 h)
 
 1. **Screenshots** of every main screen:
    - onboarding;
@@ -25,7 +25,7 @@
 3. **Fix UI bugs** from the final run.
 4. **Test** on a phone and in a logged-out browser.
 
-## B: security, README, keep it running (≈ 5 h)
+## Backend: security, README, keep it running (≈ 5 h)
 
 1. **Security pass:**
    - no secrets in the git history;
@@ -47,7 +47,7 @@
 5. **Warm the caches:** after any bug-fix redeploy, run the judge path once on the live site.
 6. **Tag** `v1.0`.
 
-## C: Devpost description and final live run (≈ 5 h)
+## Agent: Devpost description and final live run (≈ 5 h)
 
 1. **The Devpost description:**
    - the problem;
@@ -63,7 +63,7 @@
 2. **Testing instructions** with the demo login, following the judge path.
 3. **A final full run** with live Qloo.
 
-If Phase 4 finishes early, C starts the description on Thursday.
+If Phase 4 finishes early, the agent owner starts the description on Thursday.
 
 ---
 

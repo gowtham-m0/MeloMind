@@ -1,6 +1,6 @@
 # API contract
 
-The backend's HTTP API. B leads this file and A reviews it. Update it in the same PR as any endpoint change, then run `npm run gen:api` in `frontend/`.
+The backend's HTTP API. The backend owner leads this file and the frontend owner reviews it. Update it in the same PR as any endpoint change, then run `npm run gen:api` in `frontend/`.
 
 ## Conventions
 

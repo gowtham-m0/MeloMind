@@ -1,0 +1,33 @@
+{
+  "demo": true,
+  "profiles": [
+    {
+      "key": "margaret",
+      "display_name": "Margaret",
+      "birth_year": 1948,
+      "country_code": "US",
+      "places_lived": ["Chicago, Illinois"],
+      "languages": ["English"],
+      "favourites": [
+        { "name": "The Supremes", "kind": "artist" },
+        { "name": "The Temptations", "kind": "song", "song_title": "My Girl" },
+        { "name": "The Sound of Music", "kind": "movie" },
+        { "name": "To Kill a Mockingbird", "kind": "book" }
+      ]
+    },
+    {
+      "key": "lakshmi",
+      "display_name": "Lakshmi",
+      "birth_year": 1950,
+      "country_code": "IN",
+      "places_lived": ["Chennai, Tamil Nadu"],
+      "languages": ["Tamil", "English"],
+      "favourites": [
+        { "name": "P. Susheela", "kind": "artist" },
+        { "name": "T. M. Soundararajan", "kind": "song", "song_title": "Malarnthum Malaraatha" },
+        { "name": "Kadhalikka Neramillai", "kind": "movie" },
+        { "name": "M. S. Viswanathan", "kind": "artist" }
+      ]
+    }
+  ]
+}

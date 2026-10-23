@@ -1,0 +1,25 @@
+{
+  "demo": true,
+  "tags": [
+    { "tag_id": "demo-tag-motown", "name": "Motown", "kind": "genre" },
+    { "tag_id": "demo-tag-soul", "name": "Soul", "kind": "genre" },
+    { "tag_id": "demo-tag-girl-group", "name": "Girl group", "kind": "genre" },
+    { "tag_id": "demo-tag-rock-and-roll", "name": "Rock and roll", "kind": "genre" },
+    { "tag_id": "demo-tag-chicago-blues", "name": "Chicago blues", "kind": "genre" },
+    { "tag_id": "demo-tag-gospel", "name": "Gospel", "kind": "genre" },
+    { "tag_id": "demo-tag-folk", "name": "Folk", "kind": "genre" },
+    { "tag_id": "demo-tag-broadway-musical", "name": "Broadway musical", "kind": "genre" },
+    { "tag_id": "demo-tag-musical-film", "name": "Musical film", "kind": "genre" },
+    { "tag_id": "demo-tag-romantic-comedy", "name": "Romantic comedy", "kind": "genre" },
+    { "tag_id": "demo-tag-sitcom", "name": "Sitcom", "kind": "genre" },
+    { "tag_id": "demo-tag-variety", "name": "Variety show", "kind": "genre" },
+    { "tag_id": "demo-tag-classic-american-novel", "name": "Classic American novel", "kind": "genre" },
+    { "tag_id": "demo-tag-historical-fiction", "name": "Historical fiction", "kind": "genre" },
+    { "tag_id": "demo-tag-playback-singer", "name": "Playback singer", "kind": "genre" },
+    { "tag_id": "demo-tag-carnatic", "name": "Carnatic music", "kind": "genre" },
+    { "tag_id": "demo-tag-tamil-film-music", "name": "Tamil film music", "kind": "region" },
+    { "tag_id": "demo-tag-tamil-cinema", "name": "Tamil cinema", "kind": "region" },
+    { "tag_id": "demo-tag-tamil-literature", "name": "Tamil literature", "kind": "region" },
+    { "tag_id": "demo-tag-hindi-film-music", "name": "Hindi film music", "kind": "region" }
+  ]
+}

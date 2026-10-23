@@ -77,19 +77,19 @@ There are no prompts or reasons on shelf items. Person mode never shows them.
 
 ---
 
-## C: the agent (≈ 15 h)
+## Agent: the agent (≈ 15 h)
 
-### C1. Stub planner (Sunday by 11 AM)
-It returns a fixed `SessionDraft` in the real shape, for both `standard` and `warmup`, so A and B can build against it.
+### Agent 1. Stub planner (Sunday by 11 AM)
+It returns a fixed `SessionDraft` in the real shape, for both `standard` and `warmup`, so the frontend and backend can build against it.
 
-### C2. Tools
+### Agent 2. Tools
 In `application/agent/tools/`, each logging its call:
 - `search_entities`;
 - `find_tags`;
 - `get_insights`, which adds the profile's exclusions itself and allows only supported parameters;
 - `submit_candidates`.
 
-### C3. The research agent
+### Agent 3. The research agent
 Built with `create_agent`:
 - a system prompt built from the mode's research brief;
 - middleware limits:
@@ -99,7 +99,7 @@ Built with `create_agent`:
   - `ModelFallbackMiddleware`;
 - a 25-second timeout.
 
-### C4. The `plan_session` workflow
+### Agent 4. The `plan_session` workflow
 The outer LangGraph graph:
 1. `load_context`
 2. `research`
@@ -109,7 +109,7 @@ The outer LangGraph graph:
 6. `guardrails`
 7. `compose`
 
-### C5. `StandardMode` and `ModeRegistry`
+### Agent 5. `StandardMode` and `ModeRegistry`
 - **The research brief**, with the three cold-start tiers from `CLAUDE.md`:
   - 3 or more favourites;
   - 1–2 favourites or a hint;
@@ -119,25 +119,29 @@ The outer LangGraph graph:
   - a mix of 4 artists, 2 films, 1 TV show and 1 book.
 - **Selection,** with spares.
 
-### C6. `WarmupMode`
+### Agent 6. `WarmupMode`
 - About 12 varied, well-known, playable items, across types and decades within their era.
 - A high popularity floor.
 - No prompts, because Person mode never shows them, so `compose` skips the LLM for this mode.
 
-### C7. Set scoring for the warm-up
+### Agent 7. Set scoring for the warm-up
 - Add `TasteService.score(candidates, signal)`. It asks Qloo Insights with the chosen item as the signal and `filter.results.entities` set to the candidates.
 - If that isn't supported, it falls back to the same type and the closest year.
-- It logs which path ran. B's warm-up service calls it.
+- It logs which path ran. The backend's warm-up service calls it.
 
-### C8. LLM adapter
+### Agent 8. LLM adapter
 Structured output, plus the **template fallback** for reasons and prompts.
+- `infrastructure/llm/factory.py` builds a chat model for `groq` or `gemini`; `deps.py` wires Groq as the main model and Gemini as the fallback.
+- An 8-second timeout on each Groq call, then one try on Gemini, then the templates.
+- `link_memory` stays on Groq only (memory notes never go to a free Gemini key).
+- Add `langchain-groq` and `langchain-google-genai` with exact pins.
 
-### C9. Media resolver
+### Agent 9. Media resolver
 - YouTube search, then `videos.list` to check `embeddable` and read the duration.
-- Cached through B's `media_cache`.
+- Cached through the backend's `media_cache`.
 - A demo resolver for fixture mode.
 
-### C10. Tests
+### Agent 10. Tests
 Use a scripted fake chat model:
 - an empty search leads to the next hint;
 - hitting a limit triggers the fallback;
@@ -177,9 +181,9 @@ duration, cold-start tiers, scoring fallback. Run ruff and pytest.
 
 ---
 
-## B: sessions, feedback, shelf, warm-up (≈ 15 h)
+## Backend: sessions, feedback, shelf, warm-up (≈ 15 h)
 
-### B1. Migrations and repositories
+### Backend 1. Migrations and repositories
 Tables:
 - `sessions`
 - `session_items`
@@ -189,25 +193,25 @@ Tables:
 - `media_cache`
 - `qloo_cache`
 
-### B2. `SessionService`
+### Backend 2. `SessionService`
 - `plan` starts the agent run in the background and returns at once with status `planning`.
 - A **state machine** for the statuses in the contract.
 
-### B3. Learning rules
-In `domain/policies.py` (C reviews):
+### Backend 3. Learning rules
+In `domain/policies.py` (the agent owner reviews):
 - the caregiver weights and the person-signal weights;
 - each person signal counts once per item per day;
 - the 0.6 threshold for becoming a signal;
 - the ranking order;
 - the era window.
 
-### B4. `FeedbackService`
+### Backend 4. `FeedbackService`
 - `rejected` adds an exclusion.
 - `upset` hides the item and queues it for review.
 - Person signals are accepted only for items on the profile's shelf. A skip counts only under 15 seconds.
 - Everything is stored with its `actor`, for learning.
 
-### B5. `ShelfService` and its route
+### Backend 5. `ShelfService` and its route
 The shelf holds:
 - verified favourites with playable media;
 - items from approved sessions;
@@ -215,23 +219,23 @@ The shelf holds:
 
 It always leaves out excluded and hidden items.
 
-### B6. `WarmupService` and its route
+### Backend 6. `WarmupService` and its route
 - Pairs come from the latest approved warm-up set.
 - The first pair is two items of different types or decades.
 - After that, each pair is:
-  - the most similar unseen item (using C's `TasteService.score`);
+  - the most similar unseen item (using the agent's `TasteService.score`);
   - one different unseen item.
 - It ends after `WARMUP_PAIRS` pairs.
 - Each choice is recorded as a `chose` signal.
 
-### B7. Routes
+### Backend 7. Routes
 The whole contract, with ownership checks.
 
-### B8. Rate limit and demo seed
+### Backend 8. Rate limit and demo seed
 - Rate-limit planning to 10 plans per hour per user.
 - The demo seed also plans each demo profile's warm-up set in the background, as a draft, so it's ready for the judge to approve.
 
-### B9. Tests
+### Backend 9. Tests
 - The state machine.
 - An **excluded item never returns**, either in the next plan or on the shelf.
 - The shelf shows only approved items.
@@ -262,14 +266,14 @@ transitions; cross-user 404. Run ruff and pytest.
 
 ---
 
-## A: caregiver screens and Person mode (≈ 15 h)
+## Frontend: caregiver screens and Person mode (≈ 15 h)
 
-### A1. Plan screen
+### Frontend 1. Plan screen
 - Session length: 10, 20 or 30 minutes.
 - A "Plan today's session" button.
 - An **agent log panel** that polls once a second, with `aria-live`.
 
-### A2. Draft review
+### Frontend 2. Draft review
 - Cards showing:
   - title, type and year;
   - "She was 17 when this came out";
@@ -279,20 +283,20 @@ transitions; cross-user 404. Run ruff and pytest.
 - Edit a prompt.
 - An **Approve** button.
 
-### A3. Caregiver player
+### Frontend 3. Caregiver player
 - YouTube IFrame, which never autoplays.
 - Big controls and an always-visible **Stop**.
 - Progress, and the prompt under each item.
 
-### A4. Reaction buttons
+### Frontend 4. Reaction buttons
 - Reject asks for confirmation.
 - Upset shows "Hidden. You can review it later."
 
-### A5. Session complete
+### Frontend 5. Session complete
 - A completion screen with a "Plan next session" button.
 - The session's state survives a refresh.
 
-### A6. Person mode (`/profiles/:id/person`, in the Person layout)
+### Frontend 6. Person mode (`/profiles/:id/person`, in the Person layout)
 
 **First use (caregiver)**
 - Shows the warm-up set.
@@ -319,7 +323,7 @@ transitions; cross-user 404. Run ruff and pytest.
 
 **No prompts, reasons or other AI-written text anywhere in Person mode.**
 
-### A7. Quality across all screens
+### Frontend 7. Quality across all screens
 - Phone layout.
 - Keyboard access.
 - Loading, empty and error states.
