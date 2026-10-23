@@ -84,6 +84,7 @@ class AgentPlanner:
             summary={
                 "research_outcome": final.get("research_outcome"),
                 "fallback_attempts": final.get("fallback_attempts", 0),
+                "media_errors": final.get("media_errors", 0),
                 "item_count": len(items),
                 "total_duration_s": sum(item.duration_s for item in items),
                 "source": self._taste.source,

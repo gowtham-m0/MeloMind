@@ -189,7 +189,7 @@ class SessionService:
         )
         items = [item for item in result.items if not blocklist.blocks(item.ref, item.title)]
         if not items:
-            await self._fail(session_id, log, "Nothing playable was found. Please try again.")
+            await self._fail(session_id, log, _nothing_to_play(result))
             return
         session = await self._sessions.get(session_id)
         if session is None:
@@ -215,3 +215,13 @@ class SessionService:
             await self._save(session)
         await log.warn(NODE, message)
         await self._runs.finish(log.run_id, RunStatus.FAILED, {"session_id": str(session_id)})
+
+
+def _nothing_to_play(result: PlanResult) -> str:
+    """Why a plan came back empty, in words the caregiver can act on."""
+    if result.summary.get("media_errors"):
+        return (
+            "YouTube didn't answer, so there are no videos to play right now. Its daily limit "
+            "may be used up: please try again later."
+        )
+    return "Nothing playable was found. Please try again."

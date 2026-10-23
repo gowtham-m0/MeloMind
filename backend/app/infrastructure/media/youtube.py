@@ -8,6 +8,7 @@ import asyncio
 import html
 import logging
 import re
+import time
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
@@ -25,8 +26,12 @@ MIN_DURATION_S = 60
 MAX_DURATION_S = 600
 MAX_ATTEMPTS = 3
 BACKOFF_SECONDS = 1.0
+# After YouTube refuses (quota or rate limit), stop asking for a while: every lookup would fail,
+# and each retry only makes the caregiver wait longer.
+PAUSE_SECONDS = 600.0
 
 Sleep = Callable[[float], Awaitable[None]]
+Clock = Callable[[], float]
 
 _ISO_DURATION = re.compile(r"^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$")
 
@@ -63,18 +68,28 @@ def _playable(video: Mapping[str, Any]) -> PlayableMedia | None:
 class YouTubeMediaResolver:
     """Finds an embeddable video of a suitable length. Each `search` costs 100 quota units.
 
-    The key goes in the `X-Goog-Api-Key` header, never in the URL, so it can't reach a log.
+    The key goes in the `X-Goog-Api-Key` header, never in the URL, so it can't reach a log. After a
+    refusal it pauses for 10 minutes, failing at once instead of calling YouTube again.
     """
 
     def __init__(
-        self, client: httpx.AsyncClient, api_key: str, *, sleep: Sleep = asyncio.sleep
+        self,
+        client: httpx.AsyncClient,
+        api_key: str,
+        *,
+        sleep: Sleep = asyncio.sleep,
+        clock: Clock = time.monotonic,
     ) -> None:
         self._client = client
         self._api_key = api_key
         self._sleep = sleep
+        self._clock = clock
+        self._paused_until = 0.0
 
     async def resolve(self, query: str) -> PlayableMedia | None:
         """The first search result that is embeddable, public and 1–10 minutes long."""
+        if self._clock() < self._paused_until:
+            raise UpstreamError("YouTube refused recent requests; trying again later.")
         found = await self._get(
             "/search",
             {
@@ -118,8 +133,11 @@ class YouTubeMediaResolver:
                 continue
             break
         if response.status_code >= 400:
-            # 403 is usually the daily quota running out.
+            # 403 is usually the daily quota running out, 429 the rate limit.
             logger.warning("YouTube %s: HTTP %d", path, response.status_code)
+            if response.status_code in (403, 429):
+                self._paused_until = self._clock() + PAUSE_SECONDS
+                logger.warning("YouTube paused for %d minutes", PAUSE_SECONDS // 60)
             raise UpstreamError("YouTube refused the request.")
         try:
             body = response.json()

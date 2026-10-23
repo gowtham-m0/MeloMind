@@ -1,10 +1,12 @@
 """Step 5, `resolve_media` (code): find a playable video for each item, swapping an unplayable
 one for a spare of the same type. Never an unrelated video. Books need no video.
 
-Spares are resolved only when they may be needed, to save YouTube quota.
+Spares are resolved only when they may be needed, to save YouTube quota. When the video service
+itself fails (quota, rate limit), nothing is swapped: the lookups would fail too.
 """
 
 import asyncio
+from dataclasses import dataclass
 
 from app.application.agent.deps import PlanDeps
 from app.application.agent.state import PlanState
@@ -25,25 +27,33 @@ def ready(planned: PlannedItem) -> bool:
     return planned.item.entity_type is EntityType.BOOK or planned.item.playable
 
 
+@dataclass
+class _Lookups:
+    """How many video lookups the service failed to answer this run."""
+
+    failed: int = 0
+
+
 async def resolve_media(state: PlanState, deps: PlanDeps) -> PlanState:
     """Media for the selected items, then for as many spares as the session may need."""
     context = state["context"]
     ranks = state.get("ranks", {})
     pool = list(state.get("spares", []))
     selected = state.get("selected", [])
+    lookups = _Lookups()
     # Look up the selected items a few at a time: each is a separate YouTube call, and too many
     # at once are refused.
     limit = asyncio.Semaphore(MEDIA_CONCURRENCY)
 
     async def prepare(candidate: Candidate) -> PlannedItem:
         async with limit:
-            return await _prepare(deps, context, candidate, ranks)
+            return await _prepare(deps, context, candidate, ranks, lookups)
 
     prepared_all = await asyncio.gather(*(prepare(candidate) for candidate in selected))
     planned: list[PlannedItem] = []
     for candidate, prepared in zip(selected, prepared_all, strict=True):
-        if not ready(prepared):
-            swap = await _swap(deps, context, candidate.entity_type, pool, ranks)
+        if not ready(prepared) and not lookups.failed:
+            swap = await _swap(deps, context, candidate.entity_type, pool, ranks, lookups)
             if swap is None:
                 await deps.log.info(
                     NODE,
@@ -64,16 +74,21 @@ async def resolve_media(state: PlanState, deps: PlanDeps) -> PlanState:
     total = sum(item.item.duration_s for item in planned if ready(item))
     for candidate in pool:
         enough_time = not deps.mode.fits_length or total >= low
-        if enough_time and len(ready_spares) >= missing:
+        if lookups.failed or (enough_time and len(ready_spares) >= missing):
             break
-        prepared = await _prepare(deps, context, candidate, ranks)
+        prepared = await _prepare(deps, context, candidate, ranks, lookups)
         if ready(prepared):
             ready_spares.append(prepared)
             total += prepared.item.duration_s
+    if lookups.failed:
+        await deps.log.warn(
+            NODE,
+            f"YouTube didn't answer {lookups.failed} lookup(s); its daily limit may be used up.",
+        )
     videos = [entry for entry in planned if entry.item.entity_type is not EntityType.BOOK]
     playable = sum(1 for entry in videos if entry.item.playable)
     await deps.log.info(NODE, f"Found playable media for {playable} of {len(videos)} items.")
-    return {"planned": planned, "ready_spares": ready_spares}
+    return {"planned": planned, "ready_spares": ready_spares, "media_errors": lookups.failed}
 
 
 async def _swap(
@@ -82,17 +97,24 @@ async def _swap(
     entity_type: EntityType,
     pool: list[Candidate],
     ranks: dict[str, int],
+    lookups: _Lookups,
 ) -> PlannedItem | None:
     for spare in [candidate for candidate in pool if candidate.entity_type is entity_type]:
         pool.remove(spare)
-        prepared = await _prepare(deps, context, spare, ranks)
+        prepared = await _prepare(deps, context, spare, ranks, lookups)
         if ready(prepared):
             return prepared
+        if lookups.failed:
+            return None
     return None
 
 
 async def _prepare(
-    deps: PlanDeps, context: PlanContext, candidate: Candidate, ranks: dict[str, int]
+    deps: PlanDeps,
+    context: PlanContext,
+    candidate: Candidate,
+    ranks: dict[str, int],
+    lookups: _Lookups,
 ) -> PlannedItem:
     item = SessionItem(
         ref=candidate.entity_id,
@@ -114,7 +136,7 @@ async def _prepare(
     try:
         media = await deps.media.resolve(query)
     except UpstreamError:
-        await deps.log.warn(NODE, f"The video service didn't answer for {candidate.name}.")
+        lookups.failed += 1
         media = None
     if media is not None:
         item.media = MediaRef(

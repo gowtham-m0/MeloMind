@@ -16,8 +16,8 @@ from app.domain.sessions import SessionItem
 class PlanState(TypedDict, total=False):
     """Written by: `profile` (start), `context` (load_context), `brief`, `candidates`,
     `research_outcome` (research, fallback), `fallback_attempts` (fallback), `ranks`,
-    `selected`, `spares` (select_items), `planned`, `ready_spares` (resolve_media), `items`
-    (guardrails, compose)."""
+    `selected`, `spares` (select_items), `planned`, `ready_spares`, `media_errors`
+    (resolve_media), `items` (guardrails, compose)."""
 
     profile: Profile
     context: PlanContext
@@ -30,4 +30,5 @@ class PlanState(TypedDict, total=False):
     spares: list[Candidate]
     planned: list[PlannedItem]
     ready_spares: list[PlannedItem]
+    media_errors: int
     items: list[SessionItem]

@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import cast, update
+from sqlalchemy import Update, literal, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -32,16 +32,38 @@ def _step_to_domain(raw: dict[str, Any]) -> AgentStep:
     )
 
 
+def steps_to_domain(raw_steps: list[Any]) -> list[AgentStep]:
+    """The log's steps. Runs written before a fix hold each step as a JSON string of a
+    one-step list, so those are decoded too."""
+    steps: list[AgentStep] = []
+    for raw in raw_steps:
+        decoded = json.loads(raw) if isinstance(raw, str) else raw
+        for entry in decoded if isinstance(decoded, list) else [decoded]:
+            steps.append(_step_to_domain(entry))
+    return steps
+
+
 def _run_to_domain(row: AgentRunRow) -> AgentRun:
     return AgentRun(
         id=row.id,
         profile_id=row.profile_id,
         kind=RunKind(row.kind),
         status=RunStatus(row.status),
-        steps=[_step_to_domain(step) for step in row.steps],
+        steps=steps_to_domain(row.steps),
         result=row.result,
         created_at=row.created_at,
         finished_at=row.finished_at,
+    )
+
+
+def append_step_statement(run_id: UUID, step: AgentStep) -> Update:
+    """Append one step to a run's log in a single statement, so parallel steps never clash.
+    The list is bound as JSONB, so the driver serializes it once, as an array."""
+    entry = literal([_step_to_json(step)], type_=JSONB)
+    return (
+        update(AgentRunRow)
+        .where(AgentRunRow.id == run_id)
+        .values(steps=AgentRunRow.steps.op("||")(entry))
     )
 
 
@@ -74,14 +96,9 @@ class PostgresAgentRunRepository:
             return _run_to_domain(row) if row else None
 
     async def append_step(self, run_id: UUID, step: AgentStep) -> None:
-        """Add one entry to the log in a single statement, so parallel steps never clash."""
-        entry = cast(json.dumps([_step_to_json(step)]), JSONB)
+        """Add one entry to the log."""
         async with self._sessions() as db, db.begin():
-            await db.execute(
-                update(AgentRunRow)
-                .where(AgentRunRow.id == run_id)
-                .values(steps=AgentRunRow.steps.op("||")(entry))
-            )
+            await db.execute(append_step_statement(run_id, step))
 
     async def finish(self, run_id: UUID, status: RunStatus, result: dict[str, Any] | None) -> None:
         """Mark the run done or failed."""

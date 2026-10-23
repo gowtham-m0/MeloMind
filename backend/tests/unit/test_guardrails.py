@@ -130,3 +130,16 @@ def test_a_mode_without_a_length_is_capped_at_its_size() -> None:
     )
 
     assert len(result.items) == 12
+
+
+def test_a_book_never_stands_in_for_a_video() -> None:
+    result = apply_guardrails(
+        [planned("song", 0, playable=False), planned("film", 1, EntityType.MOVIE, playable=False)],
+        [planned("spare-book", 2, EntityType.BOOK), planned("spare-song", 3)],
+        Blocklist(),
+        target_minutes=None,
+        max_items=12,
+    )
+
+    assert refs(result.items) == ["spare-song"]
+    assert "Removed Film: no playable version found." in result.notes

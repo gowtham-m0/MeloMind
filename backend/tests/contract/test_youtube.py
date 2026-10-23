@@ -123,3 +123,14 @@ async def test_a_brief_429_recovers() -> None:
 
     assert await youtube.resolve("The Supremes") is None
     assert len(requests) == 2
+
+
+async def test_after_a_refusal_it_pauses_instead_of_asking_again() -> None:
+    youtube, requests = resolver(lambda request: httpx.Response(403))
+
+    with pytest.raises(UpstreamError):
+        await youtube.resolve("The Supremes")
+    with pytest.raises(UpstreamError):
+        await youtube.resolve("The Temptations")
+
+    assert len(requests) == 1

@@ -12,8 +12,8 @@ EXTRA_PICKS = 4
 _TIER_GUIDANCE = {
     "A": "Use the favourites as signals: Qloo expands them well.",
     "B": (
-        "There are only one or two favourites. Use them, plus the older-audience signal and "
-        "any region or decade tags you find."
+        "There are only one or two favourites. Use them in every call, plus the "
+        "older-audience signal and any region or decade tags you find."
     ),
     "C": (
         "Nothing specific is known yet. For films, TV and books, use the older-audience signal, "
@@ -74,7 +74,8 @@ def research_system_prompt(brief: ResearchBrief, context: PlanContext, max_qloo_
         "",
         "Steps:",
         "1. In your first reply, call get_insights once for EACH type in the mix, all in the "
-        "same reply (parallel calls), using the signal IDs above.",
+        "same reply (parallel calls). Put every favourite's ID above in signal_ids for every "
+        "call: the family chose them, so they always steer the picks. Add tags only as extras.",
         "2. Only if a type came back with too few, call get_insights for it once more, looser.",
         f"3. Then call submit_candidates once with about {want} of the best results, covering "
         "every type in the mix. A why is optional (at most 8 words). That ends your work.",

@@ -9,6 +9,8 @@ from fastapi.testclient import TestClient
 
 from app.api.auth import SupabaseTokenVerifier
 from app.api.deps import get_container, memory_adapters
+from app.core.errors import UpstreamError
+from app.infrastructure.qloo.fixture_taste_graph import FixtureTasteGraph
 from tests.conftest import AuthHeaders, make_container
 from tests.fakes import FailingTasteGraph
 
@@ -303,3 +305,28 @@ def test_a_rejected_item_leaves_drafts_waiting_for_review(
         range(len(warmup_after["items"]))
     )
     assert rejected_ref in {item["ref"] for item in session_after["items"]}
+
+
+class BrokenMedia:
+    """YouTube refusing every lookup, as when its daily limit is used up."""
+
+    async def resolve(self, query: str) -> None:
+        raise UpstreamError("YouTube refused the request.")
+
+
+def test_without_youtube_the_plan_fails_clearly_instead_of_offering_only_books(
+    client: TestClient, auth: AuthHeaders, user_id: UUID, verifier: SupabaseTokenVerifier
+) -> None:
+    broken = make_container(verifier, memory_adapters(FixtureTasteGraph(), BrokenMedia()))
+    client.app.dependency_overrides[get_container] = lambda: broken  # type: ignore[attr-defined]
+    headers = auth(user_id)
+    profile_id = seed(client, headers)
+
+    session = plan(client, headers, profile_id)
+    run = client.get(f"{API}/agent-runs/{session['agent_run_id']}", headers=headers).json()
+    messages = [step["message"] for step in run["steps"]]
+
+    assert session["status"] == "failed"
+    assert session["items"] == []
+    assert any("YouTube didn't answer" in message for message in messages)
+    assert messages[-1].startswith("YouTube didn't answer, so there are no videos to play")

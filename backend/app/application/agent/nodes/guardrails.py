@@ -3,8 +3,8 @@
 In order (docs/AGENT.md, section 9):
 1. Remove blocked items (rejected or upset), by ID, and `fav:` items also by name.
 2. Remove items without a source or a reason basis.
-3. Remove items with no playable video (books excepted), refilling from spares of the same
-   type, then any spare.
+3. Remove items with no playable video (books excepted), refilling from playable spares of the
+   same type, then any playable spare. A book never stands in for music, film or TV.
 4. Fit the target length ± 10 %: drop the lowest-ranked item while too long (from a type with
    more than one, to keep the mix), add spares while too short. Modes without a length (the
    warm-up) are capped at their mix size instead.
@@ -48,7 +48,8 @@ def apply_guardrails(
         notes.append(f"Removed {len(kept) - len(sourced)} items with no source.")
     pool = [entry for entry in pool if _has_basis(entry.item)]
     kept = _refill_unplayable(sourced, pool, notes)
-    pool = [entry for entry in pool if ready(entry)]
+    # Only videos fill gaps: the session's one book is a conversation slot, not filler.
+    pool = [entry for entry in pool if entry.item.playable]
     if target_minutes is None:
         kept = kept[:max_items]
     else:
@@ -83,7 +84,7 @@ def _refill_unplayable(
         if ready(entry):
             result.append(entry)
             continue
-        playable = [spare for spare in pool if ready(spare)]
+        playable = [spare for spare in pool if spare.item.playable]
         same_type = [s for s in playable if s.item.entity_type is entry.item.entity_type]
         swap = (same_type or playable or [None])[0]
         if swap is None:
@@ -138,6 +139,10 @@ async def guardrails(state: PlanState, deps: PlanDeps) -> PlanState:
     )
     for note in result.notes:
         await deps.log.info(NODE, note)
+    if not any(item.playable for item in result.items):
+        # Books alone aren't a session: without a single video there's nothing to play.
+        await deps.log.warn(NODE, "No item has a playable video, so there's no session to offer.")
+        return {"items": []}
     total = sum(item.duration_s for item in result.items)
     await deps.log.info(
         NODE, f"Checked {len(result.items)} items: {total // 60} min {total % 60} s in all."

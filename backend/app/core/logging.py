@@ -12,3 +12,5 @@ def configure_logging(level: int = logging.INFO) -> None:
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     for name in QUIET_LOGGERS:
         logging.getLogger(name).setLevel(logging.WARNING)
+    # Logged for every earlier message when a Groq run hands over to Gemini: expected, not a fault.
+    logging.getLogger("langchain_google_genai.chat_models").setLevel(logging.ERROR)
