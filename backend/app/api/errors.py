@@ -5,11 +5,18 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.core.errors import AppError, InvalidInputError, NotFoundError, UpstreamError
+from app.core.errors import (
+    AppError,
+    InvalidInputError,
+    NotFoundError,
+    UnauthorizedError,
+    UpstreamError,
+)
 
 logger = logging.getLogger(__name__)
 
 _STATUS_BY_ERROR: dict[type[AppError], int] = {
+    UnauthorizedError: 401,
     NotFoundError: 404,
     InvalidInputError: 422,
     UpstreamError: 502,

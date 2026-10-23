@@ -3,30 +3,44 @@
 /* Dark mode only under an explicit .dark class, so the OS setting can't half-apply it. */
 @custom-variant dark (&:is(.dark *));
 
-/* shadcn/ui tokens, light only, tuned for high contrast: text at 7:1 or more, borders at 3:1 or more. */
+/*
+ * "Cozy retro radio": cream paper, warm ink, teal and burgundy. shadcn/ui token names, light only,
+ * tuned for high contrast: text at 7:1 or more, borders at 3:1 or more on the cream background.
+ */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.18 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0 0);
-  --primary: oklch(0.42 0.14 255);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.95 0.01 255);
-  --secondary-foreground: oklch(0.2 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.4 0 0);
-  --accent: oklch(0.94 0.02 255);
-  --accent-foreground: oklch(0.2 0 0);
-  --destructive: oklch(0.5 0.2 27);
-  --border: oklch(0.6 0 0);
-  --input: oklch(0.55 0 0);
-  --ring: oklch(0.42 0.14 255);
+  --radius: 0.75rem;
+  --background: #f6efe3;
+  --foreground: #2b2420;
+  --card: #fffbf4;
+  --card-foreground: #2b2420;
+  --popover: #fffbf4;
+  --popover-foreground: #2b2420;
+  --primary: #1f5c5a;
+  --primary-foreground: #fffbf4;
+  --secondary: #eadfcb;
+  --secondary-foreground: #2b2420;
+  --muted: #efe6d6;
+  --muted-foreground: #574a42;
+  --accent: #eadfcb;
+  --accent-foreground: #2b2420;
+  --destructive: #7a2e3a;
+  --border: #8c7b6a;
+  --input: #6f6052;
+  --ring: #1f5c5a;
+  --mustard: #c8962e;
+
+  /* Decade colours for cards: they differ in lightness too, not only in hue. */
+  --decade-1940s: #6b5b45;
+  --decade-1950s: #2f6f6b;
+  --decade-1960s: #c8962e;
+  --decade-1970s: #8c3b46;
+  --decade-1980s: #4a5c8c;
+  --decade-other: #8c7b6a;
 }
 
 @theme inline {
+  --font-sans: "Atkinson Hyperlegible", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Fraunces", Georgia, ui-serif, serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -49,6 +63,13 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-mustard: var(--mustard);
+  --color-decade-1940s: var(--decade-1940s);
+  --color-decade-1950s: var(--decade-1950s);
+  --color-decade-1960s: var(--decade-1960s);
+  --color-decade-1970s: var(--decade-1970s);
+  --color-decade-1980s: var(--decade-1980s);
+  --color-decade-other: var(--decade-other);
 }
 
 @layer base {
@@ -57,7 +78,13 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-serif;
   }
 
   :focus-visible {

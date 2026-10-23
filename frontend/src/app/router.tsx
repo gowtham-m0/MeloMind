@@ -9,6 +9,7 @@ import { NewProfilePage } from "@/pages/NewProfilePage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { PersonModePage } from "@/pages/PersonModePage";
 import { PlanSessionPage } from "@/pages/PlanSessionPage";
+import { ProfileEditPage } from "@/pages/ProfileEditPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { ProfilesPage } from "@/pages/ProfilesPage";
 import { ReviewPage } from "@/pages/ReviewPage";
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
       { path: "/profiles", element: <ProfilesPage /> },
       { path: "/profiles/new", element: <NewProfilePage /> },
       { path: "/profiles/:id", element: <ProfilePage /> },
+      { path: "/profiles/:id/edit", element: <ProfileEditPage /> },
       { path: "/profiles/:id/plan", element: <PlanSessionPage /> },
       { path: "/profiles/:id/memories", element: <MemoriesPage /> },
       { path: "/profiles/:id/memories/:nodeId", element: <MemoryNodePage /> },

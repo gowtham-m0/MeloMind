@@ -11,6 +11,12 @@ class AppError(Exception):
         self.detail = detail
 
 
+class UnauthorizedError(AppError):
+    """The request has no valid sign-in token."""
+
+    code = "unauthorized"
+
+
 class NotFoundError(AppError):
     """The resource doesn't exist, or belongs to someone else."""
 

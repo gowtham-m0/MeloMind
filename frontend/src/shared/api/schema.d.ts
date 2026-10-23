@@ -24,10 +24,213 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/demo/seed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Seed Demo
+         * @description Create the sample profiles for this user, once. Calling it again changes nothing.
+         */
+        post: operations["seed_demo_api_v1_demo_seed_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Profiles
+         * @description The signed-in user's profiles, oldest first.
+         */
+        get: operations["list_profiles_api_v1_profiles_get"];
+        put?: never;
+        /**
+         * Create Profile
+         * @description Create a profile from a display name and birth year, plus anything else known.
+         */
+        post: operations["create_profile_api_v1_profiles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Profile
+         * @description One profile with its favourites.
+         */
+        get: operations["get_profile_api_v1_profiles__profile_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Profile
+         * @description Delete a profile and everything that belongs to it.
+         */
+        delete: operations["delete_profile_api_v1_profiles__profile_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Profile
+         * @description Change some of a profile's fields.
+         */
+        patch: operations["update_profile_api_v1_profiles__profile_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/favourites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Favourite
+         * @description Save a favourite. It's verified when `entity_id` comes from a taste-search match.
+         */
+        post: operations["add_favourite_api_v1_profiles__profile_id__favourites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/favourites/{favourite_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Favourite
+         * @description Delete one favourite.
+         */
+        delete: operations["remove_favourite_api_v1_profiles__profile_id__favourites__favourite_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/taste/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Taste
+         * @description Matches for a name. For a song, search the singer: Qloo has no songs.
+         */
+        get: operations["search_taste_api_v1_taste_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * DemoSeedResponse
+         * @description The user's sample profiles.
+         */
+        DemoSeedResponse: {
+            /** Profile Ids */
+            profile_ids: string[];
+        };
+        /**
+         * EntityMatchOut
+         * @description One search match: what the caregiver taps to save a verified favourite.
+         */
+        EntityMatchOut: {
+            /** Entity Id */
+            entity_id: string;
+            /** Name */
+            name: string;
+            type: components["schemas"]["EntityType"];
+            /** Release Year */
+            release_year: number | null;
+        };
+        /**
+         * EntityType
+         * @description The kinds of thing Qloo knows about that we use. Qloo has no song type.
+         * @enum {string}
+         */
+        EntityType: "artist" | "movie" | "tv_show" | "book";
+        /**
+         * FavouriteCreate
+         * @description A favourite. Send `entity_id` when the caregiver picked a taste-search match.
+         */
+        FavouriteCreate: {
+            /** Name */
+            name: string;
+            kind: components["schemas"]["FavouriteKind"];
+            /** Entity Id */
+            entity_id?: string | null;
+            /** Song Title */
+            song_title?: string | null;
+        };
+        /**
+         * FavouriteKind
+         * @description What a caregiver can add as a favourite. A song is stored as text plus its singer.
+         * @enum {string}
+         */
+        FavouriteKind: "artist" | "song" | "movie" | "tv_show" | "book";
+        /**
+         * FavouriteOut
+         * @description A favourite. `verified` is true when it was matched in Qloo, so it can be a signal.
+         */
+        FavouriteOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            kind: components["schemas"]["FavouriteKind"];
+            /** Qloo Id */
+            qloo_id: string | null;
+            /** Verified */
+            verified: boolean;
+            /** Song Title */
+            song_title: string | null;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
         /**
          * HealthResponse
          * @description The API is up, which environment it runs in, and where recommendations come from.
@@ -47,6 +250,76 @@ export interface components {
              * @enum {string}
              */
             qloo_mode: "live" | "demo_fixtures";
+        };
+        /**
+         * ProfileCreate
+         * @description A new profile. Only the display name and birth year are required.
+         */
+        ProfileCreate: {
+            /** Display Name */
+            display_name: string;
+            /** Birth Year */
+            birth_year: number;
+            /** Country Code */
+            country_code?: string | null;
+            /** Places Lived */
+            places_lived?: string[];
+            /** Languages */
+            languages?: string[];
+        };
+        /**
+         * ProfileOut
+         * @description A profile with its favourites.
+         */
+        ProfileOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Display Name */
+            display_name: string;
+            /** Birth Year */
+            birth_year: number;
+            /** Country Code */
+            country_code: string | null;
+            /** Places Lived */
+            places_lived: string[];
+            /** Languages */
+            languages: string[];
+            /** Is Demo */
+            is_demo: boolean;
+            /** Favourites */
+            favourites: components["schemas"]["FavouriteOut"][];
+        };
+        /**
+         * ProfileUpdate
+         * @description Any profile fields. Fields left out stay as they are; `country_code: null` clears it.
+         */
+        ProfileUpdate: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Birth Year */
+            birth_year?: number | null;
+            /** Country Code */
+            country_code?: string | null;
+            /** Places Lived */
+            places_lived?: string[] | null;
+            /** Languages */
+            languages?: string[] | null;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
     };
     responses: never;
@@ -73,6 +346,271 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    seed_demo_api_v1_demo_seed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoSeedResponse"];
+                };
+            };
+        };
+    };
+    list_profiles_api_v1_profiles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOut"][];
+                };
+            };
+        };
+    };
+    create_profile_api_v1_profiles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_profile_api_v1_profiles__profile_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_profile_api_v1_profiles__profile_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_profile_api_v1_profiles__profile_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_favourite_api_v1_profiles__profile_id__favourites_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FavouriteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FavouriteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_favourite_api_v1_profiles__profile_id__favourites__favourite_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                favourite_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_taste_api_v1_taste_search_get: {
+        parameters: {
+            query: {
+                q: string;
+                type?: components["schemas"]["FavouriteKind"] | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityMatchOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -1,20 +1,30 @@
 """App factory. Run with `uvicorn app.main:app`."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.deps import build_container
 from app.api.errors import register_error_handlers
 from app.api.v1.router import api_router
 from app.core.logging import configure_logging
-from app.core.settings import APP_NAME, get_settings
+from app.core.settings import APP_NAME, Settings, get_settings
 
 
-def create_app() -> FastAPI:
+def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the FastAPI app: logging, CORS for the frontend, error handlers and routes."""
-    settings = get_settings()
+    settings = settings or get_settings()
     configure_logging()
 
-    app = FastAPI(title=APP_NAME, version="0.1.0")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        async with build_container(settings) as container:
+            app.state.container = container
+            yield
+
+    app = FastAPI(title=APP_NAME, version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.frontend_origin],
