@@ -156,10 +156,349 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profiles/{profile_id}/sessions/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Plan Session
+         * @description Start planning. Returns at once with status `planning`; poll the agent run's log.
+         */
+        post: operations["plan_session_api_v1_profiles__profile_id__sessions_plan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get History
+         * @description The profile's sessions and warm-up sets, newest first.
+         */
+        get: operations["get_history_api_v1_profiles__profile_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Session
+         * @description One session with its items.
+         */
+        get: operations["get_session_api_v1_sessions__session_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{session_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Items
+         * @description Remove, reorder or change the prompts of a draft's items.
+         */
+        patch: operations["edit_items_api_v1_sessions__session_id__items_patch"];
+        trace?: never;
+    };
+    "/api/v1/sessions/{session_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Session
+         * @description Approve a draft. `409` unless it's a draft.
+         */
+        post: operations["approve_session_api_v1_sessions__session_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{session_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Session
+         * @description Start an approved session. A warm-up set can't be started.
+         */
+        post: operations["start_session_api_v1_sessions__session_id__start_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{session_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Session
+         * @description Finish a session in progress.
+         */
+        post: operations["complete_session_api_v1_sessions__session_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/{session_id}/items/{item_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * React To Item
+         * @description The caregiver's reaction. `rejected` excludes the item; `upset` hides it for review.
+         */
+        post: operations["react_to_item_api_v1_sessions__session_id__items__item_id__feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agent-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Agent Run
+         * @description One run, its status and its plain-English log.
+         */
+        get: operations["get_agent_run_api_v1_agent_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/shelf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Shelf
+         * @description Approved, playable cards only. Excluded and hidden items never appear.
+         */
+        get: operations["get_shelf_api_v1_profiles__profile_id__shelf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/warmup/next": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Next Warmup Pair
+         * @description Record the choice and return the next pair. `409` without an approved warm-up set.
+         */
+        post: operations["next_warmup_pair_api_v1_profiles__profile_id__warmup_next_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/person-signals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Person Signal
+         * @description A tap in Person mode, for an item on the shelf.
+         */
+        post: operations["add_person_signal_api_v1_profiles__profile_id__person_signals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * React To Ref
+         * @description The caregiver's reaction to a card, from the Person-mode caregiver button.
+         */
+        post: operations["react_to_ref_api_v1_profiles__profile_id__reactions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/exclusions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Exclusions
+         * @description The profile's exclusions, oldest first.
+         */
+        get: operations["list_exclusions_api_v1_profiles__profile_id__exclusions_get"];
+        put?: never;
+        /**
+         * Add Exclusion
+         * @description Reject or hide an item. Returns every exclusion.
+         */
+        post: operations["add_exclusion_api_v1_profiles__profile_id__exclusions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/exclusions/{exclusion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Exclusion
+         * @description Let an item back in after review. Returns the remaining exclusions.
+         */
+        delete: operations["remove_exclusion_api_v1_profiles__profile_id__exclusions__exclusion_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AgentRunOut
+         * @description A run and its log. `result` is a small summary once the run is done or failed.
+         */
+        AgentRunOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["RunKind"];
+            status: components["schemas"]["RunStatus"];
+            /** Steps */
+            steps: components["schemas"]["AgentStepOut"][];
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * AgentStepOut
+         * @description One log entry.
+         */
+        AgentStepOut: {
+            /** Node */
+            node: string;
+            /** Message */
+            message: string;
+            level: components["schemas"]["StepLevel"];
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        };
         /**
          * DemoSeedResponse
          * @description The user's sample profiles.
@@ -187,6 +526,48 @@ export interface components {
          * @enum {string}
          */
         EntityType: "artist" | "movie" | "tv_show" | "book";
+        /**
+         * ExclusionCreate
+         * @description Reject an item for good, or hide it (`upset`) until the caregiver reviews it.
+         */
+        ExclusionCreate: {
+            /** Entity Ref */
+            entity_ref: string;
+            /** Title */
+            title: string;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "rejected" | "upset";
+        };
+        /**
+         * ExclusionOut
+         * @description An excluded item. `needs_review` is true for a hidden item nobody has reviewed yet.
+         */
+        ExclusionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Entity Ref */
+            entity_ref: string;
+            /** Title */
+            title: string;
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "rejected" | "upset";
+            /** Needs Review */
+            needs_review: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /**
          * FavouriteCreate
          * @description A favourite. Send `entity_id` when the caregiver picked a taste-search match.
@@ -226,6 +607,21 @@ export interface components {
             /** Song Title */
             song_title: string | null;
         };
+        /**
+         * FeedbackOut
+         * @description `counted` is false when a signal was ignored (a late skip, or a repeat the same day).
+         */
+        FeedbackOut: {
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
+            /** Counted */
+            counted: boolean;
+            /** Effect */
+            effect: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -250,6 +646,77 @@ export interface components {
              * @enum {string}
              */
             qloo_mode: "live" | "demo_fixtures";
+        };
+        /**
+         * ItemSource
+         * @description Where an item came from (rule 9: never invent a recommendation).
+         * @enum {string}
+         */
+        ItemSource: "qloo_live" | "demo_fixture" | "favourite";
+        /**
+         * ItemsPatch
+         * @description Changes to a draft: items to remove, the new order, and edited prompts by item ID.
+         */
+        ItemsPatch: {
+            /** Order */
+            order?: string[] | null;
+            /** Removed */
+            removed?: string[] | null;
+            /** Prompts */
+            prompts?: {
+                [key: string]: string;
+            } | null;
+        };
+        /**
+         * MediaOut
+         * @description A playable video. `provider` is `youtube`, or `demo` for stand-in media in demo mode.
+         */
+        MediaOut: {
+            /** Provider */
+            provider: string;
+            /** Ref */
+            ref: string;
+            /** Duration S */
+            duration_s: number;
+            /** Title */
+            title: string;
+        };
+        /**
+         * PersonSignal
+         * @description What the person did in Person mode. A quick skip only lowers an item's ranking.
+         * @enum {string}
+         */
+        PersonSignal: "chose" | "loved" | "replayed" | "skipped";
+        /**
+         * PersonSignalIn
+         * @description A tap in Person mode. Send `played_s` with `skipped`: a skip counts only under 15 s.
+         */
+        PersonSignalIn: {
+            /** Item Ref */
+            item_ref: string;
+            signal: components["schemas"]["PersonSignal"];
+            /** Played S */
+            played_s?: number | null;
+        };
+        /**
+         * PlanRequestIn
+         * @description Plan a session. `mode` is `standard` or `warmup`. `instructions` is accepted now and
+         *     used from Phase 4.
+         */
+        PlanRequestIn: {
+            /**
+             * Mode
+             * @default standard
+             */
+            mode: string;
+            /**
+             * Target Minutes
+             * @default 20
+             * @enum {integer}
+             */
+            target_minutes: 10 | 20 | 30;
+            /** Instructions */
+            instructions?: string | null;
         };
         /**
          * ProfileCreate
@@ -308,6 +775,169 @@ export interface components {
             /** Languages */
             languages?: string[] | null;
         };
+        /**
+         * Reaction
+         * @description What the caregiver saw. Only the caregiver can hide (`upset`) or reject an item.
+         * @enum {string}
+         */
+        Reaction: "sang_along" | "smiled" | "calm" | "neutral" | "upset" | "rejected";
+        /**
+         * ReactionIn
+         * @description The caregiver's reaction to an item.
+         */
+        ReactionIn: {
+            reaction: components["schemas"]["Reaction"];
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * RefReactionIn
+         * @description The caregiver's reaction to a card, by its ref.
+         */
+        RefReactionIn: {
+            /** Item Ref */
+            item_ref: string;
+            reaction: components["schemas"]["Reaction"];
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * RunKind
+         * @description Which workflow the run belongs to.
+         * @enum {string}
+         */
+        RunKind: "plan" | "resolve" | "link";
+        /**
+         * RunStatus
+         * @description Whether the run is still going.
+         * @enum {string}
+         */
+        RunStatus: "running" | "done" | "failed";
+        /**
+         * SessionDraftOut
+         * @description A session or warm-up set, with its items in order.
+         */
+        SessionDraftOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Profile Id
+             * Format: uuid
+             */
+            profile_id: string;
+            status: components["schemas"]["SessionStatus"];
+            /** Mode */
+            mode: string;
+            /** Target Minutes */
+            target_minutes: number;
+            /** Total Duration S */
+            total_duration_s: number;
+            /** Agent Run Id */
+            agent_run_id: string | null;
+            /** Items */
+            items: components["schemas"]["SessionItemOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * SessionItemOut
+         * @description One item. A book has no media: it's a short conversation slot.
+         */
+        SessionItemOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Position */
+            position: number;
+            /** Ref */
+            ref: string;
+            /** Title */
+            title: string;
+            entity_type: components["schemas"]["EntityType"];
+            /** Release Year */
+            release_year: number | null;
+            /** Age At Release */
+            age_at_release: number | null;
+            /** Reason */
+            reason: string;
+            /** Prompt */
+            prompt: string | null;
+            source: components["schemas"]["ItemSource"];
+            media: components["schemas"]["MediaOut"] | null;
+            /** Duration S */
+            duration_s: number;
+        };
+        /**
+         * SessionStatus
+         * @description Where a session is in its life. A warm-up set stops at `approved`.
+         * @enum {string}
+         */
+        SessionStatus: "planning" | "draft" | "approved" | "in_progress" | "completed" | "failed";
+        /**
+         * SessionSummaryOut
+         * @description A session in the history list.
+         */
+        SessionSummaryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Mode */
+            mode: string;
+            status: components["schemas"]["SessionStatus"];
+            /** Item Count */
+            item_count: number;
+            /** Total Duration S */
+            total_duration_s: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ShelfItemOut
+         * @description A card: title, type icon, year and decade colour. `from` says why it's on the shelf.
+         */
+        ShelfItemOut: {
+            /** Ref */
+            ref: string;
+            /** Title */
+            title: string;
+            entity_type: components["schemas"]["FavouriteKind"];
+            /** Release Year */
+            release_year: number | null;
+            /** Decade */
+            decade: number | null;
+            media: components["schemas"]["MediaOut"];
+            from: components["schemas"]["ShelfOrigin"];
+        };
+        /**
+         * ShelfOrigin
+         * @description Why an item is on the Person-mode shelf.
+         * @enum {string}
+         */
+        ShelfOrigin: "favourite" | "session" | "warmup";
+        /**
+         * StepLevel
+         * @description How a log step should look: a normal step, or something that went wrong.
+         * @enum {string}
+         */
+        StepLevel: "info" | "warning";
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -320,6 +950,26 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * WarmupNextIn
+         * @description The card just chosen, if any, and every card shown so far.
+         */
+        WarmupNextIn: {
+            /** Chosen Ref */
+            chosen_ref?: string | null;
+            /** Shown Refs */
+            shown_refs?: string[];
+        };
+        /**
+         * WarmupNextOut
+         * @description The next two cards, or `done: true`.
+         */
+        WarmupNextOut: {
+            /** Pair */
+            pair: components["schemas"]["ShelfItemOut"][] | null;
+            /** Done */
+            done: boolean;
         };
     };
     responses: never;
@@ -602,6 +1252,532 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EntityMatchOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    plan_session_api_v1_profiles__profile_id__sessions_plan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanRequestIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionDraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_history_api_v1_profiles__profile_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSummaryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_session_api_v1_sessions__session_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionDraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_items_api_v1_sessions__session_id__items_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemsPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionDraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_session_api_v1_sessions__session_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionDraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_session_api_v1_sessions__session_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionDraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_session_api_v1_sessions__session_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionDraftOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    react_to_item_api_v1_sessions__session_id__items__item_id__feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReactionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_agent_run_api_v1_agent_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_shelf_api_v1_profiles__profile_id__shelf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShelfItemOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    next_warmup_pair_api_v1_profiles__profile_id__warmup_next_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WarmupNextIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WarmupNextOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_person_signal_api_v1_profiles__profile_id__person_signals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonSignalIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    react_to_ref_api_v1_profiles__profile_id__reactions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefReactionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_exclusions_api_v1_profiles__profile_id__exclusions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExclusionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_exclusion_api_v1_profiles__profile_id__exclusions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExclusionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExclusionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_exclusion_api_v1_profiles__profile_id__exclusions__exclusion_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                exclusion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExclusionOut"][];
                 };
             };
             /** @description Validation Error */

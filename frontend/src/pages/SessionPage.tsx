@@ -1,6 +1,15 @@
-import { PlaceholderPage } from "@/shared/ui/placeholder-page";
+import { useParams } from "react-router";
 
-/** A planned session to review and approve. */
+import { RequireSession } from "@/features/demo/RequireSession";
+import { SessionView } from "@/features/sessions/SessionView";
+
+/** A session: the agent's log while planning, then review, approval and completion. */
 export function SessionPage() {
-  return <PlaceholderPage title="Session" />;
+  const { id } = useParams();
+
+  return (
+    <RequireSession>
+      <SessionView sessionId={id} />
+    </RequireSession>
+  );
 }

@@ -1,6 +1,15 @@
-import { PlaceholderPage } from "@/shared/ui/placeholder-page";
+import { useParams } from "react-router";
 
-/** Play an approved session, with prompts for the caregiver. */
+import { RequireSession } from "@/features/demo/RequireSession";
+import { SessionPlayer } from "@/features/sessions/SessionPlayer";
+
+/** Play an approved session, with prompts and reaction buttons for the caregiver. */
 export function SessionPlayPage() {
-  return <PlaceholderPage title="Play session" />;
+  const { id } = useParams();
+
+  return (
+    <RequireSession>
+      <SessionPlayer sessionId={id} />
+    </RequireSession>
+  );
 }

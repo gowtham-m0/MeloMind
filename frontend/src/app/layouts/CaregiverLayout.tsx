@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { NavLink, Outlet } from "react-router";
+import { NavLink, Outlet, ScrollRestoration } from "react-router";
 
 const navItems = [
   { to: "/", label: "Home", end: true },
@@ -43,6 +43,7 @@ export function CaregiverLayout() {
       <main id="main" className="mx-auto max-w-5xl px-4 py-8">
         <Outlet />
       </main>
+      <ScrollRestoration />
     </div>
   );
 }
