@@ -2,7 +2,17 @@
 
 from fastapi import APIRouter
 
-from app.api.v1.routes import demo, favourites, health, profiles, taste
+from app.api.v1.routes import (
+    agent_runs,
+    demo,
+    exclusions,
+    favourites,
+    health,
+    person,
+    profiles,
+    sessions,
+    taste,
+)
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health.router)
@@ -10,3 +20,7 @@ api_router.include_router(demo.router)
 api_router.include_router(profiles.router)
 api_router.include_router(favourites.router)
 api_router.include_router(taste.router)
+api_router.include_router(sessions.router)
+api_router.include_router(agent_runs.router)
+api_router.include_router(person.router)
+api_router.include_router(exclusions.router)
