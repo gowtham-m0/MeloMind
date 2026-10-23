@@ -10,7 +10,7 @@
 
 ## First: agree the contract (all three, 30 minutes)
 
-B writes it into `docs/API_CONTRACT.md`. Every route except health sends `Authorization: Bearer <token>`.
+The backend owner writes it into `docs/API_CONTRACT.md`. Every route except health sends `Authorization: Bearer <token>`.
 
 | Route | Request | Response |
 |---|---|---|
@@ -44,38 +44,38 @@ B writes it into `docs/API_CONTRACT.md`. Every route except health sends `Author
 
 ---
 
-## A: demo login, onboarding, favourites (≈ 7 h)
+## Frontend: demo login, onboarding, favourites (≈ 7 h)
 
-### A1. Try the demo
+### Frontend 1. Try the demo
 1. The button calls Supabase `signInAnonymously()` with the publishable key.
 2. Then it calls `POST /demo/seed`.
 3. Then it opens the profile list.
 
-### A2. API client and shared states
+### Frontend 2. API client and shared states
 - The API client attaches the token to every request.
 - Add a shared error banner and empty states.
 
-### A3. Onboarding (`/profiles/new`)
+### Frontend 3. Onboarding (`/profiles/new`)
 
 A stepper, one question per screen:
 1. **Name and birth year** (required). Show: "A birth year is enough to start. You can add more any time."
 2. **Where did they grow up?** A country, plus a town if known. "Not sure, skip".
 3. **Languages** they enjoyed music or films in. "Not sure, skip".
-4. **Favourites**, using the editor from A5. "Not sure, skip".
+4. **Favourites**, using the editor from Frontend 5. "Not sure, skip".
 
 Step 1 creates the profile, and later steps update it, so a refresh never loses progress.
 
-### A4. Profiles
+### Frontend 4. Profiles
 - A list page.
 - An edit page with the same fields as onboarding.
 
-### A5. Favourites editor
+### Frontend 5. Favourites editor
 - Search through `/taste/search`, debounced by 300 ms.
 - Matches show type and year. A tap saves the favourite as verified.
 - A "Not found? Keep it as text" option.
 - For songs: search for the singer, then type the song title.
 
-### A6. Book the caregiver conversation
+### Frontend 6. Book the caregiver conversation
 - Find 1–3 real caregivers, care workers or music therapists.
 - Book them to try the app on **Wed 28 Oct** (Phase 3).
 
@@ -100,39 +100,39 @@ phone layout, keyboard access. Run lint and build.
 
 ---
 
-## B: models, database, auth, profile APIs (≈ 7 h)
+## Backend: models, database, auth, profile APIs (≈ 7 h)
 
-### B0. Supabase project (first hour, before A needs the demo login)
+### Backend 0. Supabase project (first hour, before the frontend needs the demo login)
 This is setup, not deployment. You use the project from localhost for all development.
 - Create the project.
 - Enable **anonymous sign-ins**.
 - Make sure **asymmetric JWT signing keys** are on, and note the JWKS URL.
-- Put `SUPABASE_URL` and `DATABASE_URL` in `backend/.env`, and give A the project URL and publishable key for `frontend/.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`).
+- Put `SUPABASE_URL` and `DATABASE_URL` in `backend/.env`, and give the frontend owner the project URL and publishable key for `frontend/.env` (`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`).
 - Keep the keys in a password manager. Never commit them.
 
-### B1. Domain models
-`domain/models.py` (C reviews): `Profile`, `Favourite` and their enums.
+### Backend 1. Domain models
+`domain/models.py` (the agent owner reviews): `Profile`, `Favourite` and their enums.
 
-### B2. Persistence
+### Backend 2. Persistence
 - SQLAlchemy models and an Alembic migration for `profiles` and `favourites`.
 - **RLS on, with no policies.**
 - Deleting a profile deletes everything that belongs to it.
 - Repositories: an in-memory version and a Postgres version.
 
-### B3. Auth dependency
+### Backend 3. Auth dependency
 - Verify the token with PyJWT's `PyJWKClient` against the JWKS. Check `exp`, `iss` and `aud`.
 - An `ensure_owner` helper that returns 404 for someone else's profile.
 
-### B4. Routes
+### Backend 4. Routes
 - Profiles and favourites.
 - `demo/seed`:
-  - uses C's fixture profiles;
+  - uses the agent's fixture profiles;
   - adds their favourites by name, resolving each through `TasteService.search`, so the repo never holds real Qloo IDs.
 
-### B5. Search route
-Wire up `/taste/search` with C.
+### Backend 5. Search route
+Wire up `/taste/search` with the agent owner.
 
-### B6. Tests
+### Backend 6. Tests
 - Profile CRUD.
 - Cross-user access returns 404.
 - Validation: birth year required and within range.
@@ -156,34 +156,34 @@ Run ruff and pytest.
 
 ---
 
-## C: ports and the Qloo adapters (≈ 7 h)
+## Agent: ports and the Qloo adapters (≈ 7 h)
 
-### C1. Ports
-`application/ports.py` (B reviews):
+### Agent 1. Ports
+`application/ports.py` (the backend owner reviews):
 - `TasteGraph`, with `search` and `insights`;
 - `EntityMatch`;
 - `InsightsQuery`, including the age signal, country, popularity floor, exclusions, `take`, and a list of entities to score (for the warm-up in Phase 2);
 - `MediaResolver`;
 - `LanguageModel`;
-- the repository protocols agreed with B.
+- the repository protocols agreed with the backend owner.
 
-### C2. `FixtureTasteGraph`
+### Agent 2. `FixtureTasteGraph`
 Search and insights over the fixtures, applying the type, year, exclusion and `take` filters.
 
-### C3. `QlooHttpTasteGraph`
+### Agent 3. `QlooHttpTasteGraph`
 - httpx, the base URL and the `X-Api-Key` header.
 - Maps `InsightsQuery` to GET parameters, allowing only supported ones.
 - A 10-second timeout, with backoff retries on 429 and 5xx.
 - Tolerant parsing.
 - Tags results `source=qloo_live`.
 
-### C4. `TasteService.search`
-Add it, and the adapter choice in `deps.py` (with B).
+### Agent 4. `TasteService.search`
+Add it, and the adapter choice in `deps.py` (with the backend owner).
 
-### C5. Contract tests
+### Agent 5. Contract tests
 Use `httpx.MockTransport` to test parameter building, parsing and retries.
 
-### C6. When the key arrives
+### Agent 6. When the key arrives
 1. Run `scripts/qloo_smoke.py` locally.
 2. Fix the parser to match the real response shapes.
 3. Work through the "To verify" list in `QLOO_NOTES.md`.
@@ -194,7 +194,7 @@ Use `httpx.MockTransport` to test parameter building, parsing and retries.
 Read CLAUDE.md, docs/QLOO_NOTES.md and docs/AGENT.md. Implement application/ports.py
 (TasteGraph with search and insights, EntityMatch, InsightsQuery with age signal,
 country, popularity floor, exclusions, take and an optional list of entities to
-score, MediaResolver, LanguageModel, repository protocols agreed with B).
+score, MediaResolver, LanguageModel, repository protocols agreed with the backend owner).
 Implement infrastructure/qloo: FixtureTasteGraph over the hand-written fixtures
 (apply type, year range, exclusions, take) and QlooHttpTasteGraph (httpx async,
 X-Api-Key header, GET params from InsightsQuery with only supported params, 10s

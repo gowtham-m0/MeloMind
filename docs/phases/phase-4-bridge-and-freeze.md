@@ -7,7 +7,7 @@
 - Add the remaining caregiver tools: Ask the agent, swap, "What we learned" and the review queue.
 - The end-to-end test passes locally.
 - **Feature freeze tonight.**
-- **Then deploy, once** (B's "Deploy" task). This is the first and only time the app goes on the internet.
+- **Then deploy, once** (the backend's "Deploy" task). This is the first and only time the app goes on the internet.
 
 **Before you start:** Phase 3's exit check has passed. If it hasn't, skip Bridge and finish Phase 3 first (see "If you're behind").
 
@@ -27,25 +27,25 @@
 
 ---
 
-## C: Bridge mode, instructions, swap, explanations (≈ 6 h)
+## Agent: Bridge mode, instructions, swap, explanations (≈ 6 h)
 
-### C1. `BridgeMode`
+### Agent 1. `BridgeMode`
 - A research brief that combines the elder's favourites with the visitor's (up to 3), **within the elder's era**.
 - A `compare_tastes` tool using `/v2/insights/compare`, if it works with the hackathon key. If not, use two Insights calls and their overlap.
 - Prompts are written for the visitor to use. For example: "Ask Grandma where she first heard this."
 - Prompts can use confirmed memories with "Use in prompts" on.
 - Registered in `ModeRegistry`, with no workflow or API changes.
 
-### C2. Caregiver instructions in the brief
+### Agent 2. Caregiver instructions in the brief
 - The agent itself turns a request like "fewer sad songs" or "more film songs" into tags or exclusions.
 - The log shows how it did that.
 
-### C3. Swap service
+### Agent 3. Swap service
 - "Another like this" uses that item as the only signal.
 - It excludes the session's current items and the profile's exclusions.
 - The guardrails run again.
 
-### C4. Explanations
+### Agent 4. Explanations
 - **"What changed"** goes into the agent log at the start of each plan.
 - **"What we learned"** lines go after each session. For example:
   - "She sang along to X, so Y's music is now a signal."
@@ -70,30 +70,30 @@ lines per session. Tests with the scripted fake model. Run ruff and pytest.
 
 ---
 
-## B: Bridge storage, routes, review queue, end-to-end test, deploy (≈ 6 h)
+## Backend: Bridge storage, routes, review queue, end-to-end test, deploy (≈ 6 h)
 
-### B1. Bridge plan
+### Backend 1. Bridge plan
 - The visitor is stored on the session.
 - Visitor favourites are verified through search.
 - A person node is created for the visitor, linked to the session node, so visits appear in the Memory Graph.
 
-### B2. Instructions and swap
+### Backend 2. Instructions and swap
 - Validate `instructions` (300 characters at most).
 - Add the swap route.
 
-### B3. "What we learned"
+### Backend 3. "What we learned"
 - The `learned` route.
 - Add the learned lines to the history.
 
-### B4. Review queue API
+### Backend 4. Review queue API
 - **Keep hidden.**
 - **Show again:** unhides the item.
 - **Never show:** adds an exclusion.
 
-### B5. Playwright end-to-end test
+### Backend 5. Playwright end-to-end test
 - It covers the judge path (`docs/PLAN.md`), steps 1–6 and 8.
 - **In CI:** run it against a local stack in demo mode. With no keys, that means fixtures, templates and the demo media resolver, so no live services are called.
-- **By hand:** run it against the live site after the deploy in B6.
+- **By hand:** run it against the live site after the deploy in Backend 6.
 
 **Prompt for Claude Code:**
 ```
@@ -108,9 +108,9 @@ path in docs/PLAN.md (steps 1-6 and 8), runnable against a local stack in demo m
 the deploy). Run ruff, pytest and the Playwright test locally.
 ```
 
-**Check:** the Playwright test passes locally in demo mode. (The live-site run comes after B6.)
+**Check:** the Playwright test passes locally in demo mode. (The live-site run comes after Backend 6.)
 
-### B6. Deploy (Thursday night, after the feature freeze)
+### Backend 6. Deploy (Thursday night, after the feature freeze)
 
 Do this only when the exit check below passes locally. This is the first deployment, so keep Friday free as the buffer. If anything here fails, fix it before anything else.
 
@@ -141,29 +141,29 @@ Do this only when the exit check below passes locally. This is the first deploym
 
 ---
 
-## A: Bridge screens and caregiver tools (≈ 6 h)
+## Frontend: Bridge screens and caregiver tools (≈ 6 h)
 
-### A1. Bridge screens (`/profiles/:id/bridge`)
+### Frontend 1. Bridge screens (`/profiles/:id/bridge`)
 1. Add a visitor: their name, their relation, and 3 quick favourites through search.
 2. Plan a Bridge session.
 3. Review it. Shared picks show prompts "for the visit".
 4. Play it like any session.
 
-### A2. "Ask the agent"
+### Frontend 2. "Ask the agent"
 - A box on the plan screen, with examples such as "fewer sad songs" and "more film songs".
 - Add a mic button only if time is left over.
 
-### A3. Swap
+### Frontend 3. Swap
 An "Another like this" button on draft cards.
 
-### A4. "What we learned"
+### Frontend 4. "What we learned"
 - Shown after each session.
 - Also shown in the history on the profile page.
 
-### A5. Review queue (`/profiles/:id/review`)
+### Frontend 5. Review queue (`/profiles/:id/review`)
 Hidden items, each with **Keep hidden**, **Show again** and **Never show**.
 
-### A6. How it works page
+### Frontend 6. How it works page
 - The agent diagram.
 - The Qloo calls, in plain words.
 - The table of who does what.
@@ -198,7 +198,7 @@ Locally (backend also run once from its Docker image):
 
 **Then freeze.** From now on, only bug fixes.
 
-**Then B deploys (B6).** Phase 4 is done when the judge path also passes on the live site. A and C stay online to test it on a phone and to help if the deploy needs a fix.
+**Then the backend owner deploys (Backend 6).** Phase 4 is done when the judge path also passes on the live site. The frontend and agent owners stay online to test it on a phone and to help if the deploy needs a fix.
 
 ## If you're behind
 

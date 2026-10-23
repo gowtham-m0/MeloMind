@@ -12,16 +12,16 @@
 
 1. Settle the open decisions in `docs/PLAN.md`, section 3.
 2. Read `CLAUDE.md` together, especially the rules, the "Who does what" table and Person mode.
-3. B creates the repo first. A and C start once it exists, to avoid conflicting scaffolds.
+3. The backend owner creates the repo first. The frontend and agent owners start once it exists, to avoid conflicting scaffolds.
 4. Everyone installs Claude Code, Python 3.12 and Node 20+.
 
 ---
 
 ## Step 2: Project setup
 
-**Order:** B's steps 1–3 come first (about an hour). Then A and C work in parallel.
+**Order:** the backend's steps 1–3 come first (about an hour). Then the frontend and agent work run in parallel.
 
-### B: repo, backend skeleton, CI, Dockerfile (≈ 4 h)
+### Backend: repo, backend skeleton, CI, Dockerfile (≈ 4 h)
 
 1. **Create the GitHub repo:**
    - public, with an MIT `LICENSE`, a `.gitignore` and a short `README.md`;
@@ -30,7 +30,7 @@
 2. **Backend skeleton**, using Claude Code (prompt below).
 3. **CI** with GitHub Actions:
    - backend: `ruff` and `pytest`;
-   - frontend: `npm ci`, `lint` and `build`, once A's scaffold has merged.
+   - frontend: `npm ci`, `lint` and `build`, once the frontend scaffold has merged.
 4. **`backend/Dockerfile`** and a `.dockerignore`:
    - Python 3.12 slim base, non-root user;
    - install with uv from the lockfile: `uv sync --frozen --no-dev`;
@@ -67,7 +67,7 @@ run it, call /api/v1/health, and show me the output.
 - `/api/v1/health` works on `localhost:8000`, both with `uvicorn` and in the Docker container.
 - CI is green on a test pull request.
 
-### A: frontend skeleton (≈ 4 h)
+### Frontend: frontend skeleton (≈ 4 h)
 
 1. **Frontend skeleton**, using Claude Code (prompt below). It has two layouts:
    - the **caregiver layout**, with navigation;
@@ -97,7 +97,7 @@ build and show me the output.
 
 **Check:** every route on `localhost:5173` survives a refresh (try `npm run build && npm run preview` too), and the home page shows "Backend: ok" from the backend on `localhost:8000`.
 
-### C: Qloo notes, agent design, keys and demo data (≈ 4 h)
+### Agent: Qloo notes, agent design, keys and demo data (≈ 4 h)
 
 1. **`docs/QLOO_NOTES.md`:**
    - endpoints, parameters for each entity type, and gotchas, from the Qloo developer guide and parameter guide;
@@ -107,7 +107,7 @@ build and show me the output.
      - the format `filter.release_country` expects;
      - whether `/v2/insights/compare` works with the hackathon key;
    - a section for the real response shapes.
-2. **`docs/AGENT.md`**, for B to review:
+2. **`docs/AGENT.md`**, for the backend owner to review:
    - all three workflows (plan a session, resolve a favourite, link a memory note) and their steps;
    - the tools, their inputs and outputs, and the limits;
    - the research brief for each mode (`standard`, `warmup`, later `bridge`), including the three cold-start tiers;
@@ -141,7 +141,7 @@ schema, the SessionMode interface, the rule-based fallback and the guardrails.
 Keep it under 4 pages. Don't write code.
 ```
 
-**Check:** B has reviewed both docs, the fixtures are committed, and the YouTube and LLM keys work.
+**Check:** the backend owner has reviewed both docs, the fixtures are committed, and the YouTube and LLM keys work.
 
 ---
 

@@ -139,9 +139,10 @@ These are decided. Change one only if the whole team agrees, and update `CLAUDE.
   - **Multi-agent:** more failure points, and slower.
 
 **11. The LLM behind a port, with a template fallback**
+- **Choice:** Groq (`openai/gpt-oss-120b`) as the main model, for speed inside the 25-second budget, with Gemini (`gemini-3.8-flash`) as the fallback when Groq fails or times out. A factory builds either one.
 - **Why:** you can switch providers, the demo never breaks, and tests run without an LLM.
-- **Costs:** two code paths to keep working.
-- **Mitigation:** test both paths.
+- **Costs:** two code paths to keep working, and a second provider's key.
+- **Mitigation:** test both paths. Memory notes stay on Groq, because a free Gemini key can use prompts for training.
 
 **12. Simple, interpretable learning rules from caregiver reactions and the person's taps**
 - **Why:** they're explainable, need no training data, and are easy to test and show judges.
@@ -193,7 +194,7 @@ These are decided. Change one only if the whole team agrees, and update `CLAUDE.
 **18. A Qloo adapter with hand-written fixtures and a live mode**
 - **Why:** you can build before the key arrives, the demo still works if Qloo has problems, and tests are deterministic.
 - **Costs:** the fixtures may not match real responses exactly.
-- **Mitigation:** C records the real response shapes as soon as the key arrives and fixes the parser.
+- **Mitigation:** the agent owner records the real response shapes as soon as the key arrives and fixes the parser.
 
 **19. YouTube for media**
 - **Why:** it has the widest catalogue, including old and Indian music and film clips. It also embeds, and it's free.
@@ -274,40 +275,40 @@ Before building, we put the plan through the questions a sceptical judge or team
 
 ## 3. Open decisions for the kickoff (Phase 0)
 
-1. **Roles:** who is A, B and C. The person who knows LangGraph best should be C.
+1. **Roles:** who owns the frontend, the backend and the agent. The person who knows LangGraph best should own the agent.
 2. **Frontend framework:** React, unless your frontend person is much faster in Angular.
-3. **LLM provider:** whichever personal account has credits. Set a spending cap, and don't use work accounts.
+3. **LLM provider:** decided: Groq as the main model, Gemini as the fallback (see decision 11). Use personal accounts with a spending cap, never work accounts.
 4. **Name:** "Melomind" is already the name of myBrain Technologies' EEG relaxation headset, which uses music, so it's close to your space. Either keep it and accept some confusion and trademark risk, or pick another name now, before anything is published.
 5. **Time off:** the plan has about 2 hours of slack per person. If anyone can take Thu 29 or Fri 30 Oct off, say so now. It decides how likely Bridge is to make it.
 6. **Daily check-in time:** a fixed 10 minutes.
-7. **Qloo key:** requested; C tracks it.
+7. **Qloo key:** requested; the agent owner tracks it.
 
 ---
 
 ## 4. Roles and ownership
 
-| Person | Role | Owns |
+| Owner | Area | Owns |
 |---|---|---|
-| **A** | Frontend and experience | `frontend/**`, including Person mode and the Memory Graph views; design and accessibility; caregiver conversations; screenshots and video |
-| **B** | Backend platform and data | `backend/app/api/**`, `infrastructure/persistence/**`, `alembic/`; the application services except `TasteService` (profiles, sessions, feedback, shelf, warm-up, memory); auth, CI, the `Dockerfile`, the Thursday-night deploy, the end-to-end test, the README |
-| **C** | Agent and integrations | `application/agent/**`, `application/modes/**`, `TasteService`, `infrastructure/{qloo,media,llm}/**`; `docs/AGENT.md`, `docs/QLOO_NOTES.md`; demo fixtures; the Devpost description |
+| **Frontend** | Frontend and experience | `frontend/**`, including Person mode and the Memory Graph views; design and accessibility; caregiver conversations; screenshots and video |
+| **Backend** | Backend platform and data | `backend/app/api/**`, `infrastructure/persistence/**`, `alembic/`; the application services except `TasteService` (profiles, sessions, feedback, shelf, warm-up, memory); auth, CI, the `Dockerfile`, the Thursday-night deploy, the end-to-end test, the README |
+| **Agent** | Agent and integrations | `application/agent/**`, `application/modes/**`, `TasteService`, `infrastructure/{qloo,media,llm}/**`; `docs/AGENT.md`, `docs/QLOO_NOTES.md`; demo fixtures; the Devpost description |
 
 **Shared files** (one person leads, one reviews):
 
 | File | Leads | Reviews |
 |---|---|---|
-| `domain/models.py` | B | C |
-| `domain/policies.py` (learning rules) | B | C |
-| `application/ports.py` | C | B |
-| `docs/API_CONTRACT.md` | B | A |
-| `api/deps.py` | B | C |
+| `domain/models.py` | Backend | Agent |
+| `domain/policies.py` (learning rules) | Backend | Agent |
+| `application/ports.py` | Agent | Backend |
+| `docs/API_CONTRACT.md` | Backend | Frontend |
+| `api/deps.py` | Backend | Agent |
 
 ---
 
 ## 5. Working with Claude Code as a team
 
 **Starting a session**
-- Start every session with: *"Read CLAUDE.md and docs/phases/phase-N-….md, task B3. Plan first and list the files you'll touch."*
+- Start every session with: *"Read CLAUDE.md and docs/phases/phase-N-….md, task Backend 3. Plan first and list the files you'll touch."*
 - Use plan mode for any task that touches more than 3 files. Approve the plan before Claude writes code.
 
 **Scope**
@@ -348,7 +349,7 @@ This is what a judge does in about 5 minutes. The demo data, the end-to-end test
 8. **Plan again.** The picks change, a prompt uses the memory, and the log explains why.
 9. If it's built, plan a **Bridge** visit with a grandchild's 3 favourites.
 
-Lakshmi (born 1950, Chennai) is the second sample profile. Keep her only if Qloo's coverage of older Indian titles is good enough (C checks this in Phase 1).
+Lakshmi (born 1950, Chennai) is the second sample profile. Keep her only if Qloo's coverage of older Indian titles is good enough (the agent owner checks this in Phase 1).
 
 ---
 
@@ -386,24 +387,24 @@ The hard deadline is **Sat 31 Oct, 9:15 AM IST**. Treat the overnight gap as an 
 
 | Who needs | What | From | By |
 |---|---|---|---|
-| A, C | The repo exists | B | Fri 23, first hour |
-| A | Phase 1 contract | B | Sat 10 AM |
-| B | Domain models agreed | C reviews | Sat 11 AM |
-| B | `TasteService.search`, for `/taste/search` and the demo seed | C | Sat 4 PM |
-| A, B | Phase 2 contract | B | Sun 10 AM |
-| A, B | Stub planner in the real shape | C | Sun 11 AM |
-| B | `TasteService.score`, for the warm-up | C | Sun evening |
-| C | `media_cache` and `agent_runs` repositories (in-memory until then) | B | Sun evening |
-| A | Phase 2 routes running on localhost (the planner may still be the stub) | B | Sun night |
-| B | Real planner merged | C | Mon 8 PM |
+| Frontend, Agent | The repo exists | Backend | Fri 23, first hour |
+| Frontend | Phase 1 contract | Backend | Sat 10 AM |
+| Backend | Domain models agreed | Agent reviews | Sat 11 AM |
+| Backend | `TasteService.search`, for `/taste/search` and the demo seed | Agent | Sat 4 PM |
+| Frontend, Backend | Phase 2 contract | Backend | Sun 10 AM |
+| Frontend, Backend | Stub planner in the real shape | Agent | Sun 11 AM |
+| Backend | `TasteService.score`, for the warm-up | Agent | Sun evening |
+| Agent | `media_cache` and `agent_runs` repositories (in-memory until then) | Backend | Sun evening |
+| Frontend | Phase 2 routes running on localhost (the planner may still be the stub) | Backend | Sun night |
+| Backend | Real planner merged | Agent | Mon 8 PM |
 | All | Full loop and Person mode working locally | All | **Mon night** |
-| A, C | Phase 3 contract and memory repositories | B | Tue, start of the evening |
-| B | `resolve_favourite` and `link_memory` callable | C | Tue night |
-| A | Memory routes live | B | Wed 8 PM |
-| C | Caregiver quote | A | Wed night |
-| A | Bridge, swap, instructions, "learned" and review-queue routes | B, C | Thu 8 PM |
+| Frontend, Agent | Phase 3 contract and memory repositories | Backend | Tue, start of the evening |
+| Backend | `resolve_favourite` and `link_memory` callable | Agent | Tue night |
+| Frontend | Memory routes live | Backend | Wed 8 PM |
+| Agent | Caregiver quote | Frontend | Wed night |
+| Frontend | Bridge, swap, instructions, "learned" and review-queue routes | Backend, Agent | Thu 8 PM |
 | All | Feature freeze | All | **Thu night** |
-| All | Live site deployed | B | Thu night |
+| All | Live site deployed | Backend | Thu night |
 
 ---
 
@@ -411,20 +412,20 @@ The hard deadline is **Sat 31 Oct, 9:15 AM IST**. Treat the overnight gap as an 
 
 | Risk | Level | Mitigation | Owner |
 |---|---|---|---|
-| The Qloo key arrives late | Medium | Fixtures carry Phases 0–2; ask in #api-help | C |
-| Qloo has little data for older or Indian titles | Medium | Coverage check in Phase 1, the hint ladder and fallbacks; lead the demo with Margaret | C |
-| A Qloo parameter we rely on doesn't work (`filter.results.entities`, compare, the age signal) | Medium | The "To verify" list in Phase 1, with a fallback for each | C |
-| The LLM is slow, wrong or down | Medium | Structured output, a 15-second timeout, the template fallback | C |
-| The research agent loops, wanders or is slow | Medium | Middleware limits, a 25-second timeout, the rule-based fallback | C |
-| The AI misidentifies a song or suggests a wrong link | Medium | The caregiver confirms every guess and link; rejected links are never suggested again | C |
-| Random taps teach the wrong thing | Low–Medium | Small weights, once per item per day, skips never hide; caregiver reactions outweigh taps | B |
-| Person mode confuses or upsets someone in real use | Medium | Only approved items, two choices at most, no time limits, Stop always visible, a caregiver present, and the caregiver button hides an item at once | A |
-| A personal prompt mentions someone painful | Medium | The "Use in prompts" switch; the caregiver sees and can edit every prompt | C |
-| Memory notes hold sensitive personal data | Medium | The privacy rules (`CLAUDE.md`, rule 14), no medical fields, deleted with the profile | B |
-| The Memory Graph looks empty or messy | Medium | Seeded memories, the 30-node cap, decade grouping, the list view | A |
-| YouTube quota, non-embeddable videos or ads | Medium | Cache, the embeddable check, warm caches, ads listed as a known limitation | C |
-| The app is asleep or paused during judging | High | Lightsail always on, a Supabase ping, a check on 2 Nov | B |
-| The first deploy fails close to the deadline | High | Dockerfile from Phase 0, test in Docker locally every phase, deploy Thursday night with Friday as the buffer | B |
+| The Qloo key arrives late | Medium | Fixtures carry Phases 0–2; ask in #api-help | Agent |
+| Qloo has little data for older or Indian titles | Medium | Coverage check in Phase 1, the hint ladder and fallbacks; lead the demo with Margaret | Agent |
+| A Qloo parameter we rely on doesn't work (`filter.results.entities`, compare, the age signal) | Medium | The "To verify" list in Phase 1, with a fallback for each | Agent |
+| The LLM is slow, wrong or down | Medium | Structured output, a 15-second timeout, the template fallback | Agent |
+| The research agent loops, wanders or is slow | Medium | Middleware limits, a 25-second timeout, the rule-based fallback | Agent |
+| The AI misidentifies a song or suggests a wrong link | Medium | The caregiver confirms every guess and link; rejected links are never suggested again | Agent |
+| Random taps teach the wrong thing | Low–Medium | Small weights, once per item per day, skips never hide; caregiver reactions outweigh taps | Backend |
+| Person mode confuses or upsets someone in real use | Medium | Only approved items, two choices at most, no time limits, Stop always visible, a caregiver present, and the caregiver button hides an item at once | Frontend |
+| A personal prompt mentions someone painful | Medium | The "Use in prompts" switch; the caregiver sees and can edit every prompt | Agent |
+| Memory notes hold sensitive personal data | Medium | The privacy rules (`CLAUDE.md`, rule 14), no medical fields, deleted with the profile | Backend |
+| The Memory Graph looks empty or messy | Medium | Seeded memories, the 30-node cap, decade grouping, the list view | Frontend |
+| YouTube quota, non-embeddable videos or ads | Medium | Cache, the embeddable check, warm caches, ads listed as a known limitation | Agent |
+| The app is asleep or paused during judging | High | Lightsail always on, a Supabase ping, a check on 2 Nov | Backend |
+| The first deploy fails close to the deadline | High | Dockerfile from Phase 0, test in Docker locally every phase, deploy Thursday night with Friday as the buffer | Backend |
 | Three people's AI-written code doesn't fit together | High | `CLAUDE.md`, contracts first, a human reviews every PR | All |
 | Merge conflicts in shared files | Medium | The ownership table; shared files change only through a PR from their lead | All |
 | Scope: three big features in 8 days, alongside day jobs | High | The build order, the cut lines, a freeze on Thursday night, and asking about time off | All |

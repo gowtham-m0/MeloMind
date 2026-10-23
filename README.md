@@ -67,6 +67,8 @@ npm run gen:api    # regenerate API types while the backend is running
 - [Plan, decisions and risks](docs/PLAN.md)
 - [Phases](docs/phases/PHASES.md)
 - [API contract](docs/API_CONTRACT.md)
+- [Agent design](docs/AGENT.md)
+- [Qloo notes](docs/QLOO_NOTES.md)
 - [How we work with Claude Code](CLAUDE.md)
 
 ## License

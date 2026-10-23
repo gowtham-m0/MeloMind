@@ -80,7 +80,7 @@ Read the "Decisions" section of `docs/PLAN.md` before proposing a change.
 | Area | Choice |
 |---|---|
 | Backend | Python 3.12, FastAPI, Pydantic v2, httpx (async), pytest, ruff. uv manages Python, the virtual env and packages (`pyproject.toml` and `uv.lock`; no requirements files) |
-| Agent | LangGraph for the outer workflows, plus LangChain's `create_agent` for the research step, bounded by middleware (`ToolCallLimitMiddleware`, `ModelCallLimitMiddleware`, `ToolRetryMiddleware`, `ModelFallbackMiddleware`). One LLM provider behind a port, with structured output and a template fallback. No Deep Agents |
+| Agent | LangGraph for the outer workflows, plus LangChain's `create_agent` for the research step, bounded by middleware (`ToolCallLimitMiddleware`, `ModelCallLimitMiddleware`, `ToolRetryMiddleware`, `ModelFallbackMiddleware`). The LLM sits behind one port: Groq (`openai/gpt-oss-120b`) as the main model and Gemini (`gemini-3.8-flash`) as the fallback, built by a factory in `infrastructure/llm/`, with structured output and a template fallback (`langchain-groq`, `langchain-google-genai`). No Deep Agents |
 | Database | Supabase Postgres via SQLAlchemy 2.0 (async, asyncpg), with Alembic migrations. The Memory Graph uses two ordinary tables, not a graph database |
 | Auth | Supabase Auth, with anonymous sign-in for the demo. The backend verifies access tokens against the project's JWKS |
 | Frontend | React 19, Vite, TypeScript (strict), React Router, TanStack Query, Tailwind and shadcn/ui. A graph library (react-force-graph or Cytoscape.js) for the Memory Graph view only |
@@ -177,7 +177,7 @@ There is **one agent, built as a hybrid**:
 - `ToolCallLimitMiddleware`: at most 12 Qloo calls per planning run, 5 searches per favourite, and 10 per memory note.
 - `ModelCallLimitMiddleware`: at most 8 model calls per run.
 - `ToolRetryMiddleware` for temporary errors.
-- `ModelFallbackMiddleware` for a backup model.
+- `ModelFallbackMiddleware`: switches to the Gemini fallback model when a Groq call fails or times out.
 - A 25-second overall timeout.
 
 When a limit is hit or the agent fails, the **rule-based fallback** takes over, so a result is always produced.
@@ -420,9 +420,11 @@ The full notes are in `docs/QLOO_NOTES.md`.
 
 ## LLM rules
 
-- Use one provider behind the `LanguageModel` port. Set the model name in the environment.
+- Everything goes through the `LanguageModel` port. `infrastructure/llm/factory.py` builds the chat model for a provider name (`groq` or `gemini`), and `api/deps.py` is the only place that picks them. Provider, model and key come from the environment.
+- **Groq is the main model, Gemini the fallback.** A Groq call that fails or times out (8 seconds) is retried once on Gemini. If that also fails, the template fallback takes over.
+- **Memory notes never go to Gemini on a free key**, because free-tier prompts can be used for training. `link_memory` uses Groq only, and a Groq failure means "no suggestions, try again". Lift this only with a paid Gemini key.
 - Validate output against Pydantic schemas. On invalid output, fall back to templates.
-- Use a low temperature for planning, and a 15-second timeout that triggers the template fallback.
+- Use a low temperature for planning, and a 15-second overall timeout per LLM step that triggers the template fallback.
 - Send only what's needed:
   - first name, birth year, places and favourites;
   - the text of a memory note, only while suggesting links for it;
@@ -581,6 +583,9 @@ cd e2e && npx playwright test
   - `LLM_PROVIDER`
   - `LLM_MODEL`
   - `LLM_API_KEY`
+  - `LLM_FALLBACK_PROVIDER`
+  - `LLM_FALLBACK_MODEL`
+  - `LLM_FALLBACK_API_KEY`
 - Agent and limits:
   - `AGENT_MAX_TOOL_CALLS=12`
   - `AGENT_MAX_MODEL_CALLS=8`

@@ -139,9 +139,10 @@ These are decided. Change one only if the whole team agrees, and update `CLAUDE.
   - **Multi-agent:** more failure points, and slower.
 
 **11. The LLM behind a port, with a template fallback**
+- **Choice:** Groq (`openai/gpt-oss-120b`) as the main model, for speed inside the 25-second budget, with Gemini (`gemini-3.8-flash`) as the fallback when Groq fails or times out. A factory builds either one.
 - **Why:** you can switch providers, the demo never breaks, and tests run without an LLM.
-- **Costs:** two code paths to keep working.
-- **Mitigation:** test both paths.
+- **Costs:** two code paths to keep working, and a second provider's key.
+- **Mitigation:** test both paths. Memory notes stay on Groq, because a free Gemini key can use prompts for training.
 
 **12. Simple, interpretable learning rules from caregiver reactions and the person's taps**
 - **Why:** they're explainable, need no training data, and are easy to test and show judges.
@@ -193,7 +194,7 @@ These are decided. Change one only if the whole team agrees, and update `CLAUDE.
 **18. A Qloo adapter with hand-written fixtures and a live mode**
 - **Why:** you can build before the key arrives, the demo still works if Qloo has problems, and tests are deterministic.
 - **Costs:** the fixtures may not match real responses exactly.
-- **Mitigation:** C records the real response shapes as soon as the key arrives and fixes the parser.
+- **Mitigation:** the agent owner records the real response shapes as soon as the key arrives and fixes the parser.
 
 **19. YouTube for media**
 - **Why:** it has the widest catalogue, including old and Indian music and film clips. It also embeds, and it's free.
