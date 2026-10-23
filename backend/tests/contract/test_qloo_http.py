@@ -258,3 +258,41 @@ async def test_non_json_body_is_an_empty_result() -> None:
     recorder = Recorder(httpx.Response(200, text="<html>oops</html>"))
 
     assert await make_graph(recorder).search("Example") == []
+
+
+async def test_tags_send_the_query_and_map_id_to_tag_id() -> None:
+    body = {
+        "success": True,
+        "results": {
+            "tags": [
+                {"id": "urn:tag:genre:music:60s", "name": "60s", "type": "urn:tag:genre:music"},
+                {"name": "no id"},
+                "not a tag",
+            ]
+        },
+    }
+    recorder = Recorder(httpx.Response(200, json=body))
+
+    tags = await make_graph(recorder).tags("60s", take=3)
+
+    request = recorder.requests[0]
+    assert request.url.path == "/v2/tags"
+    assert request.url.params["filter.query"] == "60s"
+    assert request.url.params["take"] == "3"
+    assert [(tag.tag_id, tag.name) for tag in tags] == [("urn:tag:genre:music:60s", "60s")]
+
+
+def test_insights_params_for_warmup_scoring() -> None:
+    params = build_insights_params(
+        InsightsQuery(
+            EntityType.ARTIST,
+            take=4,
+            signal_entities=("chosen",),
+            score_entities=("a", "b"),
+            exclude_entities=("blocked",),
+        )
+    )
+
+    assert params["filter.results.entities"] == "a,b"
+    assert params["signal.interests.entities"] == "chosen"
+    assert params["filter.exclude.entities"] == "blocked"

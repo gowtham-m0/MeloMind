@@ -11,12 +11,12 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
 
 from app.api.auth import SupabaseTokenVerifier
-from app.api.deps import Container, get_container, wire
+from app.api.deps import Adapters, Container, get_container, memory_adapters, wire
 from app.core.settings import Settings
-from app.infrastructure.persistence.memory_profiles import InMemoryProfileRepository
 from app.infrastructure.qloo.demo_profiles import load_demo_profiles
 from app.infrastructure.qloo.fixture_taste_graph import FixtureTasteGraph
 from app.main import create_app
+from tests.fakes import InlineRunner
 
 ISSUER = "https://test-project.supabase.co/auth/v1"
 KEY_ID = "test-key"
@@ -69,16 +69,35 @@ def verifier() -> SupabaseTokenVerifier:
     return SupabaseTokenVerifier(FakeSigningKeys(), issuer=ISSUER)
 
 
+def make_settings() -> Settings:
+    """Settings with no keys: demo fixtures, demo media and no LLM."""
+    return Settings(_env_file=None, app_env="test")
+
+
+def make_container(
+    verifier: SupabaseTokenVerifier | None, adapters: Adapters | None = None
+) -> Container:
+    """Services over in-memory storage and the demo fixtures, running background jobs inline,
+    so a plan has finished by the time its request returns."""
+    return wire(
+        adapters or memory_adapters(FixtureTasteGraph()),
+        verifier,
+        load_demo_profiles(),
+        make_settings(),
+        InlineRunner(),
+    )
+
+
 @pytest.fixture
 def container(verifier: SupabaseTokenVerifier) -> Container:
     """Services over the demo fixtures and in-memory storage."""
-    return wire(FixtureTasteGraph(), InMemoryProfileRepository(), verifier, load_demo_profiles())
+    return make_container(verifier)
 
 
 @pytest.fixture
 def client(container: Container) -> Iterator[TestClient]:
     """An API client whose app uses the test container."""
-    app = create_app(Settings(_env_file=None, app_env="test"))
+    app = create_app(make_settings())
     app.dependency_overrides[get_container] = lambda: container
     with TestClient(app) as test_client:
         yield test_client

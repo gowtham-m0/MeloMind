@@ -6,11 +6,8 @@ from uuid import UUID
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_container, wire
-from app.infrastructure.persistence.memory_profiles import InMemoryProfileRepository
-from app.infrastructure.qloo.demo_profiles import load_demo_profiles
-from app.infrastructure.qloo.fixture_taste_graph import FixtureTasteGraph
-from tests.conftest import make_token
+from app.api.deps import get_container
+from tests.conftest import make_container, make_token
 
 PROFILES = "/api/v1/profiles"
 
@@ -77,9 +74,7 @@ def test_garbage_token_is_401(client: TestClient) -> None:
 def test_without_supabase_configured_every_request_is_401(
     client: TestClient, user_id: UUID
 ) -> None:
-    unconfigured = wire(
-        FixtureTasteGraph(), InMemoryProfileRepository(), None, load_demo_profiles()
-    )
+    unconfigured = make_container(None)
     client.app.dependency_overrides[get_container] = lambda: unconfigured  # type: ignore[attr-defined]
 
     response = client.get(PROFILES, headers={"Authorization": f"Bearer {make_token(user_id)}"})
