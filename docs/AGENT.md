@@ -16,7 +16,7 @@ Owner: the agent owner. Reviewer: the backend owner. This is the design for `bac
 - **Ports only.** Nodes and tools receive `TasteGraph`, `MediaResolver`, `LanguageModel` and the
   repositories from the workflow builder. They never import an adapter.
 - **Every run is an `agent_run`** (kind `plan`, `resolve` or `link`) with a status (`running`,
-  `done`, `failed`, `needs_hint`) and a plain-English log. The frontend polls
+  `done`, `failed`, and `needs_hint` once Workflow 2 exists) and a plain-English log. The frontend polls
   `/agent-runs/{id}`.
 - **A result is always produced.** When the agent fails or hits a limit, code takes over.
 
@@ -109,10 +109,10 @@ Each is a thin wrapper over a port. Each validates its inputs and logs its call 
 |---|---|---|---|---|
 | `search_entities` | `name`, `type?` | ≤ 5 matches: `entity_id`, `name`, `type`, `year` | `TasteGraph.search` | Non-empty; type in the four we use; rejects text the interpreter flagged as a song title or lyric |
 | `find_tags` | `query` | ≤ 5 tags: `tag_id`, `name` | `TasteGraph.tags` | Non-empty |
-| `get_insights` | `type`, `signals` (entity and tag IDs), `era?`, `country?`, `popularity_min?`, `take` | Candidates with affinity | `TasteGraph.insights` | **Adds the profile's `blocked_ids` itself**; maps era to `release_year` or `publication_year` by type and drops it for artists; drops country for artists and books; `take` 1–20 |
+| `get_insights` | `type`, `signals` (entity and tag IDs), `era?`, `country?`, `popularity_min?`, `older_audience?`, `take` | Candidates with affinity | `TasteGraph.insights` | **Adds the profile's `blocked_ids` itself**; maps era to `release_year` or `publication_year` by type and drops it for artists; drops country for artists and books; `take` 1–20 |
 | `find_memory_nodes` | `query`, `kind?` | Existing nodes: `node_id`, `kind`, `title` | memory repository | Scoped to this profile |
 | `compare_tastes` (Phase 4) | `group_a`, `group_b` (IDs) | Shared and bridging entities | `TasteGraph.compare` | 1–5 IDs per group |
-| `submit_candidates` | `[{entity_id, why}]` | Accepted count | none | **Rejects any ID not returned by a tool in this run** (rule 9) and any blocked ID |
+| `submit_candidates` | `[{entity_id, why?}]` | Accepted count | none | **Accepts only IDs that `get_insights` returned in this run** (rule 9: candidates are Qloo's recommendations; a name found by search is a signal, not a pick), never a blocked ID. Ends the agent's run (`return_direct`) |
 | `propose_matches` | `[{entity_id, rung, why}]` | — | none | ≤ 3; IDs must come from this run |
 | `propose_links` | proposals (section 5) | — | none | Nodes must exist or be well-formed new nodes |
 
@@ -123,6 +123,22 @@ favourite, 10 per note), `ModelCallLimitMiddleware` (8), `ToolRetryMiddleware` (
 only), `ModelFallbackMiddleware` (backup model). An `asyncio` deadline of 25 seconds wraps the
 whole research step. Hitting any limit ends research with `limit_hit` or `timeout` and keeps the
 candidates already submitted.
+
+How it is built (`agent/research_agent.py`, `nodes/research.py`):
+- The tools count Qloo calls themselves. When the 12 are spent they refuse, telling the agent to
+  call `submit_candidates`, so it can still answer. `ToolCallLimitMiddleware` (12 + 2 calls,
+  `exit_behavior="end"`) is the hard backstop.
+- Research gets `AGENT_TIMEOUT_SECONDS` (25) of its own; compose gets at most 15 seconds, else
+  templates. Media for the selected items is looked up in parallel.
+- When research ends early without submitting, it keeps every recommendation `get_insights`
+  returned, which are still Qloo's picks. The fallback then runs only for types that are short.
+- Groq's free tier allows 8,000 tokens a minute, and every agent turn resends the history. So
+  tool answers are compact JSON, reasoning effort is low, the prompt asks for all four
+  `get_insights` calls in one turn, and `submit_candidates` ends the run. A Groq 429 hands over
+  to Gemini through `ModelFallbackMiddleware`; Gemini's API needs a deadline of at least 10
+  seconds, so its calls get 15. A live plan for Margaret took 2 model calls, 4 Qloo calls and
+  about 24 seconds in all.
+- Without LLM keys, research is skipped (`skipped`) and the fallback plans the session.
 
 ## 8. Session modes
 
@@ -169,14 +185,21 @@ still apply. Results carry `source = qloo_live` or `demo_fixture`, like research
 5. After `compose`, check text in code: a prompt starting "Do you remember" or containing a
    medical claim ("treats", "improves memory", "reduces agitation"…) is replaced by a template.
 
+Guardrail 3 exempts books (section 13). Guardrail 4 drops the lowest-ranked item of a type that has
+more than one, so the mix keeps its variety. The warm-up has no length to fit: it is capped at its
+mix size. The templates live in `application/agent/prompts/templates.py`, because both
+`compose` and guardrail 5 need them and the application can't import infrastructure.
+
 ## 10. Research agent system prompt (outline)
 
 1. Role: "You research songs, films, TV and books for a caregiver-led music and memory session."
 2. The brief: goal, mix, era window, country, popularity floor, caregiver instructions, tier.
 3. Allowed signals: the verified favourites' IDs and names, learned items, region tags.
-4. Rules: use only tool results; never search a song title or lyric; one `get_insights` per type
-   at most twice; stop when you have about twice the mix; then call `submit_candidates` with a
-   one-line `why` for each.
+4. Steps and rules: call `get_insights` once per type, all in the first turn; at most once more
+   for a type that came back short; then call `submit_candidates` once with about the mix plus
+   spares plus 4, from `get_insights` results only, with an optional `why` of up to 8 words
+   (compose writes the caregiver's reasons). Never search a song title or lyric, and don't search
+   for favourites whose IDs are in the brief.
 5. It never sees memory note text, keys, or anything beyond first name, birth year, places and
    favourites.
 
@@ -190,7 +213,7 @@ tried and the outcome, using → and ✓ / ✗:
 - "Hit the 12-call limit; switched to the rule-based plan."
 - "Removed Gone with the Wind: outside the era." / "Removed 1 item the caregiver rejected."
 
-Entries are `{at, step, message, level}`. Never log keys, memory note text, lyrics or raw Qloo
+Entries are `{node, message, level, at}`, where `level` is `info` or `warning`. Never log keys, memory note text, lyrics or raw Qloo
 responses.
 
 ## 12. Privacy boundaries
@@ -206,11 +229,11 @@ responses.
 
 ## 13. Open questions (for the backend owner and the team)
 
-1. **Books in sessions:** books rarely have a playable video. Options: a fixed conversation slot
-   (no video, counts as about 3 minutes), or a clip of the film adaptation. Person mode skips them
-   either way, since the shelf needs a playable video.
+1. **Books in sessions (decided in Phase 2):** a fixed conversation slot with no video, counted
+   as 3 minutes (`BOOK_TALK_SECONDS`), with gentle prompts for the caregiver. No quotes from books
+   (copyright, and they could be made up). Guardrail 3 exempts books; the shelf skips them.
 2. **Artists to songs:** we play the YouTube result for "<artist> <decade>". Is showing that video's
    title on the card acceptable, given titles can be messy?
 3. **Settled by live tests:** both compare paths work; `filter.results.entities` works for the
    warm-up; `take` defaults to 20, not 5; `filter.release_country` needs full country names.
-   `CLAUDE.md` should be corrected on `take`.
+   `CLAUDE.md` has been corrected.

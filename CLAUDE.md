@@ -3,7 +3,7 @@
 This file tells Claude Code how to work in this repo. Read it at the start of every session.
 The plan, decisions, roles and risks are in `docs/PLAN.md`. Each phase's tasks are in their own file in `docs/phases/`.
 
-**Current phase: 0, Kickoff and setup** (`docs/phases/phase-0-setup.md`). Update this line when a phase ends.
+**Current phase: 2, Core loop** (`docs/phases/phase-2-core-loop.md`). Update this line when a phase ends.
 
 ---
 
@@ -110,12 +110,12 @@ melomind/
 │   │   ├── application/
 │   │   │   ├── ports.py         interfaces: TasteGraph, MediaResolver, LanguageModel, repositories
 │   │   │   ├── services/        use cases: profiles, taste, sessions, feedback, shelf, memory
-│   │   │   ├── agent/           workflows/ (plan_session, resolve_favourite, link_memory), nodes/, tools/, prompts/, state
+│   │   │   ├── agent/           workflows/ (plan_session, resolve_favourite, link_memory), nodes/, tools/, prompts/ (with the template fallback), state
 │   │   │   └── modes/           session modes (Strategy) and the ModeRegistry
 │   │   ├── infrastructure/
 │   │   │   ├── qloo/            live HTTP adapter, fixture adapter, fixtures/
 │   │   │   ├── media/           YouTube resolver, demo resolver
-│   │   │   ├── llm/             provider adapter, template fallback
+│   │   │   ├── llm/             chat-model factory (Groq, Gemini) and the LanguageModel adapter
 │   │   │   └── persistence/     SQLAlchemy models, Postgres and in-memory repositories
 │   │   └── api/
 │   │       ├── deps.py          composition root: builds and wires everything
@@ -168,7 +168,7 @@ There is **one agent, built as a hybrid**:
 |---|---|
 | `search_entities(name, type?)` | Qloo `/search`. Returns matches with type and year |
 | `find_tags(query)` | Qloo `/v2/tags` |
-| `get_insights(type, signals, era?, country?, popularity_min?, take)` | Qloo `/v2/insights`. **Always adds the profile's exclusions itself**, and allows only supported parameters |
+| `get_insights(type, signals, era?, country?, popularity_min?, older_audience?, take)` | Qloo `/v2/insights`. **Always adds the profile's exclusions itself**, and allows only supported parameters |
 | `find_memory_nodes(query, kind?)` | Existing people, places and other nodes in this profile's Memory Graph |
 | `compare_tastes(group_a, group_b)` | Qloo `/v2/insights/compare` (Phase 4, Bridge) |
 | `submit_candidates(...)` / `propose_matches(...)` / `propose_links(...)` | The agent's final, structured answer |
@@ -245,7 +245,7 @@ Qloo needs no history. The first session uses whatever the family gives:
 |---|---|
 | **3 or more favourites** | The favourites as signals. Qloo expands them straight away |
 | **1–2 favourites or a hint** | The hint ladder's result (singer, film or tag), plus era and country |
-| **Nothing specific** | Birth year (era), where they grew up (region), language, `signal.demographics.age=55_and_older` and a high popularity floor: the big hits of their youth |
+| **Nothing specific** | Birth year (era), where they grew up (region), language, `signal.demographics.age=55_and_older` and a high popularity floor: the big hits of their youth. Artists follow the era's films and tags instead, never the age signal alone (it returns today's bands) |
 
 **Onboarding**
 - Only the display name and birth year are required.
@@ -380,7 +380,7 @@ The full notes are in `docs/QLOO_NOTES.md`.
 - `/entities`: gets details for IDs.
 - `/v2/insights`: recommendations. `filter.type` is required.
 - `/v2/tags`: tag IDs.
-- `/v2/insights/compare` and `/analysis`: check how they behave before relying on them.
+- `/v2/insights/compare` and `/v2/analysis/compare`: both work (checked live) and return tags, not items.
 - **Never call `/recommendations` or `/recs`.**
 
 **Entity types we use:** `urn:entity:artist`, `movie`, `tv_show` and `book`.
@@ -392,12 +392,12 @@ The full notes are in `docs/QLOO_NOTES.md`.
 - `signal.demographics.age=55_and_older`
 - `filter.release_year.min` and `.max` (movies and TV)
 - `filter.publication_year.min` and `.max` (books)
-- `filter.release_country`
+- `filter.release_country` (films and TV; it needs the full country name, which the adapter converts from the ISO code)
 - `filter.popularity.min`
 - `filter.exclude.entities`
 - `filter.exclude.tags`
-- `filter.results.entities`: scores a given set, used by the Person-mode warm-up. Check it works.
-- `take`: the default is 5, so **always set it**.
+- `filter.results.entities`: scores a given set, used by the Person-mode warm-up (checked live: it works).
+- `take`: the default is 20 (up to 50), so **always set it**.
 
 **Gotchas**
 - **Invalid parameters are silently ignored.** When results are empty, check the parameter guide.
@@ -414,6 +414,8 @@ The full notes are in `docs/QLOO_NOTES.md`.
   - pre-warm the demo profiles.
 - Before using a video, call `videos.list` to check that `status.embeddable` is true, and read `contentDetails.duration`.
 - If nothing is playable, mark the item "No playable version found" and use a spare. **Never substitute an unrelated video.**
+- **Books have no video.** In a session a book is a 3-minute conversation slot (`BOOK_TALK_SECONDS`), so the playable-video rule exempts it. Books never appear in Person mode. No quotes from books (copyright).
+- Without `YOUTUBE_API_KEY`, a demo resolver gives stand-in media (`provider: "demo"`), shown as demo media, never as a real video.
 - Embedded videos can show ads, and we can't control that. List it under known limitations.
 
 ---
