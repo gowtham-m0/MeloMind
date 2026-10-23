@@ -48,5 +48,8 @@ fallback.
   Chithirappavai, A. M. Rajah.
 - **Thin coverage, on purpose:** Lakshmi has no TV inside her era and only two books, as we
   expect from Qloo for older Tamil titles. Plans for her must still fill a session.
+- **Cold start:** a `60s pop` decade tag on the 1960s US and UK artists, so a profile with only
+  a birth year still gets era artists through `find_tags("60s")`, as live Qloo does with
+  `urn:tag:genre:music:60s`.
 - **Exclusions:** any ID works. Tests usually exclude `demo-artist-the-temptations`, which
   appears in two of Margaret's insight lists.

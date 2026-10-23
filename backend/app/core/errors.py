@@ -29,6 +29,18 @@ class InvalidInputError(AppError):
     code = "invalid_input"
 
 
+class ConflictError(AppError):
+    """The request doesn't fit the resource's current state, such as approving it twice."""
+
+    code = "conflict"
+
+
+class RateLimitedError(AppError):
+    """The user made too many requests of this kind recently."""
+
+    code = "rate_limited"
+
+
 class UpstreamError(AppError):
     """An external service (Qloo, YouTube or the LLM) failed or timed out."""
 

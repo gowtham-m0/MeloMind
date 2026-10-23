@@ -7,8 +7,10 @@ from fastapi.responses import JSONResponse
 
 from app.core.errors import (
     AppError,
+    ConflictError,
     InvalidInputError,
     NotFoundError,
+    RateLimitedError,
     UnauthorizedError,
     UpstreamError,
 )
@@ -18,7 +20,9 @@ logger = logging.getLogger(__name__)
 _STATUS_BY_ERROR: dict[type[AppError], int] = {
     UnauthorizedError: 401,
     NotFoundError: 404,
+    ConflictError: 409,
     InvalidInputError: 422,
+    RateLimitedError: 429,
     UpstreamError: 502,
 }
 

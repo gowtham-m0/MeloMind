@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from app.application.ports import EntityMatch, InsightsQuery, TasteSource
+from app.application.ports import EntityMatch, InsightsQuery, TagMatch, TasteSource
 from app.domain.models import EntityType
 from app.domain.names import normalise_name
 from app.infrastructure.qloo.urns import COUNTRY_FILTER_TYPES, TYPE_BY_URN, YEAR_FILTER_TYPES
@@ -68,6 +68,10 @@ class FixtureTasteGraph:
             signal: {item["entity_id"]: item["affinity"] for item in items}
             for signal, items in _read(fixtures_dir, "insights.json")["related"].items()
         }
+        self._tags = [
+            TagMatch(tag_id=raw["tag_id"], name=raw["name"])
+            for raw in _read(fixtures_dir, "tags.json")["tags"]
+        ]
 
     @property
     def source(self) -> TasteSource:
@@ -104,6 +108,13 @@ class FixtureTasteGraph:
             entity.to_match(scores.get(entity.entity_id) if has_signals else None)
             for entity in kept[: query.take]
         ]
+
+    async def tags(self, query: str, take: int = 5) -> list[TagMatch]:
+        """Tags whose name contains the query."""
+        needle = normalise_name(query)
+        if not needle:
+            return []
+        return [tag for tag in self._tags if needle in normalise_name(tag.name)][:take]
 
     def _score(self, query: InsightsQuery) -> dict[str, float]:
         scores: dict[str, float] = {}

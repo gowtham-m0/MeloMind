@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-from app.application.ports import EntityMatch, InsightsQuery, TasteSource
+from app.application.ports import EntityMatch, InsightsQuery, TagMatch, TasteSource
 from app.core.errors import UpstreamError
 from app.domain.models import EntityType
 from app.infrastructure.qloo.countries import country_name
@@ -96,6 +96,16 @@ def parse_entity(raw: Any) -> EntityMatch | None:
     )
 
 
+def parse_tag(raw: Any) -> TagMatch | None:
+    """One `/v2/tags` result, or None when it's malformed."""
+    if not isinstance(raw, Mapping):
+        return None
+    tag_id, name = raw.get("id"), raw.get("name")
+    if not isinstance(tag_id, str) or not isinstance(name, str):
+        return None
+    return TagMatch(tag_id=tag_id, name=name)
+
+
 def _entity_type(raw: Mapping[str, Any]) -> EntityType | None:
     # Insights put the real type in `subtype`; search lists it in `types`.
     urns = [raw.get("subtype"), raw.get("type")]
@@ -163,6 +173,14 @@ class QlooHttpTasteGraph:
         entities = results.get("entities") if isinstance(results, Mapping) else None
         matches = self._parse_all(entities if isinstance(entities, list) else [])
         return [match for match in matches if match.type is query.entity_type]
+
+    async def tags(self, query: str, take: int = 5) -> list[TagMatch]:
+        """`GET /v2/tags`. Qloo's tag ID field is `id`."""
+        body = await self._get("/v2/tags", {"filter.query": query, "take": str(take)})
+        results = body.get("results")
+        rows = results.get("tags") if isinstance(results, Mapping) else None
+        tags = [parse_tag(row) for row in (rows if isinstance(rows, list) else [])]
+        return [tag for tag in tags if tag is not None]
 
     @staticmethod
     def _parse_all(rows: list[Any]) -> list[EntityMatch]:

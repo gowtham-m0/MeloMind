@@ -5,6 +5,7 @@
     { "tag_id": "demo-tag-soul", "name": "Soul", "kind": "genre" },
     { "tag_id": "demo-tag-girl-group", "name": "Girl group", "kind": "genre" },
     { "tag_id": "demo-tag-rock-and-roll", "name": "Rock and roll", "kind": "genre" },
+    { "tag_id": "demo-tag-60s-pop", "name": "60s pop", "kind": "decade" },
     { "tag_id": "demo-tag-chicago-blues", "name": "Chicago blues", "kind": "genre" },
     { "tag_id": "demo-tag-gospel", "name": "Gospel", "kind": "genre" },
     { "tag_id": "demo-tag-folk", "name": "Folk", "kind": "genre" },
