@@ -37,7 +37,7 @@ async def build_rows(state: FeedState, deps: FeedDeps) -> FeedState:
         taste=deps.taste,
         log=deps.log,
         context=context,
-        max_qloo_calls=max(deps.limits.feed_max_qloo_calls - deps.limits.max_tool_calls, 0),
+        max_qloo_calls=max(deps.limits.feed_max_qloo_calls - state.get("qloo_calls", 0), 0),
         node=NODE,
     )
     ctx.seen.update({candidate.entity_id: candidate for candidate in pool})

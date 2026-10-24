@@ -93,7 +93,8 @@ class DemoFavouriteSpec:
 
 @dataclass(frozen=True)
 class DemoProfileSpec:
-    """A sample profile the demo seed creates for each new user."""
+    """A sample profile the demo seed creates for each new user, with a few things it already
+    liked and one it isn't interested in, so the demo starts with learned taste."""
 
     key: str
     display_name: str
@@ -102,3 +103,5 @@ class DemoProfileSpec:
     places_lived: tuple[str, ...]
     languages: tuple[str, ...]
     favourites: tuple[DemoFavouriteSpec, ...]
+    likes: tuple[DemoFavouriteSpec, ...] = ()
+    not_interested: tuple[DemoFavouriteSpec, ...] = ()

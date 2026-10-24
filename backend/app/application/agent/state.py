@@ -21,9 +21,10 @@ class RowDraft(TypedDict):
 
 class FeedState(TypedDict, total=False):
     """Written by: `profile` (start), `context` (load_context), `brief`, `pool`,
-    `research_outcome` (research, fallback), `fallback_attempts` (fallback), `drafts`
-    (build_rows, rank, guardrails), `hero` (rank, guardrails), `rows`, `hero_item`,
-    `taste_tags` (decorate), `summary` (explain)."""
+    `research_outcome` (research, fallback), `fallback_attempts` (fallback), `qloo_calls`
+    (research, fallback: what they spent of the feed's Qloo budget), `drafts` (build_rows,
+    rank, guardrails), `hero` (rank, guardrails), `rows`, `hero_item`, `taste_tags` (decorate),
+    `summary` (explain)."""
 
     profile: Profile
     context: FeedContext
@@ -31,6 +32,7 @@ class FeedState(TypedDict, total=False):
     pool: list[Candidate]
     research_outcome: ResearchOutcome
     fallback_attempts: int
+    qloo_calls: int
     drafts: list[RowDraft]
     hero: Candidate | None
     rows: list[FeedRow]

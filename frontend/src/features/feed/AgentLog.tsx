@@ -8,6 +8,7 @@ const NODE_LABELS: Record<string, string> = {
   research: "Agent researching with Qloo",
   fallback: "Filling gaps",
   build_rows: "Building rows",
+  add_songs: "Finding songs",
   guardrails: "Checking the rules",
   decorate: "Adding images and links",
   explain: "Summing up",

@@ -148,6 +148,20 @@ async def test_the_research_agent_stops_at_its_limit_and_the_fallback_fills_in()
     assert len(result.rows) >= 3
 
 
+async def test_rows_get_the_qloo_calls_research_left_unspent() -> None:
+    chat = ScriptedChatModel(script=research_script())
+
+    _, log = await build(
+        leo(), chat=chat, limits=AgentLimits(max_tool_calls=12, feed_max_qloo_calls=10)
+    )
+
+    asked = [line for line in log if "Asked Qloo for" in line]
+    # Research spent 4 of its 12; the rows may use the other 6 of the feed's 10, no more.
+    assert sum(line.startswith("research:") for line in asked) == 4
+    assert len(asked) == 10
+    assert any(line.startswith("build_rows: Used all") for line in log)
+
+
 async def test_an_item_appears_at_most_once_and_every_item_has_a_source_and_reason() -> None:
     result, _ = await build(leo(), chat=ScriptedChatModel(script=research_script()))
 

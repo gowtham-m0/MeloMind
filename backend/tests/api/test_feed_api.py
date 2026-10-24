@@ -119,7 +119,8 @@ def test_likes_mark_the_feed_stale_and_show_as_liked(
     shown = next(item for item in items(snapshot) if item["ref"] == first["ref"])
     assert shown["liked"] and shown["saved"]
     library = client.get(f"{API}/profiles/{profile_id}/library", headers=headers).json()
-    assert [item["ref"] for item in library["liked"]] == [first["ref"]]
+    # Newest first, after the demo seed's own likes.
+    assert library["liked"][0]["ref"] == first["ref"]
     assert [item["ref"] for item in library["saved"]] == [first["ref"]]
 
 

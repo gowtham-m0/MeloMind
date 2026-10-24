@@ -23,6 +23,8 @@ def _parse_profile(raw: dict[str, Any]) -> DemoProfileSpec:
         places_lived=tuple(raw.get("places_lived", [])),
         languages=tuple(raw.get("languages", [])),
         favourites=tuple(_parse_favourite(item) for item in raw["favourites"]),
+        likes=tuple(_parse_favourite(item) for item in raw.get("likes", [])),
+        not_interested=tuple(_parse_favourite(item) for item in raw.get("not_interested", [])),
     )
 
 

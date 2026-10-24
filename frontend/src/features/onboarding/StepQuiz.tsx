@@ -65,7 +65,11 @@ export function StepQuiz({ profileId, onDone }: StepQuizProps) {
         </p>
       </div>
 
-      <div aria-live="polite" className="grid grid-cols-2 gap-4 md:gap-6">
+      {/* Width follows the viewport height, so both 4:5 cards and their titles fit on screen. */}
+      <div
+        aria-live="polite"
+        className="mx-auto grid w-full max-w-[max(28rem,calc((100dvh-21rem)*1.6))] grid-cols-2 gap-4 md:gap-6"
+      >
         {step?.pair
           ? step.pair.map((item) => (
               <QuizCard

@@ -94,7 +94,11 @@ async def fallback(state: FeedState, deps: FeedDeps) -> FeedState:
         )
         await deps.log.info(NODE, f"Still short of {missing}; those rows may be smaller.")
     await deps.log.info(NODE, f"The pool now has {len(found)} picks.")
-    return {"pool": list(found.values()), "fallback_attempts": attempts}
+    return {
+        "pool": list(found.values()),
+        "fallback_attempts": attempts,
+        "qloo_calls": state.get("qloo_calls", 0) + ctx.qloo_calls,
+    }
 
 
 async def _run(ctx: ToolContext, query: FallbackQuery, found: dict[str, Candidate]) -> None:

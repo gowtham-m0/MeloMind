@@ -7,6 +7,7 @@ import {
   Home,
   Music2,
   NotebookPen,
+  Settings,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
@@ -34,6 +35,7 @@ function navItems(base: string): NavItem[] {
     { label: "Saved", icon: Bookmark, to: `${base}/saved` },
     { label: "Journal", icon: NotebookPen },
     { label: "Taste", icon: Sparkles },
+    { label: "Settings", icon: Settings, to: `${base}/settings` },
   ];
 }
 

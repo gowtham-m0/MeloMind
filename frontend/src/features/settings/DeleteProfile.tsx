@@ -1,5 +1,6 @@
 import { Trash2 } from "lucide-react";
 import { AlertDialog } from "radix-ui";
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router";
 
 import type { Profile } from "@/shared/api/profiles";
@@ -10,9 +11,10 @@ import { useDeleteProfile } from "../profiles/hooks";
 
 /**
  * Delete the profile and everything it owns (favourites, likes, feeds). It can't be undone, so
- * it asks first, in a dialog that starts on "Keep it".
+ * it asks first, in a dialog that starts on "Keep it". `children` replaces the default trigger
+ * button (the profile picker uses a small icon button).
  */
-export function DeleteProfile({ profile }: { profile: Profile }) {
+export function DeleteProfile({ profile, children }: { profile: Profile; children?: ReactNode }) {
   const remove = useDeleteProfile(profile.id);
   const navigate = useNavigate();
   const toast = useToast();
@@ -26,9 +28,11 @@ export function DeleteProfile({ profile }: { profile: Profile }) {
   return (
     <AlertDialog.Root>
       <AlertDialog.Trigger asChild>
-        <Button variant="secondary" className="self-start border-danger/40 text-danger">
-          <Trash2 /> Delete this profile
-        </Button>
+        {children ?? (
+          <Button variant="secondary" className="self-start border-danger/40 text-danger">
+            <Trash2 /> Delete this profile
+          </Button>
+        )}
       </AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="sheet-overlay fixed inset-0 z-40 bg-ink/35 backdrop-blur-[2px]" />

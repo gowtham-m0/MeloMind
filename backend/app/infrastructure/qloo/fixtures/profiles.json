@@ -14,7 +14,12 @@
         { "name": "Glass Animals", "kind": "song", "song_title": "Heat Waves" },
         { "name": "Interstellar", "kind": "movie" },
         { "name": "Normal People", "kind": "book" }
-      ]
+      ],
+      "likes": [
+        { "name": "Tame Impala", "kind": "artist" },
+        { "name": "Dune", "kind": "movie" }
+      ],
+      "not_interested": [{ "name": "Euphoria", "kind": "tv_show" }]
     },
     {
       "key": "leo",
@@ -28,6 +33,11 @@
         { "name": "The Temptations", "kind": "song", "song_title": "My Girl" },
         { "name": "The Sound of Music", "kind": "movie" },
         { "name": "To Kill a Mockingbird", "kind": "book" }
+      ],
+      "likes": [
+        { "name": "Ray Charles", "kind": "artist" },
+        { "name": "Breakfast at Tiffany's", "kind": "movie" },
+        { "name": "The Catcher in the Rye", "kind": "book" }
       ]
     }
   ]

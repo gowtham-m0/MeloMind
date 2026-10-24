@@ -192,7 +192,14 @@ def wire(
     return Container(
         taste=taste,
         profiles=profiles,
-        demo=DemoSeedService(adapters.profiles, taste, demo_profiles, feeds),
+        demo=DemoSeedService(
+            adapters.profiles,
+            taste,
+            demo_profiles,
+            adapters.feedback,
+            adapters.exclusions,
+            feeds,
+        ),
         feeds=feeds,
         runs=AgentRunService(profiles, adapters.runs),
         feedback=feedback,

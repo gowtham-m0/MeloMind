@@ -32,7 +32,7 @@ async def research(state: FeedState, deps: FeedDeps) -> FeedState:
     brief = build_brief(context)
     if deps.chat_models is None:
         await deps.log.info(NODE, "No AI model is set up, so the rule-based picks will run.")
-        return {"brief": brief, "pool": [], "research_outcome": "skipped"}
+        return {"brief": brief, "pool": [], "research_outcome": "skipped", "qloo_calls": 0}
 
     ctx = ToolContext(
         taste=deps.taste, log=deps.log, context=context, max_qloo_calls=deps.limits.max_tool_calls
@@ -78,7 +78,12 @@ async def research(state: FeedState, deps: FeedDeps) -> FeedState:
         outcome = "too_few"
     kept = f"kept the {len(candidates)} recommendations Qloo had given it"
     await _log_outcome(deps, outcome, len(candidates), ctx, budget, kept)
-    return {"brief": brief, "pool": candidates, "research_outcome": outcome}
+    return {
+        "brief": brief,
+        "pool": candidates,
+        "research_outcome": outcome,
+        "qloo_calls": ctx.qloo_calls,
+    }
 
 
 async def _log_outcome(

@@ -262,6 +262,11 @@
   animation: rise-in 300ms var(--ease-out) backwards;
 }
 
+/* Opacity only, so it needs no reduced-motion override. */
+.fade-in {
+  animation: fade-in 180ms var(--ease-out) backwards;
+}
+
 .thread-segment {
   transform-origin: top;
   animation: thread-grow 420ms var(--ease-out) backwards;
