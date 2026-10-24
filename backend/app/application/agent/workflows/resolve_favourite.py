@@ -1,1 +1,2 @@
-"""Workflow 2: resolve a caregiver's favourite into Qloo entities by climbing the hint ladder."""
+"""Workflow 2: resolve a favourite the user typed into Qloo entities by climbing the hint ladder
+(Phase 3)."""

@@ -1,4 +1,4 @@
-"""Agent runs and their plain-English log, shown to the caregiver as the agent works."""
+"""Agent runs and their plain-English log, shown to the user as the agent works."""
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -12,7 +12,7 @@ from app.domain.models import utc_now
 class RunKind(StrEnum):
     """Which workflow the run belongs to."""
 
-    PLAN = "plan"
+    FEED = "feed"
     RESOLVE = "resolve"
     LINK = "link"
 

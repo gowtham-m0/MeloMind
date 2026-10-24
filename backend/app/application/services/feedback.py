@@ -1,8 +1,7 @@
-"""Use cases for feedback: the caregiver's reactions and the person's Person-mode signals.
+"""Use cases for feedback: like, save, open, dislike and "not interested".
 
-Everything is stored with its actor, for learning. `rejected` adds an exclusion; `upset` hides the
-item and queues it for review. Person signals count only for items on the shelf, a skip only
-under 15 seconds, and each signal once per item per day.
+Every signal is stored for learning. `not_interested` also excludes the item and removes it from
+the current feed at once (rule 3). `opened` counts once per item per day.
 """
 
 from collections.abc import Callable
@@ -10,190 +9,155 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from app.application.ports import FeedbackRepository, SessionRepository
-from app.application.services.exclusions import ExclusionService
+from app.application.ports import ExclusionRepository, FeedbackRepository
+from app.application.services.feed import FeedService
 from app.application.services.profiles import ProfileService
-from app.application.services.sessions import SessionService
-from app.application.services.shelf import ShelfService
-from app.core.errors import ConflictError, InvalidInputError, NotFoundError
-from app.domain.feedback import Actor, ExclusionKind, Feedback, PersonSignal, Reaction
-from app.domain.models import EntityType, Profile, search_type_for, utc_now
-from app.domain.policies import counted_today, skip_counts
-from app.domain.sessions import SessionStatus, ShelfItem, favourite_ref
+from app.core.errors import InvalidInputError
+from app.domain.feedback import Exclusion, Feedback, Signal
+from app.domain.models import EntityType, utc_now
+from app.domain.policies import counted_today, item_states
 
-NOTE_MAX = 300
+REF_MAX = 120
+TITLE_MAX = 200
+PLATFORM_MAX = 32
 
-_REACTION_EFFECTS = {
-    Reaction.SANG_ALONG: "Noted: sang along. More like this next time.",
-    Reaction.SMILED: "Noted: smiled. More like this next time.",
-    Reaction.CALM: "Noted: calm.",
-    Reaction.NEUTRAL: "Noted.",
-    Reaction.UPSET: "Hidden. You can review it later.",
-    Reaction.REJECTED: "Rejected. It won't be suggested again.",
+# Signals the app records itself (the quiz, the journal), never sent by the client.
+INTERNAL_SIGNALS = frozenset({Signal.QUIZ_PICK, Signal.JOURNAL_CONFIRMED})
+# Signals that change what the next feed would show.
+STALE_SIGNALS = frozenset(
+    {
+        Signal.LIKED,
+        Signal.UNLIKED,
+        Signal.SAVED,
+        Signal.UNSAVED,
+        Signal.DISLIKED,
+        Signal.NOT_INTERESTED,
+    }
+)
+
+_EFFECTS = {
+    Signal.LIKED: "Liked. You'll see more like this.",
+    Signal.UNLIKED: "Removed from your likes.",
+    Signal.SAVED: "Saved for later.",
+    Signal.UNSAVED: "Removed from saved.",
+    Signal.OPENED: "Noted.",
+    Signal.DISLIKED: "Got it. You'll see fewer like this.",
+    Signal.NOT_INTERESTED: "Got it. It won't show up again.",
 }
-_SIGNAL_EFFECTS = {
-    PersonSignal.CHOSE: "Choice noted.",
-    PersonSignal.LOVED: "♥ noted.",
-    PersonSignal.REPLAYED: "Replay noted.",
-    PersonSignal.SKIPPED: "Skip noted: it will rank a little lower.",
-}
-_NOT_REACTABLE = frozenset({SessionStatus.PLANNING, SessionStatus.FAILED})
 
 
 @dataclass(frozen=True)
 class FeedbackEffect:
-    """Whether the feedback counted, and what it changes, in plain English."""
+    """Whether the signal counted, what it changes in plain English, and whether the feed is
+    now out of date."""
 
     counted: bool
     effect: str
+    stale: bool
+
+
+@dataclass(frozen=True)
+class ItemRef:
+    """The item a signal is about."""
+
+    ref: str
+    title: str
+    entity_type: EntityType | None = None
 
 
 class FeedbackService:
-    """Stores reactions and signals. Only the caregiver can hide or reject an item."""
+    """Stores signals for their owner's profiles."""
 
     def __init__(
         self,
         profiles: ProfileService,
-        sessions: SessionService,
-        session_store: SessionRepository,
         feedback: FeedbackRepository,
-        exclusions: ExclusionService,
-        shelf: ShelfService,
+        exclusions: ExclusionRepository,
+        feeds: FeedService,
         clock: Callable[[], datetime] = utc_now,
     ) -> None:
         self._profiles = profiles
-        self._sessions = sessions
-        self._session_store = session_store
         self._feedback = feedback
         self._exclusions = exclusions
-        self._shelf = shelf
+        self._feeds = feeds
         self._clock = clock
 
-    async def react_to_item(
-        self,
-        owner_id: UUID,
-        session_id: UUID,
-        item_id: UUID,
-        reaction: Reaction,
-        note: str | None = None,
-    ) -> FeedbackEffect:
-        """The caregiver's reaction to one item of a session."""
-        session = await self._sessions.get(owner_id, session_id)
-        if session.status in _NOT_REACTABLE:
-            raise ConflictError("This session has nothing to react to.")
-        item = next((item for item in session.items if item.id == item_id), None)
-        if item is None:
-            raise NotFoundError("Item not found.")
-        return await self._react(
-            session.profile_id, item.ref, item.title, item.entity_type, reaction, note, session.id
-        )
-
-    async def react_to_ref(
+    async def record(
         self,
         owner_id: UUID,
         profile_id: UUID,
-        item_ref: str,
-        reaction: Reaction,
-        note: str | None = None,
+        item: ItemRef,
+        signal: Signal,
+        platform: str | None = None,
     ) -> FeedbackEffect:
-        """The caregiver's reaction to an item by its ref, such as a card in Person mode."""
+        """A signal the user gave. The quiz and journal signals can't be sent this way."""
+        if signal in INTERNAL_SIGNALS:
+            raise InvalidInputError("That signal is recorded by the app itself.")
         profile = await self._profiles.get(owner_id, profile_id)
-        found = await self._find(profile, item_ref)
-        if found is None:
-            raise NotFoundError("Item not found.")
-        title, entity_type = found
-        return await self._react(profile.id, item_ref, title, entity_type, reaction, note, None)
-
-    async def person_signal(
-        self,
-        owner_id: UUID,
-        profile_id: UUID,
-        item_ref: str,
-        signal: PersonSignal,
-        played_s: int | None = None,
-    ) -> FeedbackEffect:
-        """A tap in Person mode. Only items on the shelf can get signals."""
-        profile = await self._profiles.get(owner_id, profile_id)
-        card = next(
-            (card for card in await self._shelf.items_for(profile) if card.ref == item_ref), None
+        clean = ItemRef(
+            ref=_clean(item.ref, REF_MAX, "The item ref"),
+            title=_clean(item.title, TITLE_MAX, "The title"),
+            entity_type=item.entity_type,
         )
-        if card is None:
-            raise InvalidInputError("Only items on the Person-mode shelf can get signals.")
-        return await self.record_person_signal(profile.id, card, signal, played_s)
+        return await self.record_for(profile.id, clean, signal, _clean_platform(platform))
 
-    async def record_person_signal(
-        self, profile_id: UUID, card: ShelfItem, signal: PersonSignal, played_s: int | None
+    async def record_for(
+        self, profile_id: UUID, item: ItemRef, signal: Signal, platform: str | None = None
     ) -> FeedbackEffect:
-        """Store a signal for a card the caller already checked is on the shelf."""
-        if signal is PersonSignal.SKIPPED and not skip_counts(played_s):
-            return FeedbackEffect(False, "Not counted: it played for 15 seconds or more.")
+        """Store a signal for a profile the caller already checked."""
         now = self._clock()
-        earlier = await self._feedback.list_for_profile(profile_id)
-        if counted_today(earlier, card.ref, signal, now):
-            return FeedbackEffect(False, "Already counted today.")
+        if signal is Signal.OPENED:
+            earlier = await self._feedback.list_for_profile(profile_id)
+            if counted_today(earlier, item.ref, signal, now):
+                return FeedbackEffect(False, "Already counted today.", False)
         await self._feedback.add(
             Feedback(
                 profile_id=profile_id,
-                item_ref=card.ref,
-                title=card.title,
-                actor=Actor.PERSON,
-                kind=signal.value,
-                entity_type=_entity_type(card),
-                played_s=played_s,
+                item_ref=item.ref,
+                title=item.title,
+                kind=signal,
+                entity_type=item.entity_type,
+                platform=platform,
                 created_at=now,
             )
         )
-        return FeedbackEffect(True, _SIGNAL_EFFECTS[signal])
+        if signal is Signal.NOT_INTERESTED:
+            await self._exclude(profile_id, item)
+        stale = signal in STALE_SIGNALS or signal in INTERNAL_SIGNALS
+        if stale:
+            stale = await self._feeds.mark_stale(profile_id)
+        return FeedbackEffect(True, _EFFECTS.get(signal, "Noted."), stale)
 
-    async def _react(
-        self,
-        profile_id: UUID,
-        item_ref: str,
-        title: str,
-        entity_type: EntityType | None,
-        reaction: Reaction,
-        note: str | None,
-        session_id: UUID | None,
-    ) -> FeedbackEffect:
-        await self._feedback.add(
-            Feedback(
-                profile_id=profile_id,
-                item_ref=item_ref,
-                title=title,
-                actor=Actor.CAREGIVER,
-                kind=reaction.value,
-                entity_type=entity_type,
-                session_id=session_id,
-                note=_clean_note(note),
-                created_at=self._clock(),
+    async def states(self, profile_id: UUID) -> dict[str, frozenset[Signal]]:
+        """Which items are liked or saved, for the cards' heart and bookmark."""
+        return item_states(await self._feedback.list_for_profile(profile_id))
+
+    async def _exclude(self, profile_id: UUID, item: ItemRef) -> None:
+        existing = await self._exclusions.list_for_profile(profile_id)
+        if not any(entry.entity_ref == item.ref for entry in existing):
+            await self._exclusions.save(
+                Exclusion(
+                    profile_id=profile_id,
+                    entity_ref=item.ref,
+                    title=item.title,
+                    entity_type=item.entity_type,
+                    created_at=self._clock(),
+                )
             )
-        )
-        if reaction is Reaction.REJECTED:
-            await self._exclusions.block(profile_id, item_ref, title, ExclusionKind.REJECTED)
-        elif reaction is Reaction.UPSET:
-            await self._exclusions.block(profile_id, item_ref, title, ExclusionKind.HIDDEN)
-        return FeedbackEffect(True, _REACTION_EFFECTS[reaction])
+        await self._feeds.remove_item(profile_id, item.ref)
 
-    async def _find(self, profile: Profile, item_ref: str) -> tuple[str, EntityType | None] | None:
-        """The title and type behind a ref: a favourite, or an item of any session."""
-        for favourite in profile.favourites:
-            if favourite_ref(favourite) == item_ref:
-                return favourite.song_title or favourite.name, search_type_for(favourite.kind)
-        for session in await self._session_store.list_for_profile(profile.id):
-            for item in session.items:
-                if item.ref == item_ref:
-                    return item.title, item.entity_type
+
+def _clean(value: str, max_length: int, label: str) -> str:
+    text = " ".join(value.split())
+    if not text or len(text) > max_length:
+        raise InvalidInputError(f"{label} must be 1 to {max_length} characters.")
+    return text
+
+
+def _clean_platform(value: str | None) -> str | None:
+    if value is None:
         return None
-
-
-def _clean_note(note: str | None) -> str | None:
-    text = " ".join((note or "").split())[:NOTE_MAX]
-    return text or None
-
-
-def _entity_type(card: ShelfItem) -> EntityType | None:
-    """The Qloo type behind a card. A song card has none: Qloo has no songs."""
-    try:
-        return EntityType(card.kind.value)
-    except ValueError:
-        return None
+    text = value.strip().lower()
+    if not text or len(text) > PLATFORM_MAX or not text.replace("_", "").isalnum():
+        raise InvalidInputError("Unknown platform.")
+    return text

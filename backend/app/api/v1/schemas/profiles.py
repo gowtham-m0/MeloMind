@@ -6,10 +6,10 @@ from uuid import UUID
 from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from app.application.services.profiles import ProfileChanges
-from app.domain.models import BIRTH_YEAR_MAX, BIRTH_YEAR_MIN, Favourite, FavouriteKind, Profile
+from app.domain.models import BIRTH_YEAR_MIN, Favourite, FavouriteKind, Profile
 
 DisplayName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
-BirthYear = Annotated[int, Field(ge=BIRTH_YEAR_MIN, le=BIRTH_YEAR_MAX)]
+BirthYear = Annotated[int, Field(ge=BIRTH_YEAR_MIN)]
 CountryCode = Annotated[
     str, StringConstraints(strip_whitespace=True, to_upper=True, pattern=r"^[A-Za-z]{2}$")
 ]
@@ -29,6 +29,7 @@ class FavouriteOut(BaseModel):
     qloo_id: str | None
     verified: bool
     song_title: str | None
+    image_url: str | None
 
     @classmethod
     def from_domain(cls, favourite: Favourite) -> Self:
@@ -40,6 +41,7 @@ class FavouriteOut(BaseModel):
             qloo_id=favourite.qloo_id,
             verified=favourite.verified,
             song_title=favourite.song_title,
+            image_url=favourite.image_url,
         )
 
 
@@ -48,7 +50,7 @@ class ProfileOut(BaseModel):
 
     id: UUID
     display_name: str
-    birth_year: int
+    birth_year: int | None
     country_code: str | None
     places_lived: list[str]
     languages: list[str]
@@ -71,10 +73,10 @@ class ProfileOut(BaseModel):
 
 
 class ProfileCreate(BaseModel):
-    """A new profile. Only the display name and birth year are required."""
+    """A new profile. Only the display name is required."""
 
     display_name: DisplayName
-    birth_year: BirthYear
+    birth_year: BirthYear | None = None
     country_code: CountryCode | None = None
     places_lived: TextList = Field(default_factory=list)
     languages: TextList = Field(default_factory=list)
@@ -82,6 +84,7 @@ class ProfileCreate(BaseModel):
     def optional_fields(self) -> ProfileChanges:
         """The optional fields, as profile changes."""
         return ProfileChanges(
+            birth_year=self.birth_year,
             country_code=self.country_code,
             places_lived=self.places_lived,
             languages=self.languages,
@@ -89,7 +92,8 @@ class ProfileCreate(BaseModel):
 
 
 class ProfileUpdate(BaseModel):
-    """Any profile fields. Fields left out stay as they are; `country_code: null` clears it."""
+    """Any profile fields. Fields left out stay as they are; `null` clears `country_code` and
+    `birth_year`."""
 
     display_name: DisplayName | None = None
     birth_year: BirthYear | None = None
@@ -99,7 +103,7 @@ class ProfileUpdate(BaseModel):
 
     @model_validator(mode="after")
     def _no_nulls_for_required_fields(self) -> Self:
-        for name in ("display_name", "birth_year", "places_lived", "languages"):
+        for name in ("display_name", "places_lived", "languages"):
             if name in self.model_fields_set and getattr(self, name) is None:
                 raise ValueError(f"{name} can't be null")
         return self
@@ -111,12 +115,14 @@ class ProfileUpdate(BaseModel):
 
 
 class FavouriteCreate(BaseModel):
-    """A favourite. Send `entity_id` when the caregiver picked a taste-search match."""
+    """A favourite. Send `entity_id` (and its `image_url`) when the user picked a taste-search
+    match."""
 
     name: FavouriteName
     kind: FavouriteKind
     entity_id: Annotated[str, StringConstraints(min_length=1, max_length=100)] | None = None
     song_title: FavouriteName | None = None
+    image_url: Annotated[str, StringConstraints(min_length=1, max_length=500)] | None = None
 
     @model_validator(mode="after")
     def _song_title_only_for_songs(self) -> Self:

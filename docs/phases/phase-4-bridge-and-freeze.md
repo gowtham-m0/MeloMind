@@ -1,116 +1,91 @@
-# Phase 4: Bridge and freeze
+# Phase 4: Polish and freeze
 
 **Dates:** Thu 29 Oct · **Hours:** about 6 each · **Previous:** [Phase 3](phase-3-memory-graph.md) · **Next:** [Phase 5: Ship](phase-5-ship.md)
 
-**Goal:**
-- The Bridge session works: a family visit planned around music both generations enjoy.
-- Add the remaining caregiver tools: Ask the agent, swap, "What we learned" and the review queue.
-- The end-to-end test passes locally.
-- **Feature freeze tonight.**
-- **Then deploy, once** (the backend's "Deploy" task). This is the first and only time the app goes on the internet.
+**Goal:** finish the right rail's agentic actions, polish every screen to a judge-ready finish, write the end-to-end test, freeze features on Thursday night, then deploy once.
+- **Your vibe today** and **Surprise me** in the right rail, and **Ask the agent** in the top bar.
+- **Taste match** between two profiles (Qloo compare).
+- A full polish pass with the design skills.
+- The How it works page.
 
-**Before you start:** Phase 3's exit check has passed. If it hasn't, skip Bridge and finish Phase 3 first (see "If you're behind").
+**Before you start:** Phase 3's exit check has passed. Read `CLAUDE.md` and `docs/PLAN.md` (the judge path and the cut lines).
+
+> This file replaces the old "Bridge and freeze" phase. Bridge's idea (two tastes, Qloo compare, shared picks) lives on as **Taste match**.
 
 ---
 
 ## First: agree the contract (all three, 15 minutes)
 
+The full shapes are in `docs/API_CONTRACT.md`, "Phase 4: polish".
+
 | Route | Request | Response |
 |---|---|---|
-| `POST /api/v1/profiles/{id}/sessions/plan` | `{ mode: "bridge", target_minutes, visitor: { name, relation?, favourites: [{ entity_id, kind, name }] }, instructions? }` | `SessionDraft`, now with `visitor` |
-| `POST /api/v1/sessions/{id}/items/{item_id}/swap` | nothing | `SessionDraft` |
-| `GET /api/v1/sessions/{id}/learned` | nothing | `{ lines: string[] }` |
-| `GET /api/v1/profiles/{id}/review-queue` | nothing | `[{ ref, title, entity_type, hidden_at, note? }]` |
-| `POST /api/v1/profiles/{id}/review-queue/{item_ref}` | `{ action: keep_hidden \| show_again \| reject }` | `{ ok }` |
-
-`instructions` is now used by every mode, up to 300 characters.
+| `POST /api/v1/profiles/{id}/ask` | `{ text?, mood?, kind? }` | `{ agent_run_id }`; the run's `result` is one extra row |
+| `POST /api/v1/profiles/{id}/taste-match` | `{ other_profile_id }` or `{ favourites }` | `{ shared_tags, score, row }` |
 
 ---
 
-## Agent: Bridge mode, instructions, swap, explanations (≈ 6 h)
+## Agent: ask, vibe, surprise, taste match (≈ 6 h)
 
-### Agent 1. `BridgeMode`
-- A research brief that combines the elder's favourites with the visitor's (up to 3), **within the elder's era**.
-- A `compare_tastes` tool using `/v2/insights/compare`, if it works with the hackathon key. If not, use two Insights calls and their overlap.
-- Prompts are written for the visitor to use. For example: "Ask Grandma where she first heard this."
-- Prompts can use confirmed memories with "Use in prompts" on.
-- Registered in `ModeRegistry`, with no workflow or API changes.
+### Agent 1. Ask the agent
+- A short research run with the user's text as an extra instruction in the brief, plus the usual signals and exclusions. The agent may use `find_tags` to turn words like "lighter" or "90s" into real tag IDs.
+- The result is one row (`key: "ask"`), with reasons. Same guardrails as the feed.
+- The log shows how the request changed the queries ("Turned 'lighter' into the tags Feel-good and Comedy").
 
-### Agent 2. Caregiver instructions in the brief
-- The agent itself turns a request like "fewer sad songs" or "more film songs" into tags or exclusions.
-- The log shows how it did that.
+### Agent 2. Your vibe today
+- Each mood maps to a small set of tag searches (`find_tags`): chill → "chill", "ambient", "slow burn"; happy → "feel-good", "upbeat"; focused → "instrumental", "minimal"; melancholy → "melancholic", "bittersweet"; energetic → "high energy", "action".
+- The tags and the user's strongest signals feed one insights call per type. The row title is "Chill picks for you".
 
-### Agent 3. Swap service
-- "Another like this" uses that item as the only signal.
-- It excludes the session's current items and the profile's exclusions.
-- The guardrails run again.
+### Agent 3. Surprise me
+- Pick the type the user engages with least, use one strong signal from another type, and take high-popularity items with lower affinity, so it stays good but new.
+- Reason template: "A wildcard: popular with people who like X".
 
-### Agent 4. Explanations
-- **"What changed"** goes into the agent log at the start of each plan.
-- **"What we learned"** lines go after each session. For example:
-  - "She sang along to X, so Y's music is now a signal."
-  - "She chose Z three times in Person mode."
-  - "W was rejected and won't come back."
+### Agent 4. Taste match
+- `compare_tastes(group_a, group_b)` with the strong signals of two profiles (or a friend's 3–5 favourites).
+- Score from the share of shared tags; the shared tags then become `signal.interests.tags` for a "For you both" row.
+
+### Agent 5. Tests
+- Ask, vibe and surprise apply exclusions and never return items already in the feed.
+- An unknown mood is a `422`; an LLM failure in ask falls back to using the text as a tag search.
+- Taste match with no shared tags returns score 0 and a popular row, with a log line saying so.
 
 **Prompt for Claude Code:**
 ```
-Read CLAUDE.md ("Session modes", "The agent") and docs/AGENT.md. Add BridgeMode
-(research brief combining the elder's favourites with up to 3 visitor favourites
-within the elder's era; prompts written for the visitor to ask; may use confirmed,
-"Use in prompts" memory nodes) and register it without changing workflows or the
-API. Add a compare_tastes tool over /v2/insights/compare, falling back to two
-insights calls and their overlap. Pass caregiver instructions into every mode's
-brief so the agent maps them to tags or exclusions, and log how. Add a swap service
-(one item as the only signal, excluding current items and exclusions, guardrails
-re-run). Add "what changed" to the start of each plan's log and "what we learned"
-lines per session. Tests with the scripted fake model. Run ruff and pytest.
+Read CLAUDE.md ("The agent") and docs/API_CONTRACT.md (Phase 4). Add an ask run that
+reuses the research step with the user's text as an extra brief instruction (find_tags
+to map words to tags), a mood mapping for "Your vibe today", a surprise mode (least-used
+type, lower affinity, high popularity), each returning one guarded row with reasons,
+and a taste match using compare_tastes and the shared tags as signals. Tests:
+exclusions apply, no duplicates with the feed, unknown mood 422, LLM failure falls
+back, no shared tags handled. Run ruff and pytest.
 ```
 
-**Check:** a Bridge plan for Margaret with a grandchild's 3 favourites returns shared picks, and the log shows the compare step.
+**Check:** "Something like Interstellar but lighter" returns a sensible row, and the log shows the tags it used.
 
 ---
 
-## Backend: Bridge storage, routes, review queue, end-to-end test, deploy (≈ 6 h)
+## Backend: routes, end-to-end test, deploy (≈ 6 h)
 
-### Backend 1. Bridge plan
-- The visitor is stored on the session.
-- Visitor favourites are verified through search.
-- A person node is created for the visitor, linked to the session node, so visits appear in the Memory Graph.
+### Backend 1. Routes
+- `POST /ask` (rate limited with feed builds) and `POST /taste-match`, with ownership checks.
 
-### Backend 2. Instructions and swap
-- Validate `instructions` (300 characters at most).
-- Add the swap route.
-
-### Backend 3. "What we learned"
-- The `learned` route.
-- Add the learned lines to the history.
-
-### Backend 4. Review queue API
-- **Keep hidden.**
-- **Show again:** unhides the item.
-- **Never show:** adds an exclusion.
-
-### Backend 5. Playwright end-to-end test
-- It covers the judge path (`docs/PLAN.md`), steps 1–6 and 8.
-- **In CI:** run it against a local stack in demo mode. With no keys, that means fixtures, templates and the demo media resolver, so no live services are called.
-- **By hand:** run it against the live site after the deploy in Backend 6.
+### Backend 2. Playwright end-to-end test
+- It covers the judge path (`docs/PLAN.md`, section 6), steps 1–7.
+- **In CI:** run it against a local stack in demo mode. With no keys, that means fixtures and templates, so no live services are called. (Voice is skipped in CI; the test types the entry.)
+- **By hand:** run it against the live site after the deploy in Backend 3.
 
 **Prompt for Claude Code:**
 ```
-Read CLAUDE.md and docs/API_CONTRACT.md (Phase 4). Extend session planning for
-mode "bridge": store the visitor on the session, verify visitor favourites via
-TasteService.search, create a person node for the visitor linked to the session
-node. Add instructions validation (max 300 chars), the swap route, GET
-/sessions/{id}/learned, and the review-queue routes (keep_hidden, show_again
-unhides, reject adds an exclusion). Write a Playwright test in e2e/ for the judge
-path in docs/PLAN.md (steps 1-6 and 8), runnable against a local stack in demo mode
-(no keys) in CI, and against any base URL passed in (for the live URL, by hand, after
-the deploy). Run ruff, pytest and the Playwright test locally.
+Read CLAUDE.md and docs/API_CONTRACT.md (Phase 4). Add the ask and taste-match routes
+with ownership checks and the shared rate limit. Write a Playwright test in e2e/ for
+the judge path in docs/PLAN.md (steps 1-7, typing the journal entry), runnable against
+a local stack in demo mode (no keys) in CI, and against any base URL passed in (for the
+live URL, by hand, after the deploy). Run ruff, pytest and the Playwright test locally.
 ```
 
-**Check:** the Playwright test passes locally in demo mode. (The live-site run comes after Backend 6.)
+**Check:** the Playwright test passes locally in demo mode.
 
-### Backend 6. Deploy (Thursday night, after the feature freeze)
+### Backend 3. Deploy (Thursday night, after the feature freeze)
 
 Do this only when the exit check below passes locally. This is the first deployment, so keep Friday free as the buffer. If anything here fails, fix it before anything else.
 
@@ -121,7 +96,7 @@ Do this only when the exit check below passes locally. This is the first deploym
 4. Build the Docker image from `backend/Dockerfile` and push it to the service (`aws lightsail push-container-image`).
 5. Create the deployment:
    - container port **8000**, public endpoint on that container;
-   - environment variables (never in git): `APP_ENV=production`, `FRONTEND_ORIGIN` (the Vercel URL), `DATABASE_URL`, `SUPABASE_URL`, `QLOO_API_KEY`, `QLOO_BASE_URL`, `YOUTUBE_API_KEY`, `LLM_PROVIDER`, `LLM_MODEL`, `LLM_API_KEY`, and the agent and Person-mode limits from `CLAUDE.md`;
+   - environment variables (never in git): `APP_ENV=production`, `FRONTEND_ORIGIN` (the Vercel URL), `DATABASE_URL`, `SUPABASE_URL`, `QLOO_API_KEY`, `QLOO_BASE_URL`, `YOUTUBE_API_KEY` (optional), the `LLM_*` settings, `STT_MODEL`, and the agent, feed and quiz limits from `CLAUDE.md`;
    - health check path **`/api/v1/health`**.
 6. Run `alembic upgrade head` against the Supabase database (from your machine, with the production `DATABASE_URL`).
 7. Open `https://<service-url>/api/v1/health` and check it says `"live"` for `qloo_mode`.
@@ -134,77 +109,71 @@ Do this only when the exit check below passes locally. This is the first deploym
 **Then**
 1. **Restrict CORS** to the Vercel domain: set `FRONTEND_ORIGIN` on Lightsail to it and redeploy.
 2. Add the Vercel URL to Supabase's allowed redirect and site URLs if anonymous sign-in complains.
-3. **Run the Playwright judge path by hand against the live site.**
-4. **Run the judge path once yourself on the live site** to warm the Qloo and YouTube caches.
+3. Check the microphone works on the live site (it needs HTTPS, which Vercel provides).
+4. **Run the Playwright judge path by hand against the live site.**
+5. **Run the judge path once yourself on the live site** to warm the Qloo cache.
 
-**Check:** the live frontend shows "Backend: ok", **Try the demo** works, and the judge path passes on the live site.
+**Check:** **Try the demo** works on the live site, and the judge path passes there.
 
 ---
 
-## Frontend: Bridge screens and caregiver tools (≈ 6 h)
+## Frontend: the rail's actions, taste match, polish (≈ 6 h)
 
-### Frontend 1. Bridge screens (`/profiles/:id/bridge`)
-1. Add a visitor: their name, their relation, and 3 quick favourites through search.
-2. Plan a Bridge session.
-3. Review it. Shared picks show prompts "for the visit".
-4. Play it like any session.
+### Frontend 1. Right rail and top bar
+- **Your vibe today:** pick a mood, tap "Get recommendations": a new row slides in at the top of the feed with the mood's title and a dismiss button.
+- **Surprise me:** same pattern, with a playful but tasteful reveal (use the `animate` skill).
+- **Ask the agent:** a field in the top bar or a "✦ Ask" button that opens a small composer with example prompts; the result row appears like the others; the log panel shows how it was understood.
 
-### Frontend 2. "Ask the agent"
-- A box on the plan screen, with examples such as "fewer sad songs" and "more film songs".
-- Add a mic button only if time is left over.
+### Frontend 2. Taste match (`/taste/match`)
+- Pick another profile (or add a friend's favourites with search).
+- A score ring, the shared tags as chips, and the "For you both" row.
 
-### Frontend 3. Swap
-An "Another like this" button on draft cards.
-
-### Frontend 4. "What we learned"
-- Shown after each session.
-- Also shown in the history on the profile page.
-
-### Frontend 5. Review queue (`/profiles/:id/review`)
-Hidden items, each with **Keep hidden**, **Show again** and **Never show**.
-
-### Frontend 6. How it works page
-- The agent diagram.
+### Frontend 3. How it works page
+- The agent diagram (one agent, three workflows, the tools).
 - The Qloo calls, in plain words.
-- The table of who does what.
-- Privacy.
+- Platform links and why they're labelled "Search on".
+- Privacy, especially the journal.
+
+### Frontend 4. Polish pass (compulsory, with the design skills)
+- `/impeccable critique` and `/impeccable audit` on every screen, then `/impeccable polish`; fix what they find.
+- `improve-animations` across the app, then `review-animations`; motion must feel quick and quiet.
+- `break-ui` on cards, rows, the hero, the detail sheet and journal entries (long titles, missing images, non-Latin text, empty rows).
+- Check phone, tablet and desktop; keyboard; contrast; `prefers-reduced-motion`.
 
 **Prompt for Claude Code:**
 ```
-Read CLAUDE.md and docs/API_CONTRACT.md (Phase 4). Build features/bridge (add a
-visitor with name, relation and 3 favourites via /taste/search; plan with mode
-"bridge"; review with prompts "for the visit"; play like any session); an "Ask the
-agent" instructions box on the plan screen with examples; an "Another like this"
-swap button on draft cards; a "What we learned" panel after each session and in the
-profile history; the review queue at /profiles/:id/review (Keep hidden / Show again
-/ Never show); and the How it works page (agent diagram, Qloo calls in plain words,
-who does what, privacy). Phone layout, keyboard access, loading/empty/error states.
-Run lint and build.
+Read CLAUDE.md ("Design system", "Frontend conventions") and docs/API_CONTRACT.md
+(Phase 4). Use the impeccable and Emil Kowalski skills. Make the right rail work:
+"Your vibe today" (mood chips, Get recommendations posts to /ask with mood and slides
+a dismissible row into the top of the feed), "Surprise me" (kind: surprise) and an
+"Ask the agent" composer in the top bar with examples. Build /taste/match (pick a
+profile or add favourites, score ring, shared tag chips, "For you both" row) and the
+How it works page. Then run impeccable critique, audit and polish on every screen,
+improve-animations and review-animations, and break-ui on cards, rows, hero, sheet and
+journal entries; fix every finding. Run lint and build.
 ```
 
-**Check:** plan, swap, and review a hidden item on a phone.
+**Check:** every screen passes the skills' reviews, on a phone and a laptop.
 
 ---
 
 ## Exit check (Thursday night)
 
 Locally (backend also run once from its Docker image):
-- A Bridge session for Margaret with a grandchild's favourites shows shared picks and visit prompts.
-- "Ask the agent" changes a plan, and the log shows how.
-- Swap works.
-- "What we learned" appears after a session.
-- The review queue brings a hidden item back.
+- "Your vibe today" and "Surprise me" add a row, and the log shows how.
+- "Ask the agent" handles "Something like Interstellar but lighter".
+- Taste match between Aanya and Leo shows shared tags and a row.
+- The polish pass is done, and its summaries are in the PRs.
 - The end-to-end test passes locally.
 
 **Then freeze.** From now on, only bug fixes.
 
-**Then the backend owner deploys (Backend 6).** Phase 4 is done when the judge path also passes on the live site. The frontend and agent owners stay online to test it on a phone and to help if the deploy needs a fix.
+**Then the backend owner deploys (Backend 3).** Phase 4 is done when the judge path also passes on the live site. The frontend and agent owners stay online to test it on a phone and to help if the deploy needs a fix.
 
 ## If you're behind
 
-- **Cut first:** the Bridge screens (keep Bridge in the API).
+- **Cut first:** taste match, then Ask the agent (keep the vibe chips).
 - **Then cut:**
   - the How it works page (put the diagram in the README);
   - the end-to-end test in CI (run it by hand instead).
-- **Never cut:** the review queue, because it's how hidden items come back, and **the deploy**.
-- **If you're running late on Thursday,** the deploy still goes ahead on whatever is merged and working. Cut Bridge screens first.
+- **Never cut:** the polish pass on the judge path's screens, and **the deploy**.

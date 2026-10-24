@@ -3,10 +3,10 @@
 from dataclasses import dataclass, field
 
 from app.application.agent.log import RunLog
-from app.application.agent.types import Candidate, PlanContext
+from app.application.agent.types import Candidate, FeedContext
 from app.application.ports import TasteGraph
+from app.domain.feed import ItemSource
 from app.domain.models import EntityType
-from app.domain.sessions import ItemSource
 
 TYPE_NOUNS: dict[EntityType, str] = {
     EntityType.ARTIST: "artist",
@@ -42,11 +42,11 @@ class ToolRefusalError(Exception):
 class ToolContext:
     """One run's shared tool state. `seen` holds every entity a tool returned, and
     `recommended` the ones Qloo recommended through insights: only those can be submitted, so
-    every candidate is a Qloo recommendation, never something the agent made up (rule 9)."""
+    every candidate is a Qloo recommendation, never something the agent made up (rule 1)."""
 
     taste: TasteGraph
     log: RunLog
-    context: PlanContext
+    context: FeedContext
     max_qloo_calls: int
     node: str = "research"
     qloo_calls: int = 0
@@ -55,6 +55,21 @@ class ToolContext:
     tag_names: dict[str, str] = field(default_factory=dict)
     submitted: dict[str, Candidate] = field(default_factory=dict)
     _budget_logged: bool = False
+    _aliases: dict[str, str] = field(default_factory=dict)
+    _by_alias: dict[str, str] = field(default_factory=dict)
+
+    def short(self, ref: str) -> str:
+        """A short alias for an ID, such as "e7", for the agent's messages. Qloo IDs are long,
+        and the free LLM tiers count tokens a minute, so the agent only ever sees aliases."""
+        if ref not in self._aliases:
+            alias = f"e{len(self._aliases) + 1}"
+            self._aliases[ref] = alias
+            self._by_alias[alias] = ref
+        return self._aliases[ref]
+
+    def resolve(self, ref: str) -> str:
+        """The real ID behind an alias. Real IDs pass through unchanged."""
+        return self._by_alias.get(ref.strip(), ref.strip())
 
     @property
     def source(self) -> ItemSource:
@@ -104,5 +119,5 @@ class ToolContext:
         return self.seen[ref].entity_type if ref in self.seen else None
 
     def is_loved(self, ref: str) -> bool:
-        """True for a favourite or a learned item: something they're known to enjoy."""
+        """True for a favourite or a learned item: something the user is known to enjoy."""
         return any(signal.ref == ref for signal in self.context.signals)

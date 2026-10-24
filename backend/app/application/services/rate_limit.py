@@ -1,4 +1,4 @@
-"""A per-user rate limit for planning, which costs Qloo and LLM calls."""
+"""A per-user rate limit for feed builds, which cost Qloo and LLM calls."""
 
 import time
 from collections import defaultdict, deque
@@ -33,6 +33,7 @@ class SlidingWindowRateLimiter:
         if len(hits) >= self._limit:
             minutes = max(round((self._window - (now - hits[0])) / 60), 1)
             raise RateLimitedError(
-                f"That's {self._limit} plans this hour. Please try again in about {minutes} min."
+                f"That's {self._limit} refreshes this hour. "
+                f"Please try again in about {minutes} min."
             )
         hits.append(now)

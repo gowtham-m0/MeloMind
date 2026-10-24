@@ -2,7 +2,7 @@ import { apiRequest } from "./client";
 import type { FavouriteKind } from "./profiles";
 import type { components } from "./schema";
 
-/** A taste-search match: what the caregiver taps to save a verified favourite. */
+/** A taste-search match: what the user taps to save a verified favourite. */
 export type EntityMatch = components["schemas"]["EntityMatchOut"];
 /** artist, movie, tv_show or book. Qloo has no songs. */
 export type EntityType = components["schemas"]["EntityType"];

@@ -18,7 +18,7 @@ def _parse_profile(raw: dict[str, Any]) -> DemoProfileSpec:
     return DemoProfileSpec(
         key=raw["key"],
         display_name=raw["display_name"],
-        birth_year=raw["birth_year"],
+        birth_year=raw.get("birth_year"),
         country_code=raw.get("country_code"),
         places_lived=tuple(raw.get("places_lived", [])),
         languages=tuple(raw.get("languages", [])),

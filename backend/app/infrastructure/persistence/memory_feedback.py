@@ -7,17 +7,17 @@ from app.domain.feedback import Exclusion, Feedback
 
 
 class InMemoryFeedbackRepository:
-    """Reactions and signals in a list, in the order they arrived."""
+    """Signals in a list, in the order they arrived."""
 
     def __init__(self) -> None:
         self._feedback: list[Feedback] = []
 
     async def add(self, feedback: Feedback) -> None:
-        """Store one reaction or signal."""
+        """Store one signal."""
         self._feedback.append(deepcopy(feedback))
 
     async def list_for_profile(self, profile_id: UUID) -> list[Feedback]:
-        """Every reaction and signal for the profile, oldest first."""
+        """Every signal for the profile, oldest first."""
         return [deepcopy(entry) for entry in self._feedback if entry.profile_id == profile_id]
 
 

@@ -282,7 +282,7 @@ async def test_tags_send_the_query_and_map_id_to_tag_id() -> None:
     assert [(tag.tag_id, tag.name) for tag in tags] == [("urn:tag:genre:music:60s", "60s")]
 
 
-def test_insights_params_for_warmup_scoring() -> None:
+def test_insights_params_for_quiz_scoring() -> None:
     params = build_insights_params(
         InsightsQuery(
             EntityType.ARTIST,
@@ -296,3 +296,50 @@ def test_insights_params_for_warmup_scoring() -> None:
     assert params["filter.results.entities"] == "a,b"
     assert params["signal.interests.entities"] == "chosen"
     assert params["filter.exclude.entities"] == "blocked"
+
+
+RICH_BOOK = {
+    "entity_id": "b1",
+    "name": "Example Book",
+    "type": "urn:entity",
+    "subtype": "urn:entity:book",
+    "properties": {
+        "publication_year": 2018,
+        "image": {"url": "https://images.example.test/b1.jpg"},
+        "isbn13": "978-0571334650",
+        "description": "  A   quiet story.  ",
+    },
+    "tags": [
+        {"id": "urn:tag:keyword:x", "name": "Friendship", "type": "urn:tag:keyword:qloo"},
+        {"id": "urn:tag:genre:y", "name": "Literary fiction", "type": "urn:tag:genre:media"},
+    ],
+    "external": {"goodreads": [{"id": "41057294", "user_rating": 3.8}]},
+}
+
+
+async def test_insights_parse_image_isbn_description_tags_and_external_ids() -> None:
+    recorder = Recorder(httpx.Response(200, json=insights_body(RICH_BOOK)))
+
+    [match] = await make_graph(recorder).insights(InsightsQuery(EntityType.BOOK, take=5))
+
+    assert match.image_url == "https://images.example.test/b1.jpg"
+    assert match.isbn13 == "9780571334650"
+    assert match.description == "A quiet story."
+    assert match.tags == ("Literary fiction", "Friendship")
+    assert match.external == {"goodreads": "41057294"}
+
+
+async def test_search_reads_external_ids_from_properties_and_skips_bad_images() -> None:
+    artist = {
+        **ARTIST,
+        "properties": {
+            "image": {"url": "http://insecure.example.test/a.jpg"},
+            "external": {"spotify": {"id": "7Ln80lUS6He07XvHI8qqHH"}},
+        },
+    }
+    recorder = Recorder(httpx.Response(200, json=search_body(artist)))
+
+    [match] = await make_graph(recorder).search("Example Singer")
+
+    assert match.image_url is None
+    assert match.external == {"spotify": "7Ln80lUS6He07XvHI8qqHH"}

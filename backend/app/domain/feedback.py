@@ -1,4 +1,4 @@
-"""Feedback from the caregiver and the person, and the items they've blocked."""
+"""What the user does with items (likes, saves, opens, dismisses) and what they've excluded."""
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -6,78 +6,54 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
+from app.domain.feed import is_favourite_ref
 from app.domain.models import EntityType, utc_now
 from app.domain.names import normalise_name
-from app.domain.sessions import is_favourite_ref
 
 
-class Actor(StrEnum):
-    """Who gave the feedback."""
+class Signal(StrEnum):
+    """One thing the user did with an item. `not_interested` excludes it (rule 3)."""
 
-    CAREGIVER = "caregiver"
-    PERSON = "person"
-
-
-class Reaction(StrEnum):
-    """What the caregiver saw. Only the caregiver can hide (`upset`) or reject an item."""
-
-    SANG_ALONG = "sang_along"
-    SMILED = "smiled"
-    CALM = "calm"
-    NEUTRAL = "neutral"
-    UPSET = "upset"
-    REJECTED = "rejected"
-
-
-class PersonSignal(StrEnum):
-    """What the person did in Person mode. A quick skip only lowers an item's ranking."""
-
-    CHOSE = "chose"
-    LOVED = "loved"
-    REPLAYED = "replayed"
-    SKIPPED = "skipped"
+    LIKED = "liked"
+    UNLIKED = "unliked"
+    SAVED = "saved"
+    UNSAVED = "unsaved"
+    OPENED = "opened"
+    QUIZ_PICK = "quiz_pick"
+    JOURNAL_CONFIRMED = "journal_confirmed"
+    DISLIKED = "disliked"
+    NOT_INTERESTED = "not_interested"
 
 
 @dataclass
 class Feedback:
-    """One reaction or signal for an item. `kind` is a `Reaction` or a `PersonSignal` value."""
+    """One signal for an item, kept for learning. `platform` is the link used for `opened`."""
 
     profile_id: UUID
     item_ref: str
     title: str
-    actor: Actor
-    kind: str
+    kind: Signal
     entity_type: EntityType | None = None
-    session_id: UUID | None = None
-    note: str | None = None
-    played_s: int | None = None
+    platform: str | None = None
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
 
 
-class ExclusionKind(StrEnum):
-    """Why an item is blocked. Both kinds keep it out of sessions and Person mode."""
-
-    REJECTED = "rejected"
-    HIDDEN = "hidden"
-
-
 @dataclass
 class Exclusion:
-    """An item that must not appear again for this profile. Hidden items wait for review."""
+    """An item marked "not interested". It never appears again until the user undoes it."""
 
     profile_id: UUID
     entity_ref: str
     title: str
-    kind: ExclusionKind
-    needs_review: bool = False
+    entity_type: EntityType | None = None
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
 
 
 @dataclass(frozen=True)
 class Blocklist:
-    """Everything a profile has blocked, checked in code wherever items are chosen or shown.
+    """Everything a profile excluded, checked in code wherever items are chosen or shown.
 
     Items with a Qloo ID are matched by ID. Items without one (`fav:` refs) are also matched by
     their normalised title, so a typed favourite can't slip back in under a new ID.
@@ -88,7 +64,7 @@ class Blocklist:
 
     @classmethod
     def from_exclusions(cls, exclusions: Iterable[Exclusion]) -> "Blocklist":
-        """The blocklist for these exclusions, of either kind."""
+        """The blocklist for these exclusions."""
         entries = list(exclusions)
         return cls(
             refs=frozenset(entry.entity_ref for entry in entries),
@@ -103,5 +79,5 @@ class Blocklist:
 
     @property
     def qloo_ids(self) -> tuple[str, ...]:
-        """The blocked refs Qloo knows, for `filter.exclude.entities`."""
+        """The excluded refs Qloo knows, for `filter.exclude.entities`."""
         return tuple(sorted(ref for ref in self.refs if not is_favourite_ref(ref)))

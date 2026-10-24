@@ -5,7 +5,7 @@ type Schemas = components["schemas"];
 
 /** A profile with its favourites. */
 export type Profile = Schemas["ProfileOut"];
-/** Fields for a new profile: only the display name and birth year are required. */
+/** Fields for a new profile: only the display name is required. */
 export type ProfileCreate = Schemas["ProfileCreate"];
 /** Any profile fields to change. */
 export type ProfileUpdate = Schemas["ProfileUpdate"];

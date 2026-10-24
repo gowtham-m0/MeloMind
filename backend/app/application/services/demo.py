@@ -1,20 +1,17 @@
-"""The demo seed: gives each new user the sample profiles, once, each with a warm-up set
-being planned in the background so it's ready for the caregiver to approve."""
+"""The demo seed: gives each new user the sample profiles, once, each with its first feed being
+built in the background so it's ready when they open it."""
 
 import logging
 from collections.abc import Sequence
 from uuid import UUID
 
 from app.application.ports import ProfileRepository
-from app.application.services.sessions import SessionService
+from app.application.services.feed import FeedService
 from app.application.services.taste import TasteService
 from app.core.errors import UpstreamError
 from app.domain.models import DemoFavouriteSpec, DemoProfileSpec, Favourite, Profile
-from app.domain.sessions import WARMUP_MODE
 
 logger = logging.getLogger(__name__)
-
-WARMUP_MINUTES = 20
 
 
 class DemoSeedService:
@@ -28,12 +25,12 @@ class DemoSeedService:
         profiles: ProfileRepository,
         taste: TasteService,
         specs: Sequence[DemoProfileSpec],
-        sessions: SessionService | None = None,
+        feeds: FeedService | None = None,
     ) -> None:
         self._profiles = profiles
         self._taste = taste
         self._specs = tuple(specs)
-        self._sessions = sessions
+        self._feeds = feeds
 
     async def seed(self, owner_id: UUID) -> list[UUID]:
         """The IDs of the user's demo profiles, creating them the first time only."""
@@ -43,11 +40,9 @@ class DemoSeedService:
             return demo_ids
         created = [await self._create(owner_id, spec) for spec in self._specs]
         logger.info("Seeded %d demo profiles", len(created))
-        if self._sessions is not None:
+        if self._feeds is not None:
             for profile_id in created:
-                await self._sessions.plan(
-                    owner_id, profile_id, WARMUP_MODE, WARMUP_MINUTES, count_towards_limit=False
-                )
+                await self._feeds.refresh(owner_id, profile_id, count_towards_limit=False)
         return created
 
     async def _create(self, owner_id: UUID, spec: DemoProfileSpec) -> UUID:
@@ -77,4 +72,5 @@ class DemoSeedService:
             kind=spec.kind,
             qloo_id=match.entity_id if match else None,
             song_title=spec.song_title,
+            image_url=match.image_url if match else None,
         )

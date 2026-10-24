@@ -1,39 +1,22 @@
-"""Schemas for exclusions: items the caregiver rejected or hid."""
+"""Schemas for exclusions: the items marked "not interested"."""
 
 from datetime import datetime
-from typing import Annotated, Literal, Self
+from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel
 
-from app.domain.feedback import Exclusion, ExclusionKind
-
-ExclusionReason = Literal["rejected", "upset"]
-
-KIND_BY_REASON: dict[str, ExclusionKind] = {
-    "rejected": ExclusionKind.REJECTED,
-    "upset": ExclusionKind.HIDDEN,
-}
-
-
-class ExclusionCreate(BaseModel):
-    """Reject an item for good, or hide it (`upset`) until the caregiver reviews it."""
-
-    entity_ref: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)
-    ]
-    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
-    reason: ExclusionReason
+from app.domain.feedback import Exclusion
+from app.domain.models import EntityType
 
 
 class ExclusionOut(BaseModel):
-    """An excluded item. `needs_review` is true for a hidden item nobody has reviewed yet."""
+    """An item the user is not interested in. Deleting it undoes that."""
 
     id: UUID
     entity_ref: str
     title: str
-    reason: ExclusionReason
-    needs_review: bool
+    entity_type: EntityType | None
     created_at: datetime
 
     @classmethod
@@ -43,7 +26,6 @@ class ExclusionOut(BaseModel):
             id=exclusion.id,
             entity_ref=exclusion.entity_ref,
             title=exclusion.title,
-            reason="rejected" if exclusion.kind is ExclusionKind.REJECTED else "upset",
-            needs_review=exclusion.needs_review,
+            entity_type=exclusion.entity_type,
             created_at=exclusion.created_at,
         )

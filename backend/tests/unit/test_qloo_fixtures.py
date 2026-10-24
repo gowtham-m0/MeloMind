@@ -49,7 +49,7 @@ def test_entities_have_valid_fields() -> None:
     for entity in entities():
         assert entity["type"] in ENTITY_TYPES, entity["entity_id"]
         assert 0 <= entity["popularity"] <= 1, entity["entity_id"]
-        assert 1900 <= entity["release_year"] <= 2000, entity["entity_id"]
+        assert 1900 <= entity["release_year"] <= 2030, entity["entity_id"]
         assert set(entity["tags"]) <= tag_ids, entity["entity_id"]
 
 

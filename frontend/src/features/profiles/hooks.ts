@@ -1,70 +1,51 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  addFavourite,
   createProfile,
-  deleteProfile,
   getProfile,
   listProfiles,
-  updateProfile,
-  type Profile,
+  type FavouriteCreate,
   type ProfileCreate,
-  type ProfileUpdate,
 } from "@/shared/api/profiles";
-
-/** Query keys for profiles, shared with the favourites feature. */
-export const profileKeys = {
-  all: ["profiles"] as const,
-  detail: (id: string) => ["profiles", id] as const,
-};
 
 /** The signed-in user's profiles. */
 export function useProfiles() {
-  return useQuery({ queryKey: profileKeys.all, queryFn: listProfiles });
+  return useQuery({ queryKey: ["profiles"], queryFn: listProfiles });
 }
 
 /** One profile with its favourites. */
-export function useProfile(id: string | undefined) {
-  return useQuery({
-    queryKey: profileKeys.detail(id ?? ""),
-    queryFn: () => getProfile(id ?? ""),
-    enabled: Boolean(id),
-  });
+export function useProfile(profileId: string) {
+  return useQuery({ queryKey: ["profile", profileId], queryFn: () => getProfile(profileId) });
 }
 
-function useStoreProfile() {
-  const queryClient = useQueryClient();
-  return (profile: Profile) => {
-    queryClient.setQueryData(profileKeys.detail(profile.id), profile);
-    void queryClient.invalidateQueries({ queryKey: profileKeys.all, exact: true });
-  };
-}
-
-/** Creates a profile from a name and birth year (plus anything else known). */
+/** Creates a profile and refreshes the list. */
 export function useCreateProfile() {
-  const store = useStoreProfile();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: ProfileCreate) => createProfile(body),
-    onSuccess: store,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["profiles"] }),
   });
 }
 
-/** Changes some fields of a profile. */
-export function useUpdateProfile(id: string) {
-  const store = useStoreProfile();
-  return useMutation({
-    mutationFn: (body: ProfileUpdate) => updateProfile(id, body),
-    onSuccess: store,
-  });
-}
-
-/** Deletes a profile and everything that belongs to it. */
-export function useDeleteProfile(id: string) {
+/** Saves a favourite, which marks the feed out of date. */
+export function useAddFavourite(profileId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => deleteProfile(id),
+    mutationFn: (body: FavouriteCreate) => addFavourite(profileId, body),
     onSuccess: async () => {
-      queryClient.removeQueries({ queryKey: profileKeys.detail(id) });
-      await queryClient.invalidateQueries({ queryKey: profileKeys.all, exact: true });
+      await queryClient.invalidateQueries({ queryKey: ["profile", profileId] });
     },
   });
+}
+
+const AVATAR_COLOURS = ["bg-music", "bg-film", "bg-tv", "bg-book"];
+
+/** A stable avatar colour per profile, from the four type colours. */
+export function avatarColour(profileId: string): string {
+  let hash = 0;
+  for (const char of profileId) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+  return AVATAR_COLOURS[hash % AVATAR_COLOURS.length];
 }

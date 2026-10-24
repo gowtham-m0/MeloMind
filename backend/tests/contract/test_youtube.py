@@ -88,6 +88,19 @@ async def test_the_first_embeddable_public_video_of_a_good_length_wins() -> None
     assert "status" in requests[1].url.params["part"]
 
 
+async def test_shorts_are_skipped() -> None:
+    search = {"items": [{"id": {"videoId": v}} for v in ("short", "tagged", "good")]}
+    tagged = video("tagged", "PT2M")
+    tagged["snippet"]["title"] = "Top 10 hits #Shorts"
+    videos = {"items": [video("short", "PT60S"), tagged, video("good", "PT3M")]}
+    youtube, _ = resolver(answers(search, videos))
+
+    media = await youtube.resolve("Lorde 2010s official music video")
+
+    assert media is not None
+    assert media.video_id == "good"
+
+
 async def test_nothing_playable_is_none_never_an_unrelated_video() -> None:
     search = {"items": [{"id": {"videoId": "a"}}]}
     youtube, _ = resolver(answers(search, {"items": [video("a", "PT2M", embeddable=False)]}))

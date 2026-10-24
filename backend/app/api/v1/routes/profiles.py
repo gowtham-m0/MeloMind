@@ -20,10 +20,8 @@ async def list_profiles(user: CurrentUserDep, profiles: ProfileServiceDep) -> li
 async def create_profile(
     body: ProfileCreate, user: CurrentUserDep, profiles: ProfileServiceDep
 ) -> ProfileOut:
-    """Create a profile from a display name and birth year, plus anything else known."""
-    profile = await profiles.create(
-        user.id, body.display_name, body.birth_year, body.optional_fields()
-    )
+    """Create a profile from a display name, plus anything else known."""
+    profile = await profiles.create(user.id, body.display_name, body.optional_fields())
     return ProfileOut.from_domain(profile)
 
 

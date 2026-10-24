@@ -9,12 +9,13 @@ from app.domain.models import EntityType
 
 
 class EntityMatchOut(BaseModel):
-    """One search match: what the caregiver taps to save a verified favourite."""
+    """One search match: what the user taps to save a verified favourite."""
 
     entity_id: str
     name: str
     type: EntityType
     release_year: int | None
+    image_url: str | None
 
     @classmethod
     def from_match(cls, match: EntityMatch) -> Self:
@@ -24,4 +25,5 @@ class EntityMatchOut(BaseModel):
             name=match.name,
             type=match.type,
             release_year=match.release_year,
+            image_url=match.image_url,
         )

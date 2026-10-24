@@ -1,4 +1,4 @@
-/** A country the profile can say the person grew up in. */
+/** A country a profile can say it lives in. */
 export interface Country {
   code: string;
   name: string;
@@ -6,7 +6,7 @@ export interface Country {
 
 /**
  * Countries offered in onboarding, as ISO 3166-1 alpha-2 codes. Keep in step with
- * `backend/app/infrastructure/qloo/countries.py`, which converts them for Qloo.
+ * `backend/app/domain/countries.py`, which converts them for Qloo.
  */
 export const COUNTRIES: Country[] = [
   { code: "AR", name: "Argentina" },

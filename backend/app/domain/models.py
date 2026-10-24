@@ -5,8 +5,12 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-BIRTH_YEAR_MIN = 1920
-BIRTH_YEAR_MAX = 1990
+BIRTH_YEAR_MIN = 1900
+
+
+def birth_year_max() -> int:
+    """The latest allowed birth year: the current year."""
+    return datetime.now(UTC).year
 
 
 class EntityType(StrEnum):
@@ -19,7 +23,7 @@ class EntityType(StrEnum):
 
 
 class FavouriteKind(StrEnum):
-    """What a caregiver can add as a favourite. A song is stored as text plus its singer."""
+    """What the user can add as a favourite. A song is stored as text plus its singer."""
 
     ARTIST = "artist"
     SONG = "song"
@@ -42,29 +46,30 @@ def utc_now() -> datetime:
 
 @dataclass
 class Favourite:
-    """Something the person loved. Verified favourites carry a Qloo ID and become signals."""
+    """Something the user loves. Verified favourites carry a Qloo ID and become signals."""
 
     profile_id: UUID
     name: str
     kind: FavouriteKind
     qloo_id: str | None = None
     song_title: str | None = None
+    image_url: str | None = None
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=utc_now)
 
     @property
     def verified(self) -> bool:
-        """True when the caregiver picked a Qloo match, so it can be used as a signal."""
+        """True when the user picked a Qloo match, so it can be used as a signal."""
         return self.qloo_id is not None
 
 
 @dataclass
 class Profile:
-    """The person a caregiver sets up sessions for. Only the minimum personal data."""
+    """One taste profile of a user, Netflix-style. Only the minimum personal data."""
 
     owner_id: UUID
     display_name: str
-    birth_year: int
+    birth_year: int | None = None
     country_code: str | None = None
     places_lived: list[str] = field(default_factory=list)
     languages: list[str] = field(default_factory=list)
@@ -90,7 +95,7 @@ class DemoProfileSpec:
 
     key: str
     display_name: str
-    birth_year: int
+    birth_year: int | None
     country_code: str | None
     places_lived: tuple[str, ...]
     languages: tuple[str, ...]

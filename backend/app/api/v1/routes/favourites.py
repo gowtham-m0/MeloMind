@@ -16,7 +16,7 @@ async def add_favourite(
 ) -> FavouriteOut:
     """Save a favourite. It's verified when `entity_id` comes from a taste-search match."""
     favourite = await profiles.add_favourite(
-        user.id, profile_id, body.name, body.kind, body.entity_id, body.song_title
+        user.id, profile_id, body.name, body.kind, body.entity_id, body.song_title, body.image_url
     )
     return FavouriteOut.from_domain(favourite)
 

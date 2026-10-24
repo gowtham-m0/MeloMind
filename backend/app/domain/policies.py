@@ -1,109 +1,106 @@
-"""Learning rules: how feedback becomes weights and Qloo signals, the era window, ranking, and
-session length.
+"""Learning rules: how signals become weights and Qloo signals, which items show as liked or
+saved, the throwback era and ranking. Simple, explainable heuristics, chosen for this app."""
 
-These are heuristics chosen for this app. They are not clinically validated.
-"""
-
-import re
 from collections import defaultdict
 from collections.abc import Iterable
 from datetime import datetime
 
-from app.domain.feedback import Actor, Feedback, PersonSignal, Reaction
+from app.domain.feedback import Feedback, Signal
 
 ERA_START_AGE = 13
 ERA_END_AGE = 21
 ERA_WIDEN_YEARS = 5
-# The middle of the era window: stands in for an unknown year when finding media.
-ERA_MIDDLE_AGE = 17
 
-CAREGIVER_WEIGHTS: dict[Reaction, float] = {
-    Reaction.SANG_ALONG: 1.0,
-    Reaction.SMILED: 0.6,
-    Reaction.CALM: 0.2,
-    Reaction.NEUTRAL: 0.0,
+SIGNAL_WEIGHTS: dict[Signal, float] = {
+    Signal.LIKED: 1.0,
+    Signal.UNLIKED: -1.0,
+    Signal.SAVED: 0.6,
+    Signal.UNSAVED: -0.6,
+    Signal.OPENED: 0.3,
+    Signal.QUIZ_PICK: 0.5,
+    Signal.JOURNAL_CONFIRMED: 1.0,
+    Signal.DISLIKED: -0.5,
+    Signal.NOT_INTERESTED: 0.0,
 }
-PERSON_WEIGHTS: dict[PersonSignal, float] = {
-    PersonSignal.CHOSE: 0.3,
-    PersonSignal.LOVED: 0.6,
-    PersonSignal.REPLAYED: 0.6,
-    PersonSignal.SKIPPED: -0.2,
-}
-# Reactions that block an item instead of weighting it: `upset` hides it, `rejected` excludes it.
-BLOCKING_REACTIONS = frozenset({Reaction.UPSET, Reaction.REJECTED})
-SKIP_MAX_SECONDS = 15
-# Items whose total weight reaches this become Qloo signals in the next plan.
+# Signals that count at most once per item per day, so repeated taps don't inflate a weight.
+ONCE_A_DAY = frozenset({Signal.OPENED})
+# Items whose total weight reaches this become Qloo signals in the next feed.
 SIGNAL_THRESHOLD = 0.6
 # Affinities this close count as a tie, so learned weight can decide between them.
 AFFINITY_BAND = 0.1
 
-# A book has no video: it's a short conversation slot instead.
-BOOK_TALK_SECONDS = 180
-LENGTH_TOLERANCE = 0.1
-
-_MEMORY_TEST = re.compile(r"\b(remember|recall)", re.IGNORECASE)
-_MEDICAL_CLAIM = re.compile(
-    r"\b(treat(s|ed|ing|ment)?|therap\w*|cur(e|es|ed|ing)|heal(s|ed|ing)?"
-    r"|improves? (your |their |her |his )?memory|memory loss|agitation|symptoms?"
-    r"|medicat\w*|diagnos\w*|dementia|alzheimer\w*)\b",
-    re.IGNORECASE,
-)
-
 
 def era_window(birth_year: int, attempt: int = 0) -> tuple[int, int]:
-    """The years they were 13 to 21, widened by 5 years on each side per fallback retry."""
+    """The years they were 13 to 21, widened by 5 years on each side per retry."""
     widen = ERA_WIDEN_YEARS * attempt
     return birth_year + ERA_START_AGE - widen, birth_year + ERA_END_AGE + widen
 
 
-def era_middle_year(birth_year: int) -> int:
-    """The year they turned 17."""
-    return birth_year + ERA_MIDDLE_AGE
-
-
-def skip_counts(played_s: int | None) -> bool:
-    """A skip counts only when the item played for under 15 seconds."""
-    return played_s is not None and played_s < SKIP_MAX_SECONDS
-
-
-def feedback_weight(feedback: Feedback) -> float:
-    """The weight one reaction or signal adds to its item. Blocking reactions add nothing."""
-    if feedback.actor is Actor.CAREGIVER:
-        return CAREGIVER_WEIGHTS.get(Reaction(feedback.kind), 0.0)
-    return PERSON_WEIGHTS[PersonSignal(feedback.kind)]
-
-
 def counted_today(
-    feedback: Iterable[Feedback], item_ref: str, signal: PersonSignal, now: datetime
+    feedback: Iterable[Feedback], item_ref: str, signal: Signal, now: datetime
 ) -> bool:
-    """True when the person already gave this signal for this item today (UTC)."""
+    """True when this signal was already given for this item today (UTC)."""
     return any(
-        entry.actor is Actor.PERSON
-        and entry.item_ref == item_ref
-        and entry.kind == signal.value
+        entry.item_ref == item_ref
+        and entry.kind is signal
         and entry.created_at.date() == now.date()
         for entry in feedback
     )
 
 
-def learned_weights(feedback: Iterable[Feedback]) -> dict[str, float]:
-    """The total weight of each item ref. Each person signal counts once per item per day."""
-    totals: defaultdict[str, float] = defaultdict(float)
-    seen: set[tuple[str, str, object]] = set()
+def _counted(feedback: Iterable[Feedback]) -> list[Feedback]:
+    """The feedback that counts, dropping repeats of once-a-day signals."""
+    seen: set[tuple[str, Signal, object]] = set()
+    kept: list[Feedback] = []
     for entry in feedback:
-        if entry.actor is Actor.PERSON:
+        if entry.kind in ONCE_A_DAY:
             key = (entry.item_ref, entry.kind, entry.created_at.date())
             if key in seen:
                 continue
             seen.add(key)
-        totals[entry.item_ref] += feedback_weight(entry)
+        kept.append(entry)
+    return kept
+
+
+def learned_weights(feedback: Iterable[Feedback]) -> dict[str, float]:
+    """The total weight of each item ref."""
+    totals: defaultdict[str, float] = defaultdict(float)
+    for entry in _counted(feedback):
+        totals[entry.item_ref] += SIGNAL_WEIGHTS[entry.kind]
     return {ref: round(weight, 2) for ref, weight in totals.items()}
 
 
-def signal_refs(weights: dict[str, float]) -> list[str]:
-    """Refs whose weight reaches the signal threshold, highest weight first."""
-    strong = [(ref, weight) for ref, weight in weights.items() if weight >= SIGNAL_THRESHOLD]
-    return [ref for ref, _ in sorted(strong, key=lambda pair: -pair[1])]
+def signal_refs(feedback: Iterable[Feedback]) -> list[str]:
+    """Refs whose weight reaches the threshold, newest activity first, so the feed follows
+    recent taste."""
+    entries = list(feedback)
+    weights = learned_weights(entries)
+    last_seen: dict[str, datetime] = {}
+    for entry in entries:
+        if entry.item_ref not in last_seen or entry.created_at > last_seen[entry.item_ref]:
+            last_seen[entry.item_ref] = entry.created_at
+    strong = [ref for ref, weight in weights.items() if weight >= SIGNAL_THRESHOLD]
+    return sorted(strong, key=lambda ref: last_seen[ref], reverse=True)
+
+
+def item_states(feedback: Iterable[Feedback]) -> dict[str, frozenset[Signal]]:
+    """Which items are currently liked or saved: the latest of like/unlike and save/unsave
+    wins. Returned as `{ref: {LIKED, SAVED}}`, only for items with at least one."""
+    liked: dict[str, bool] = {}
+    saved: dict[str, bool] = {}
+    for entry in sorted(feedback, key=lambda item: item.created_at):
+        if entry.kind in (Signal.LIKED, Signal.UNLIKED):
+            liked[entry.item_ref] = entry.kind is Signal.LIKED
+        elif entry.kind in (Signal.SAVED, Signal.UNSAVED):
+            saved[entry.item_ref] = entry.kind is Signal.SAVED
+    states: dict[str, frozenset[Signal]] = {}
+    for ref in set(liked) | set(saved):
+        state = {Signal.LIKED} if liked.get(ref) else set()
+        if saved.get(ref):
+            state.add(Signal.SAVED)
+        if state:
+            states[ref] = frozenset(state)
+    return states
 
 
 def rank_key(
@@ -112,26 +109,3 @@ def rank_key(
     """Sort key, smallest first: Qloo affinity (in bands), then learned weight, then popularity."""
     band = round((affinity or 0.0) / AFFINITY_BAND)
     return (-band, -weight, -(popularity or 0.0))
-
-
-def age_at_release(birth_year: int, release_year: int | None) -> int | None:
-    """How old they were when it came out, or None when unknown or before they were born."""
-    if release_year is None or release_year < birth_year:
-        return None
-    return release_year - birth_year
-
-
-def target_bounds(target_minutes: int) -> tuple[int, int]:
-    """The shortest and longest acceptable session, in seconds: the target ± 10 %."""
-    target = target_minutes * 60
-    return round(target * (1 - LENGTH_TOLERANCE)), round(target * (1 + LENGTH_TOLERANCE))
-
-
-def is_memory_test(prompt: str) -> bool:
-    """True for a prompt that tests memory ("Do you remember…?") instead of inviting a chat."""
-    return _MEMORY_TEST.search(prompt) is not None
-
-
-def makes_medical_claim(text: str) -> bool:
-    """True for text that mentions treatment, symptoms or a diagnosis. We make no medical claims."""
-    return _MEDICAL_CLAIM.search(" ".join(text.split())) is not None

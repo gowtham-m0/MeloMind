@@ -1,4 +1,4 @@
-"""What the plan_session nodes depend on: ports, the run's log, the mode and the limits.
+"""What the build_feed nodes depend on: ports, the run's log, the rows and the limits.
 
 The workflow builder injects these, so nodes never import an adapter.
 """
@@ -6,15 +6,14 @@ The workflow builder injects these, so nodes never import an adapter.
 from dataclasses import dataclass
 
 from app.application.agent.log import RunLog
-from app.application.modes.base import SessionMode
 from app.application.ports import (
     ChatModels,
     ExclusionRepository,
     FeedbackRepository,
     LanguageModel,
-    MediaResolver,
     TasteGraph,
 )
+from app.application.rows.registry import RowRegistry
 
 
 @dataclass(frozen=True)
@@ -25,19 +24,22 @@ class AgentLimits:
     max_model_calls: int = 8
     timeout_seconds: float = 25.0
     max_retries: int = 2
+    feed_max_qloo_calls: int = 24
+    row_size: int = 12
 
 
 @dataclass(frozen=True)
-class PlanDeps:
-    """Everything one plan run's nodes need."""
+class FeedDeps:
+    """Everything one feed run's nodes need. `previous_refs` and `previous_tags` describe the
+    last feed, so the summary can say what changed."""
 
     feedback: FeedbackRepository
     exclusions: ExclusionRepository
     taste: TasteGraph
-    media: MediaResolver
     log: RunLog
-    mode: SessionMode
+    rows: RowRegistry
     limits: AgentLimits
-    target_minutes: int
     language_model: LanguageModel | None = None
     chat_models: ChatModels | None = None
+    previous_refs: frozenset[str] = frozenset()
+    previous_tags: tuple[str, ...] = ()

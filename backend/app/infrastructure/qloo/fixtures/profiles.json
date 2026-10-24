@@ -2,9 +2,24 @@
   "demo": true,
   "profiles": [
     {
-      "key": "margaret",
-      "display_name": "Margaret",
-      "birth_year": 1948,
+      "key": "aanya",
+      "display_name": "Aanya",
+      "birth_year": 2001,
+      "country_code": "IN",
+      "places_lived": ["Bangalore"],
+      "languages": ["English", "Kannada"],
+      "favourites": [
+        { "name": "Arctic Monkeys", "kind": "artist" },
+        { "name": "The 1975", "kind": "artist" },
+        { "name": "Glass Animals", "kind": "song", "song_title": "Heat Waves" },
+        { "name": "Interstellar", "kind": "movie" },
+        { "name": "Normal People", "kind": "book" }
+      ]
+    },
+    {
+      "key": "leo",
+      "display_name": "Leo",
+      "birth_year": 1950,
       "country_code": "US",
       "places_lived": ["Chicago, Illinois"],
       "languages": ["English"],
@@ -13,20 +28,6 @@
         { "name": "The Temptations", "kind": "song", "song_title": "My Girl" },
         { "name": "The Sound of Music", "kind": "movie" },
         { "name": "To Kill a Mockingbird", "kind": "book" }
-      ]
-    },
-    {
-      "key": "lakshmi",
-      "display_name": "Lakshmi",
-      "birth_year": 1950,
-      "country_code": "IN",
-      "places_lived": ["Chennai, Tamil Nadu"],
-      "languages": ["Tamil", "English"],
-      "favourites": [
-        { "name": "P. Susheela", "kind": "artist" },
-        { "name": "T. M. Soundararajan", "kind": "song", "song_title": "Malarnthum Malaraatha" },
-        { "name": "Kadhalikka Neramillai", "kind": "movie" },
-        { "name": "M. S. Viswanathan", "kind": "artist" }
       ]
     }
   ]

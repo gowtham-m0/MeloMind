@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     qloo_api_key: SecretStr = SecretStr("")
     qloo_base_url: str = "https://hackathon.api.qloo.com"
 
-    # YouTube
+    # YouTube (optional preview)
     youtube_api_key: SecretStr = SecretStr("")
 
     # LLM
@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     llm_fallback_provider: str = ""
     llm_fallback_model: str = ""
     llm_fallback_api_key: SecretStr = SecretStr("")
+    stt_model: str = "whisper-large-v3-turbo"
 
     # Agent and limits
     agent_max_tool_calls: int = 12
@@ -48,12 +49,13 @@ class Settings(BaseSettings):
     resolve_max_searches: int = 5
     link_max_searches: int = 10
     agent_max_retries: int = 2
-    session_target_minutes: int = 20
-    plan_rate_limit_per_hour: int = 10
+    feed_max_qloo_calls: int = 24
+    feed_rate_limit_per_hour: int = 20
 
-    # Person mode and Memory Graph
-    warmup_pairs: int = 6
-    memory_graph_max_nodes: int = 30
+    # Feed, quiz and taste map
+    feed_row_size: int = 12
+    quiz_pairs: int = 6
+    taste_map_max_nodes: int = 40
 
 
 @lru_cache

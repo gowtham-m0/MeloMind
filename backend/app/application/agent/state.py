@@ -1,34 +1,39 @@
-"""The plan_session workflow's state. Each node reads some keys and writes others."""
+"""The build_feed workflow's state. Each node reads some keys and writes others."""
 
 from typing import TypedDict
 
-from app.application.agent.types import (
-    Candidate,
-    PlanContext,
-    PlannedItem,
-    ResearchBrief,
-    ResearchOutcome,
-)
+from app.application.agent.types import Candidate, FeedContext, ResearchBrief, ResearchOutcome
+from app.domain.feed import FeedItem, FeedRow, RowPlacement
 from app.domain.models import Profile
-from app.domain.sessions import SessionItem
 
 
-class PlanState(TypedDict, total=False):
-    """Written by: `profile` (start), `context` (load_context), `brief`, `candidates`,
-    `research_outcome` (research, fallback), `fallback_attempts` (fallback), `ranks`,
-    `selected`, `spares` (select_items), `planned`, `ready_spares`, `media_errors`
-    (resolve_media), `items` (guardrails, compose)."""
+class RowDraft(TypedDict):
+    """A row while it's being built: candidates, not cards yet."""
+
+    key: str
+    title: str
+    subtitle: str
+    placement: RowPlacement
+    reason: str | None
+    min_items: int
+    candidates: list[Candidate]
+
+
+class FeedState(TypedDict, total=False):
+    """Written by: `profile` (start), `context` (load_context), `brief`, `pool`,
+    `research_outcome` (research, fallback), `fallback_attempts` (fallback), `drafts`
+    (build_rows, rank, guardrails), `hero` (rank, guardrails), `rows`, `hero_item`,
+    `taste_tags` (decorate), `summary` (explain)."""
 
     profile: Profile
-    context: PlanContext
+    context: FeedContext
     brief: ResearchBrief
-    candidates: list[Candidate]
+    pool: list[Candidate]
     research_outcome: ResearchOutcome
     fallback_attempts: int
-    ranks: dict[str, int]
-    selected: list[Candidate]
-    spares: list[Candidate]
-    planned: list[PlannedItem]
-    ready_spares: list[PlannedItem]
-    media_errors: int
-    items: list[SessionItem]
+    drafts: list[RowDraft]
+    hero: Candidate | None
+    rows: list[FeedRow]
+    hero_item: FeedItem | None
+    taste_tags: tuple[str, ...]
+    summary: str

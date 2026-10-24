@@ -1,93 +1,302 @@
 @import "tailwindcss";
 
-/* Dark mode only under an explicit .dark class, so the OS setting can't half-apply it. */
-@custom-variant dark (&:is(.dark *));
-
 /*
- * "Cozy retro radio": cream paper, warm ink, teal and burgundy. shadcn/ui token names, light only,
- * tuned for high contrast: text at 7:1 or more, borders at 3:1 or more on the cream background.
+ * MeloMind design tokens (CLAUDE.md, "Design system"): a light, airy ground, ink type, one amber
+ * accent for action and selection, and four type colours used only as meaning (chips, the taste
+ * thread, fallback tiles).
  */
 :root {
-  --radius: 0.75rem;
-  --background: #f6efe3;
-  --foreground: #2b2420;
-  --card: #fffbf4;
-  --card-foreground: #2b2420;
-  --popover: #fffbf4;
-  --popover-foreground: #2b2420;
-  --primary: #1f5c5a;
-  --primary-foreground: #fffbf4;
-  --secondary: #eadfcb;
-  --secondary-foreground: #2b2420;
-  --muted: #efe6d6;
-  --muted-foreground: #574a42;
-  --accent: #eadfcb;
-  --accent-foreground: #2b2420;
-  --destructive: #7a2e3a;
-  --border: #8c7b6a;
-  --input: #6f6052;
-  --ring: #1f5c5a;
-  --mustard: #c8962e;
-
-  /* Decade colours for cards: they differ in lightness too, not only in hue. */
-  --decade-1940s: #6b5b45;
-  --decade-1950s: #2f6f6b;
-  --decade-1960s: #c8962e;
-  --decade-1970s: #8c3b46;
-  --decade-1980s: #4a5c8c;
-  --decade-other: #8c7b6a;
+  --ink: #1a1a1a;
+  --body: #444444;
+  --muted: #6b6b6b;
+  --surface: #ffffff;
+  --surface-2: #f5f5f5;
+  --surface-3: #ececec;
+  --line: #e0e0e0;
+  --hairline: #0000000f;
+  --primary: #e8a838;
+  --primary-hover: #d4952e;
+  --primary-tint: #e8a83824;
+  --primary-ink: #8a5a0c;
+  --brand: #ffc700;
+  --music: #e8a838;
+  --film: #e0594a;
+  --tv: #4a7be0;
+  --book: #3e9c6b;
+  /* Darker partners of the type colours, for text on white (4.5:1 or more). */
+  --music-ink: #8a5a0c;
+  --film-ink: #b0372a;
+  --tv-ink: #2f5bb8;
+  --book-ink: #2a7350;
+  --danger: #c2412f;
+  --shadow-soft: 0 2px 12px #0000000f;
+  --shadow-lift: 0 10px 28px -8px #00000024;
+  /* Motion curves from Emil Kowalski's animation tables (the animate skill). */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @theme inline {
-  --font-sans: "Atkinson Hyperlegible", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Fraunces", Georgia, ui-serif, serif;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
+  --font-sans: "Switzer", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Chillax", "Switzer", ui-sans-serif, sans-serif;
+  --color-ink: var(--ink);
+  --color-body: var(--body);
   --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-mustard: var(--mustard);
-  --color-decade-1940s: var(--decade-1940s);
-  --color-decade-1950s: var(--decade-1950s);
-  --color-decade-1960s: var(--decade-1960s);
-  --color-decade-1970s: var(--decade-1970s);
-  --color-decade-1980s: var(--decade-1980s);
-  --color-decade-other: var(--decade-other);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-hairline: var(--hairline);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-tint: var(--primary-tint);
+  --color-primary-ink: var(--primary-ink);
+  --color-brand: var(--brand);
+  --color-music: var(--music);
+  --color-film: var(--film);
+  --color-tv: var(--tv);
+  --color-book: var(--book);
+  --color-music-ink: var(--music-ink);
+  --color-film-ink: var(--film-ink);
+  --color-tv-ink: var(--tv-ink);
+  --color-book-ink: var(--book-ink);
+  --color-danger: var(--danger);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-lift: var(--shadow-lift);
+  --ease-out: var(--ease-out);
+  --ease-in-out: var(--ease-in-out);
+  --ease-drawer: var(--ease-drawer);
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-line;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scrollbar-color: var(--line) transparent;
   }
 
   body {
-    @apply bg-background font-sans text-foreground antialiased;
+    @apply bg-surface font-sans text-base text-body antialiased;
+    font-feature-settings: "ss01";
   }
 
   h1,
   h2,
   h3 {
-    @apply font-serif;
+    @apply font-display text-ink;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background: var(--primary-tint);
+    color: var(--ink);
   }
 
   :focus-visible {
-    @apply outline-3 outline-offset-2 outline-ring;
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  input {
+    caret-color: var(--primary-hover);
+  }
+
+  a {
+    text-underline-offset: 3px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: 999px;
+    border: 3px solid var(--surface);
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* The detail sheet: a right-hand drawer on desktop, a bottom sheet on phones. Keyframes rather
+   than transitions, because Radix waits for an exit animation before unmounting. */
+@keyframes sheet-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes sheet-out-right {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes sheet-in-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes sheet-out-down {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* The taste thread grows from the source to each pick, once, when the feed arrives. */
+@keyframes thread-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes node-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.sheet-panel[data-state="open"] {
+  animation: sheet-in-up 400ms var(--ease-drawer);
+}
+
+.sheet-panel[data-state="closed"] {
+  animation: sheet-out-down 260ms var(--ease-drawer);
+}
+
+.sheet-overlay[data-state="open"] {
+  animation: fade-in 200ms ease;
+}
+
+.sheet-overlay[data-state="closed"] {
+  animation: fade-out 200ms ease;
+}
+
+@media (min-width: 768px) {
+  .sheet-panel[data-state="open"] {
+    animation-name: sheet-in-right;
+  }
+
+  .sheet-panel[data-state="closed"] {
+    animation-name: sheet-out-right;
+  }
+}
+
+.toast {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 400ms ease,
+    transform 400ms ease;
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+/* Cards lift a touch on hover, only where hover is real (touch fires false hovers on tap). */
+.lift {
+  transition:
+    transform 200ms var(--ease-out),
+    box-shadow 200ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lift:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: var(--shadow-lift);
+  }
+}
+
+.rise-in {
+  animation: rise-in 300ms var(--ease-out) backwards;
+}
+
+.thread-segment {
+  transform-origin: top;
+  animation: thread-grow 420ms var(--ease-out) backwards;
+}
+
+.thread-node {
+  animation: node-in 300ms var(--ease-out) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel[data-state="open"],
+  .sheet-panel[data-state="closed"] {
+    animation-name: fade-in;
+    animation-duration: 200ms;
+  }
+
+  .sheet-panel[data-state="closed"] {
+    animation-name: fade-out;
+  }
+
+  .toast {
+    @starting-style {
+      transform: none;
+    }
+  }
+
+  .lift:hover {
+    transform: none;
+  }
+
+  .rise-in {
+    animation-name: fade-in;
+  }
+
+  .thread-segment,
+  .thread-node {
+    animation-name: fade-in;
+  }
+
+  html {
+    scroll-behavior: auto;
   }
 }

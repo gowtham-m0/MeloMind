@@ -51,21 +51,22 @@ class GetInsightsArgs(BaseModel):
         max_length=SIGNALS_MAX,
         description="Entity or tag IDs from the brief or from your earlier tool results.",
     )
-    older_audience: bool = Field(default=False, description="Add the 55-and-older audience signal.")
     year_min: int | None = Field(default=None, description="Films, TV and books only.")
     year_max: int | None = Field(default=None, description="Films, TV and books only.")
     country_code: str | None = Field(
         default=None, description="ISO 3166-1 alpha-2, such as US. Films and TV only."
     )
-    popularity_min: float | None = Field(default=None, ge=0, le=1)
-    take: int = Field(default=10, ge=TAKE_MIN, le=TAKE_MAX)
+    popularity_min: float | None = Field(
+        default=None, ge=0, le=1, description="A floor for popular picks, such as 0.7."
+    )
+    take: int = Field(default=12, ge=TAKE_MIN, le=TAKE_MAX)
 
 
 class Pick(BaseModel):
-    """One candidate the agent submits. The compose step writes the caregiver's reasons, so
-    `why` is optional and short: a long answer is slow and costs tokens."""
+    """One candidate the agent submits. The explain step writes the card reasons, so `why` is
+    optional and short: a long answer is slow and costs tokens."""
 
-    entity_id: str = Field(description="An entity_id that get_insights returned in this run.")
+    entity_id: str = Field(description="An id that get_insights returned in this run.")
     why: str = Field(default="", max_length=WHY_MAX, description="Optional, at most 8 words.")
 
 
@@ -90,7 +91,7 @@ def research_tools(ctx: ToolContext) -> list[BaseTool]:
         return _json(
             [
                 {
-                    "entity_id": candidate.entity_id,
+                    "id": ctx.short(candidate.entity_id),
                     "name": candidate.name,
                     "type": candidate.entity_type.value,
                     "year": candidate.release_year,
@@ -104,24 +105,23 @@ def research_tools(ctx: ToolContext) -> list[BaseTool]:
             found = await find_tags(ctx, query)
         except ToolRefusalError as refusal:
             return refusal.message
-        return _json([{"tag_id": tag.tag_id, "name": tag.name} for tag in found])
+        return _json([{"id": ctx.short(tag.tag_id), "name": tag.name} for tag in found])
 
     async def insights(
         type: EntityType,
         signal_ids: list[str] | None = None,
-        older_audience: bool = False,
         year_min: int | None = None,
         year_max: int | None = None,
         country_code: str | None = None,
         popularity_min: float | None = None,
-        take: int = 10,
+        take: int = 12,
     ) -> str:
-        ids = tuple(signal_ids or ())
-        ignored = [ref for ref in ids if ctx.name_of(ref) is None]
+        given = tuple(signal_ids or ())
+        ids = tuple(ctx.resolve(ref) for ref in given)
+        ignored = [alias for alias, ref in zip(given, ids, strict=True) if ctx.name_of(ref) is None]
         request = InsightsRequest(
             entity_type=type,
             signal_ids=ids,
-            age_55_plus=older_audience,
             year_min=year_min,
             year_max=year_max,
             country_code=country_code,
@@ -135,7 +135,7 @@ def research_tools(ctx: ToolContext) -> list[BaseTool]:
         answer: dict[str, Any] = {
             "candidates": [
                 {
-                    "entity_id": candidate.entity_id,
+                    "id": ctx.short(candidate.entity_id),
                     "name": candidate.name,
                     "year": candidate.release_year,
                     "affinity": round(candidate.affinity, 2) if candidate.affinity else None,
@@ -148,12 +148,14 @@ def research_tools(ctx: ToolContext) -> list[BaseTool]:
         return _json(answer)
 
     async def submit(candidates: list[Pick]) -> str:
-        result = await submit_candidates(ctx, [(pick.entity_id, pick.why) for pick in candidates])
+        result = await submit_candidates(
+            ctx, [(ctx.resolve(pick.entity_id), pick.why) for pick in candidates]
+        )
         return _json(
             {
                 "accepted": result.accepted,
                 "total_submitted": result.total,
-                "refused_unknown_ids": list(result.unknown_ids),
+                "refused_unknown_ids": [ctx.short(ref) for ref in result.unknown_ids],
             }
         )
 
@@ -161,7 +163,7 @@ def research_tools(ctx: ToolContext) -> list[BaseTool]:
         StructuredTool.from_function(
             coroutine=search,
             name="search_entities",
-            description="Find artists, films, TV shows or books by name. Returns IDs and years.",
+            description="Find artists, films, TV shows or books by name. Returns ids and years.",
             args_schema=SearchEntitiesArgs,
         ),
         StructuredTool.from_function(
@@ -174,8 +176,8 @@ def research_tools(ctx: ToolContext) -> list[BaseTool]:
             coroutine=insights,
             name="get_insights",
             description=(
-                "Recommendations of one type for some signals. The caregiver's exclusions are "
-                "always applied. Years work for films, TV and books; country for films and TV."
+                "Recommendations of one type for some signals. The user's exclusions are always "
+                "applied. Years work for films, TV and books; country for films and TV."
             ),
             args_schema=GetInsightsArgs,
         ),
@@ -183,7 +185,8 @@ def research_tools(ctx: ToolContext) -> list[BaseTool]:
             coroutine=submit,
             name="submit_candidates",
             description=(
-                "Your final answer, called once: get_insights results only, each with a short why."
+                "Your final answer, called once: your best picks from get_insights results, "
+                "each with a short why."
             ),
             args_schema=SubmitCandidatesArgs,
             # The run ends here, so the agent never spends another model call after answering.

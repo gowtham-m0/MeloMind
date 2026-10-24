@@ -1,20 +1,22 @@
-"""Step 2, `research` (AI agent): the agent gets the mode's brief, calls Qloo tools until it has
-enough candidates, then submits them. On any error, limit or timeout it keeps what it found:
-what it submitted, or else every recommendation Qloo gave it (still Qloo's picks, rule 9)."""
+"""Step 2, `research` (AI agent): the agent gets the brief, asks Qloo for each type, then
+submits its best picks, which lead the feed. The pool is every recommendation Qloo gave it, so
+the feed is full even when the agent stops early: on any error, limit or timeout it keeps what
+it found (still Qloo's picks, rule 1)."""
 
 import asyncio
 import logging
 
 from langchain_core.messages import HumanMessage
 
-from app.application.agent.deps import PlanDeps
+from app.application.agent.brief import build_brief, has_enough
+from app.application.agent.deps import FeedDeps
 from app.application.agent.prompts.research import research_system_prompt, research_task
 from app.application.agent.research_agent import (
     RECURSION_LIMIT,
     ModelCallCounter,
     build_research_agent,
 )
-from app.application.agent.state import PlanState
+from app.application.agent.state import FeedState
 from app.application.agent.tools.context import ToolContext
 from app.application.agent.tools.research import research_tools
 from app.application.agent.types import ResearchOutcome
@@ -24,13 +26,13 @@ logger = logging.getLogger(__name__)
 NODE = "research"
 
 
-async def research(state: PlanState, deps: PlanDeps) -> PlanState:
+async def research(state: FeedState, deps: FeedDeps) -> FeedState:
     """Run the research agent within its limits and record its outcome."""
     context = state["context"]
-    brief = deps.mode.research_brief(context)
+    brief = build_brief(context)
     if deps.chat_models is None:
-        await deps.log.info(NODE, "No AI model is set up, so the rule-based plan will run.")
-        return {"brief": brief, "candidates": [], "research_outcome": "skipped"}
+        await deps.log.info(NODE, "No AI model is set up, so the rule-based picks will run.")
+        return {"brief": brief, "pool": [], "research_outcome": "skipped"}
 
     ctx = ToolContext(
         taste=deps.taste, log=deps.log, context=context, max_qloo_calls=deps.limits.max_tool_calls
@@ -39,7 +41,7 @@ async def research(state: PlanState, deps: PlanDeps) -> PlanState:
     agent = build_research_agent(
         deps.chat_models,
         research_tools(ctx),
-        research_system_prompt(brief, context, deps.limits.max_tool_calls),
+        research_system_prompt(brief, context, deps.limits.max_tool_calls, ctx.short),
         deps.limits,
         counter,
     )
@@ -60,9 +62,13 @@ async def research(state: PlanState, deps: PlanDeps) -> PlanState:
         logger.warning("Research agent failed: %s", type(exc).__name__)
         failure = "error"
 
-    candidates = list(ctx.submitted.values())
+    featured = list(ctx.submitted.values())
+    others = [
+        ctx.seen[ref] for ref in ctx.recommended if ref in ctx.seen and ref not in ctx.submitted
+    ]
+    candidates = featured + others
     outcome: ResearchOutcome
-    if failure is None and deps.mode.has_enough(candidates):
+    if failure is None and has_enough(candidates):
         outcome = "ok"
     elif failure is not None:
         outcome = failure
@@ -70,16 +76,13 @@ async def research(state: PlanState, deps: PlanDeps) -> PlanState:
         outcome = "limit_hit"
     else:
         outcome = "too_few"
-    kept = f"kept the {len(candidates)} candidates it had submitted"
-    if not candidates and ctx.recommended:
-        candidates = [ctx.seen[ref] for ref in ctx.recommended if ref in ctx.seen]
-        kept = f"kept the {len(candidates)} recommendations Qloo had given it"
+    kept = f"kept the {len(candidates)} recommendations Qloo had given it"
     await _log_outcome(deps, outcome, len(candidates), ctx, budget, kept)
-    return {"brief": brief, "candidates": candidates, "research_outcome": outcome}
+    return {"brief": brief, "pool": candidates, "research_outcome": outcome}
 
 
 async def _log_outcome(
-    deps: PlanDeps,
+    deps: FeedDeps,
     outcome: ResearchOutcome,
     found: int,
     ctx: ToolContext,
@@ -89,7 +92,9 @@ async def _log_outcome(
     match outcome:
         case "ok":
             await deps.log.info(
-                NODE, f"The agent submitted {found} candidates after {ctx.qloo_calls} Qloo calls."
+                NODE,
+                f"The agent picked {len(ctx.submitted)} favourites from {found} results after "
+                f"{ctx.qloo_calls} Qloo calls.",
             )
         case "timeout":
             await deps.log.warn(NODE, f"The agent ran out of time after {budget:.0f} s; {kept}.")

@@ -41,10 +41,10 @@ async def test_seed_creates_the_sample_profiles_with_verified_favourites() -> No
 
     profiles = await repository.list_for_owner(owner)
     assert [profile.id for profile in profiles] == ids
-    assert [profile.display_name for profile in profiles] == ["Margaret", "Lakshmi"]
+    assert [profile.display_name for profile in profiles] == ["Aanya", "Leo"]
     assert all(profile.is_demo for profile in profiles)
     favourites = [favourite for profile in profiles for favourite in profile.favourites]
-    assert len(favourites) == 8
+    assert len(favourites) == 9
     assert all(favourite.verified for favourite in favourites)
     my_girl = next(favourite for favourite in favourites if favourite.song_title == "My Girl")
     assert my_girl.name == "The Temptations"
@@ -74,5 +74,5 @@ async def test_seed_keeps_favourites_as_text_when_search_fails() -> None:
 
     profiles = await repository.list_for_owner(owner)
     favourites = [favourite for profile in profiles for favourite in profile.favourites]
-    assert len(favourites) == 8
+    assert len(favourites) == 9
     assert not any(favourite.verified for favourite in favourites)

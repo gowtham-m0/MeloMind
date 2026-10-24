@@ -1,17 +1,22 @@
 import { Link } from "react-router";
 
 import { Button } from "@/shared/ui/button";
+import { EmptyState } from "@/shared/ui/states";
 
-/** Shown for any URL that matches no route. */
+/** An unknown address. */
 export function NotFoundPage() {
   return (
-    <section aria-labelledby="page-title" className="space-y-4">
-      <h1 id="page-title" className="text-3xl font-semibold">
-        Page not found
-      </h1>
-      <Button asChild variant="outline">
-        <Link to="/">Go to the home page</Link>
-      </Button>
-    </section>
+    <div className="mx-auto max-w-xl p-6 pt-20">
+      <EmptyState
+        title="This page wandered off"
+        action={
+          <Button asChild>
+            <Link to="/">Back to MeloMind</Link>
+          </Button>
+        }
+      >
+        The link may be old, or the profile may belong to someone else.
+      </EmptyState>
+    </div>
   );
 }

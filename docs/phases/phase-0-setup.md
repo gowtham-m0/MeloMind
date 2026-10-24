@@ -1,5 +1,7 @@
 # Phase 0: Kickoff and project setup
 
+> **Status: done (23 Oct).** Written before the pivot of 24 Oct to a personal taste dashboard (see `docs/PLAN.md`, section 0). Everything set up here carries over: repo, CI, `Dockerfile`, health route, Supabase, uv and the frontend toolchain. Mentions of caregivers and Person mode below are historical.
+
 **Dates:** Fri 23 Oct · **Hours:** about 4.5 each · **Next:** [Phase 1: Foundations](phase-1-foundations.md)
 
 **Goal:** settle the open decisions, then create the repo, folders, tooling, boilerplate and a backend `Dockerfile`. Everything runs locally. **No business logic, and no deployment** (that happens once, on Thursday night, in Phase 4).

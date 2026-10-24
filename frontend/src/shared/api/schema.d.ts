@@ -59,7 +59,7 @@ export interface paths {
         put?: never;
         /**
          * Create Profile
-         * @description Create a profile from a display name and birth year, plus anything else known.
+         * @description Create a profile from a display name, plus anything else known.
          */
         post: operations["create_profile_api_v1_profiles_post"];
         delete?: never;
@@ -156,27 +156,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profiles/{profile_id}/sessions/plan": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Plan Session
-         * @description Start planning. Returns at once with status `planning`; poll the agent run's log.
-         */
-        post: operations["plan_session_api_v1_profiles__profile_id__sessions_plan_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/profiles/{profile_id}/history": {
+    "/api/v1/profiles/{profile_id}/feed": {
         parameters: {
             query?: never;
             header?: never;
@@ -184,10 +164,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get History
-         * @description The profile's sessions and warm-up sets, newest first.
+         * Get Feed
+         * @description The newest finished feed. A 404 means there's none yet: start one with refresh.
          */
-        get: operations["get_history_api_v1_profiles__profile_id__history_get"];
+        get: operations["get_feed_api_v1_profiles__profile_id__feed_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -196,7 +176,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/sessions/{session_id}": {
+    "/api/v1/profiles/{profile_id}/feed/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Feed
+         * @description Start building a new feed in the background. Poll its agent run, then get the feed.
+         */
+        post: operations["refresh_feed_api_v1_profiles__profile_id__feed_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/items/{ref}": {
         parameters: {
             query?: never;
             header?: never;
@@ -204,10 +204,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Session
-         * @description One session with its items.
+         * Get Item
+         * @description An item with more like it. Excluded items are a 404.
          */
-        get: operations["get_session_api_v1_sessions__session_id__get"];
+        get: operations["get_item_api_v1_profiles__profile_id__items__ref__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -216,7 +216,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/sessions/{session_id}/items": {
+    "/api/v1/profiles/{profile_id}/items/{ref}/preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -224,39 +224,59 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
+        /**
+         * Preview Item
+         * @description Look up a YouTube preview now. A 404 means none: hide the button.
+         */
+        post: operations["preview_item_api_v1_profiles__profile_id__items__ref__preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send Feedback
+         * @description Like, save, open, dislike or dismiss an item.
+         */
+        post: operations["send_feedback_api_v1_profiles__profile_id__feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Library
+         * @description Liked and saved items, newest first.
+         */
+        get: operations["get_library_api_v1_profiles__profile_id__library_get"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /**
-         * Edit Items
-         * @description Remove, reorder or change the prompts of a draft's items.
-         */
-        patch: operations["edit_items_api_v1_sessions__session_id__items_patch"];
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Approve Session
-         * @description Approve a draft. `409` unless it's a draft.
-         */
-        post: operations["approve_session_api_v1_sessions__session_id__approve_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/sessions/{session_id}/start": {
+    "/api/v1/profiles/{profile_id}/quiz/next": {
         parameters: {
             query?: never;
             header?: never;
@@ -266,50 +286,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Start Session
-         * @description Start an approved session. A warm-up set can't be started.
+         * Quiz Next
+         * @description Record the pick, if any, and get the next pair of the taste quiz.
          */
-        post: operations["start_session_api_v1_sessions__session_id__start_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/complete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Complete Session
-         * @description Finish a session in progress.
-         */
-        post: operations["complete_session_api_v1_sessions__session_id__complete_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/sessions/{session_id}/items/{item_id}/feedback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * React To Item
-         * @description The caregiver's reaction. `rejected` excludes the item; `upset` hides it for review.
-         */
-        post: operations["react_to_item_api_v1_sessions__session_id__items__item_id__feedback_post"];
+        post: operations["quiz_next_api_v1_profiles__profile_id__quiz_next_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -336,86 +316,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profiles/{profile_id}/shelf": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Shelf
-         * @description Approved, playable cards only. Excluded and hidden items never appear.
-         */
-        get: operations["get_shelf_api_v1_profiles__profile_id__shelf_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/profiles/{profile_id}/warmup/next": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Next Warmup Pair
-         * @description Record the choice and return the next pair. `409` without an approved warm-up set.
-         */
-        post: operations["next_warmup_pair_api_v1_profiles__profile_id__warmup_next_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/profiles/{profile_id}/person-signals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Add Person Signal
-         * @description A tap in Person mode, for an item on the shelf.
-         */
-        post: operations["add_person_signal_api_v1_profiles__profile_id__person_signals_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/profiles/{profile_id}/reactions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * React To Ref
-         * @description The caregiver's reaction to a card, from the Person-mode caregiver button.
-         */
-        post: operations["react_to_ref_api_v1_profiles__profile_id__reactions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/profiles/{profile_id}/exclusions": {
         parameters: {
             query?: never;
@@ -425,15 +325,11 @@ export interface paths {
         };
         /**
          * List Exclusions
-         * @description The profile's exclusions, oldest first.
+         * @description The items marked "not interested", newest first.
          */
         get: operations["list_exclusions_api_v1_profiles__profile_id__exclusions_get"];
         put?: never;
-        /**
-         * Add Exclusion
-         * @description Reject or hide an item. Returns every exclusion.
-         */
-        post: operations["add_exclusion_api_v1_profiles__profile_id__exclusions_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -452,7 +348,7 @@ export interface paths {
         post?: never;
         /**
          * Remove Exclusion
-         * @description Let an item back in after review. Returns the remaining exclusions.
+         * @description Undo a "not interested". Returns the remaining exclusions and marks the feed stale.
          */
         delete: operations["remove_exclusion_api_v1_profiles__profile_id__exclusions__exclusion_id__delete"];
         options?: never;
@@ -500,6 +396,16 @@ export interface components {
             at: string;
         };
         /**
+         * BecauseOfOut
+         * @description The item behind a pick.
+         */
+        BecauseOfOut: {
+            /** Ref */
+            ref: string;
+            /** Title */
+            title: string;
+        };
+        /**
          * DemoSeedResponse
          * @description The user's sample profiles.
          */
@@ -509,7 +415,7 @@ export interface components {
         };
         /**
          * EntityMatchOut
-         * @description One search match: what the caregiver taps to save a verified favourite.
+         * @description One search match: what the user taps to save a verified favourite.
          */
         EntityMatchOut: {
             /** Entity Id */
@@ -519,6 +425,8 @@ export interface components {
             type: components["schemas"]["EntityType"];
             /** Release Year */
             release_year: number | null;
+            /** Image Url */
+            image_url: string | null;
         };
         /**
          * EntityType
@@ -527,23 +435,8 @@ export interface components {
          */
         EntityType: "artist" | "movie" | "tv_show" | "book";
         /**
-         * ExclusionCreate
-         * @description Reject an item for good, or hide it (`upset`) until the caregiver reviews it.
-         */
-        ExclusionCreate: {
-            /** Entity Ref */
-            entity_ref: string;
-            /** Title */
-            title: string;
-            /**
-             * Reason
-             * @enum {string}
-             */
-            reason: "rejected" | "upset";
-        };
-        /**
          * ExclusionOut
-         * @description An excluded item. `needs_review` is true for a hidden item nobody has reviewed yet.
+         * @description An item the user is not interested in. Deleting it undoes that.
          */
         ExclusionOut: {
             /**
@@ -555,13 +448,7 @@ export interface components {
             entity_ref: string;
             /** Title */
             title: string;
-            /**
-             * Reason
-             * @enum {string}
-             */
-            reason: "rejected" | "upset";
-            /** Needs Review */
-            needs_review: boolean;
+            entity_type: components["schemas"]["EntityType"] | null;
             /**
              * Created At
              * Format: date-time
@@ -570,7 +457,8 @@ export interface components {
         };
         /**
          * FavouriteCreate
-         * @description A favourite. Send `entity_id` when the caregiver picked a taste-search match.
+         * @description A favourite. Send `entity_id` (and its `image_url`) when the user picked a taste-search
+         *     match.
          */
         FavouriteCreate: {
             /** Name */
@@ -580,10 +468,12 @@ export interface components {
             entity_id?: string | null;
             /** Song Title */
             song_title?: string | null;
+            /** Image Url */
+            image_url?: string | null;
         };
         /**
          * FavouriteKind
-         * @description What a caregiver can add as a favourite. A song is stored as text plus its singer.
+         * @description What the user can add as a favourite. A song is stored as text plus its singer.
          * @enum {string}
          */
         FavouriteKind: "artist" | "song" | "movie" | "tv_show" | "book";
@@ -606,10 +496,129 @@ export interface components {
             verified: boolean;
             /** Song Title */
             song_title: string | null;
+            /** Image Url */
+            image_url: string | null;
+        };
+        /**
+         * FeedItemOut
+         * @description One card. `liked` and `saved` show the user's current state for the heart and bookmark.
+         */
+        FeedItemOut: {
+            /** Ref */
+            ref: string;
+            /** Title */
+            title: string;
+            entity_type: components["schemas"]["EntityType"];
+            /** Year */
+            year: number | null;
+            /** Image Url */
+            image_url: string | null;
+            /**
+             * Image Aspect
+             * @enum {string}
+             */
+            image_aspect: "square" | "poster";
+            /** Reason */
+            reason: string;
+            because_of: components["schemas"]["BecauseOfOut"] | null;
+            /** Affinity */
+            affinity: number | null;
+            /** Popularity */
+            popularity: number | null;
+            /** Tags */
+            tags: string[];
+            /** Description */
+            description: string | null;
+            source: components["schemas"]["ItemSource"];
+            /** Links */
+            links: components["schemas"]["PlatformLinkOut"][];
+            /** Liked */
+            liked: boolean;
+            /** Saved */
+            saved: boolean;
+        };
+        /**
+         * FeedOut
+         * @description A feed snapshot. `stale` is true after feedback since it was built.
+         */
+        FeedOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Profile Id
+             * Format: uuid
+             */
+            profile_id: string;
+            status: components["schemas"]["FeedStatus"];
+            /** Stale */
+            stale: boolean;
+            /**
+             * Agent Run Id
+             * Format: uuid
+             */
+            agent_run_id: string;
+            /** Summary */
+            summary: string;
+            /** Taste Tags */
+            taste_tags: string[];
+            hero: components["schemas"]["FeedItemOut"] | null;
+            /** Rows */
+            rows: components["schemas"]["FeedRowOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * FeedRowOut
+         * @description A titled row. `rail` rows go in the right rail.
+         */
+        FeedRowOut: {
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+            /** Subtitle */
+            subtitle: string;
+            /**
+             * Placement
+             * @enum {string}
+             */
+            placement: "main" | "rail";
+            /** Items */
+            items: components["schemas"]["FeedItemOut"][];
+        };
+        /**
+         * FeedStatus
+         * @description Whether the feed is still being built.
+         * @enum {string}
+         */
+        FeedStatus: "building" | "done" | "failed";
+        /**
+         * FeedbackIn
+         * @description One signal for an item. `platform` is the link used, for `opened`.
+         */
+        FeedbackIn: {
+            /** Ref */
+            ref: string;
+            /** Title */
+            title: string;
+            entity_type?: components["schemas"]["EntityType"] | null;
+            /**
+             * Signal
+             * @enum {string}
+             */
+            signal: "liked" | "unliked" | "saved" | "unsaved" | "opened" | "disliked" | "not_interested";
+            /** Platform */
+            platform?: string | null;
         };
         /**
          * FeedbackOut
-         * @description `counted` is false when a signal was ignored (a late skip, or a repeat the same day).
+         * @description What the signal did.
          */
         FeedbackOut: {
             /**
@@ -621,6 +630,8 @@ export interface components {
             counted: boolean;
             /** Effect */
             effect: string;
+            /** Stale */
+            stale: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -648,85 +659,106 @@ export interface components {
             qloo_mode: "live" | "demo_fixtures";
         };
         /**
+         * ItemDetailOut
+         * @description A card plus more like it, and whether a preview can be looked up.
+         */
+        ItemDetailOut: {
+            /** Ref */
+            ref: string;
+            /** Title */
+            title: string;
+            entity_type: components["schemas"]["EntityType"];
+            /** Year */
+            year: number | null;
+            /** Image Url */
+            image_url: string | null;
+            /**
+             * Image Aspect
+             * @enum {string}
+             */
+            image_aspect: "square" | "poster";
+            /** Reason */
+            reason: string;
+            because_of: components["schemas"]["BecauseOfOut"] | null;
+            /** Affinity */
+            affinity: number | null;
+            /** Popularity */
+            popularity: number | null;
+            /** Tags */
+            tags: string[];
+            /** Description */
+            description: string | null;
+            source: components["schemas"]["ItemSource"];
+            /** Links */
+            links: components["schemas"]["PlatformLinkOut"][];
+            /** Liked */
+            liked: boolean;
+            /** Saved */
+            saved: boolean;
+            /** More Like This */
+            more_like_this: components["schemas"]["FeedItemOut"][];
+            /** Preview Available */
+            preview_available: boolean;
+        };
+        /**
          * ItemSource
-         * @description Where an item came from (rule 9: never invent a recommendation).
+         * @description Where an item came from (rule 1: never invent a recommendation).
          * @enum {string}
          */
         ItemSource: "qloo_live" | "demo_fixture" | "favourite";
         /**
-         * ItemsPatch
-         * @description Changes to a draft: items to remove, the new order, and edited prompts by item ID.
+         * LibraryOut
+         * @description Liked and saved items, newest first.
          */
-        ItemsPatch: {
-            /** Order */
-            order?: string[] | null;
-            /** Removed */
-            removed?: string[] | null;
-            /** Prompts */
-            prompts?: {
-                [key: string]: string;
-            } | null;
+        LibraryOut: {
+            /** Liked */
+            liked: components["schemas"]["FeedItemOut"][];
+            /** Saved */
+            saved: components["schemas"]["FeedItemOut"][];
         };
         /**
-         * MediaOut
-         * @description A playable video. `provider` is `youtube`, or `demo` for stand-in media in demo mode.
+         * PlatformLinkOut
+         * @description Where to find an item. `search` links are labelled "Search on …".
          */
-        MediaOut: {
-            /** Provider */
-            provider: string;
-            /** Ref */
-            ref: string;
-            /** Duration S */
-            duration_s: number;
+        PlatformLinkOut: {
+            /** Platform */
+            platform: string;
+            /** Label */
+            label: string;
+            /** Url */
+            url: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "direct" | "search";
+        };
+        /**
+         * PreviewOut
+         * @description A video to embed for the optional preview.
+         */
+        PreviewOut: {
+            /**
+             * Provider
+             * @enum {string}
+             */
+            provider: "youtube" | "demo";
+            /** Video Id */
+            video_id: string;
             /** Title */
             title: string;
-        };
-        /**
-         * PersonSignal
-         * @description What the person did in Person mode. A quick skip only lowers an item's ranking.
-         * @enum {string}
-         */
-        PersonSignal: "chose" | "loved" | "replayed" | "skipped";
-        /**
-         * PersonSignalIn
-         * @description A tap in Person mode. Send `played_s` with `skipped`: a skip counts only under 15 s.
-         */
-        PersonSignalIn: {
-            /** Item Ref */
-            item_ref: string;
-            signal: components["schemas"]["PersonSignal"];
-            /** Played S */
-            played_s?: number | null;
-        };
-        /**
-         * PlanRequestIn
-         * @description Plan a session. `mode` is `standard` or `warmup`. `instructions` is accepted now and
-         *     used from Phase 4.
-         */
-        PlanRequestIn: {
-            /**
-             * Mode
-             * @default standard
-             */
-            mode: string;
-            /**
-             * Target Minutes
-             * @default 20
-             * @enum {integer}
-             */
-            target_minutes: 10 | 20 | 30;
-            /** Instructions */
-            instructions?: string | null;
+            /** Duration S */
+            duration_s: number;
         };
         /**
          * ProfileCreate
-         * @description A new profile. Only the display name and birth year are required.
+         * @description A new profile. Only the display name is required.
          */
         ProfileCreate: {
             /** Display Name */
             display_name: string;
             /** Birth Year */
-            birth_year: number;
+            birth_year?: number | null;
             /** Country Code */
             country_code?: string | null;
             /** Places Lived */
@@ -747,7 +779,7 @@ export interface components {
             /** Display Name */
             display_name: string;
             /** Birth Year */
-            birth_year: number;
+            birth_year: number | null;
             /** Country Code */
             country_code: string | null;
             /** Places Lived */
@@ -761,7 +793,8 @@ export interface components {
         };
         /**
          * ProfileUpdate
-         * @description Any profile fields. Fields left out stay as they are; `country_code: null` clears it.
+         * @description Any profile fields. Fields left out stay as they are; `null` clears `country_code` and
+         *     `birth_year`.
          */
         ProfileUpdate: {
             /** Display Name */
@@ -776,162 +809,41 @@ export interface components {
             languages?: string[] | null;
         };
         /**
-         * Reaction
-         * @description What the caregiver saw. Only the caregiver can hide (`upset`) or reject an item.
-         * @enum {string}
+         * QuizIn
+         * @description Every ref shown so far, and the one just picked (none for the first pair).
          */
-        Reaction: "sang_along" | "smiled" | "calm" | "neutral" | "upset" | "rejected";
-        /**
-         * ReactionIn
-         * @description The caregiver's reaction to an item.
-         */
-        ReactionIn: {
-            reaction: components["schemas"]["Reaction"];
-            /** Note */
-            note?: string | null;
+        QuizIn: {
+            /** Picked Ref */
+            picked_ref?: string | null;
+            /** Shown Refs */
+            shown_refs?: string[];
         };
         /**
-         * RefReactionIn
-         * @description The caregiver's reaction to a card, by its ref.
+         * QuizStepOut
+         * @description The next pair, or `done`.
          */
-        RefReactionIn: {
-            /** Item Ref */
-            item_ref: string;
-            reaction: components["schemas"]["Reaction"];
-            /** Note */
-            note?: string | null;
+        QuizStepOut: {
+            /** Pair */
+            pair: components["schemas"]["FeedItemOut"][] | null;
+            /** Round */
+            round: number;
+            /** Rounds */
+            rounds: number;
+            /** Done */
+            done: boolean;
         };
         /**
          * RunKind
          * @description Which workflow the run belongs to.
          * @enum {string}
          */
-        RunKind: "plan" | "resolve" | "link";
+        RunKind: "feed" | "resolve" | "link";
         /**
          * RunStatus
          * @description Whether the run is still going.
          * @enum {string}
          */
         RunStatus: "running" | "done" | "failed";
-        /**
-         * SessionDraftOut
-         * @description A session or warm-up set, with its items in order.
-         */
-        SessionDraftOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Profile Id
-             * Format: uuid
-             */
-            profile_id: string;
-            status: components["schemas"]["SessionStatus"];
-            /** Mode */
-            mode: string;
-            /** Target Minutes */
-            target_minutes: number;
-            /** Total Duration S */
-            total_duration_s: number;
-            /** Agent Run Id */
-            agent_run_id: string | null;
-            /** Items */
-            items: components["schemas"]["SessionItemOut"][];
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-        };
-        /**
-         * SessionItemOut
-         * @description One item. A book has no media: it's a short conversation slot.
-         */
-        SessionItemOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Position */
-            position: number;
-            /** Ref */
-            ref: string;
-            /** Title */
-            title: string;
-            entity_type: components["schemas"]["EntityType"];
-            /** Release Year */
-            release_year: number | null;
-            /** Age At Release */
-            age_at_release: number | null;
-            /** Reason */
-            reason: string;
-            /** Prompt */
-            prompt: string | null;
-            source: components["schemas"]["ItemSource"];
-            media: components["schemas"]["MediaOut"] | null;
-            /** Duration S */
-            duration_s: number;
-        };
-        /**
-         * SessionStatus
-         * @description Where a session is in its life. A warm-up set stops at `approved`.
-         * @enum {string}
-         */
-        SessionStatus: "planning" | "draft" | "approved" | "in_progress" | "completed" | "failed";
-        /**
-         * SessionSummaryOut
-         * @description A session in the history list.
-         */
-        SessionSummaryOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Mode */
-            mode: string;
-            status: components["schemas"]["SessionStatus"];
-            /** Item Count */
-            item_count: number;
-            /** Total Duration S */
-            total_duration_s: number;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
-        /**
-         * ShelfItemOut
-         * @description A card: title, type icon, year and decade colour. `from` says why it's on the shelf.
-         */
-        ShelfItemOut: {
-            /** Ref */
-            ref: string;
-            /** Title */
-            title: string;
-            entity_type: components["schemas"]["FavouriteKind"];
-            /** Release Year */
-            release_year: number | null;
-            /** Decade */
-            decade: number | null;
-            media: components["schemas"]["MediaOut"];
-            from: components["schemas"]["ShelfOrigin"];
-        };
-        /**
-         * ShelfOrigin
-         * @description Why an item is on the Person-mode shelf.
-         * @enum {string}
-         */
-        ShelfOrigin: "favourite" | "session" | "warmup";
         /**
          * StepLevel
          * @description How a log step should look: a normal step, or something that went wrong.
@@ -950,26 +862,6 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
-        };
-        /**
-         * WarmupNextIn
-         * @description The card just chosen, if any, and every card shown so far.
-         */
-        WarmupNextIn: {
-            /** Chosen Ref */
-            chosen_ref?: string | null;
-            /** Shown Refs */
-            shown_refs?: string[];
-        };
-        /**
-         * WarmupNextOut
-         * @description The next two cards, or `done: true`.
-         */
-        WarmupNextOut: {
-            /** Pair */
-            pair: components["schemas"]["ShelfItemOut"][] | null;
-            /** Done */
-            done: boolean;
         };
     };
     responses: never;
@@ -1265,7 +1157,7 @@ export interface operations {
             };
         };
     };
-    plan_session_api_v1_profiles__profile_id__sessions_plan_post: {
+    get_feed_api_v1_profiles__profile_id__feed_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -1274,11 +1166,38 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PlanRequestIn"];
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
+    };
+    refresh_feed_api_v1_profiles__profile_id__feed_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             202: {
@@ -1286,7 +1205,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SessionDraftOut"];
+                    "application/json": components["schemas"]["FeedOut"];
                 };
             };
             /** @description Validation Error */
@@ -1300,7 +1219,71 @@ export interface operations {
             };
         };
     };
-    get_history_api_v1_profiles__profile_id__history_get: {
+    get_item_api_v1_profiles__profile_id__items__ref__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_item_api_v1_profiles__profile_id__items__ref__preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_feedback_api_v1_profiles__profile_id__feedback_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -1309,200 +1292,9 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionSummaryOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_session_api_v1_sessions__session_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionDraftOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    edit_items_api_v1_sessions__session_id__items_patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ItemsPatch"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionDraftOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    approve_session_api_v1_sessions__session_id__approve_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionDraftOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    start_session_api_v1_sessions__session_id__start_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionDraftOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    complete_session_api_v1_sessions__session_id__complete_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionDraftOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    react_to_item_api_v1_sessions__session_id__items__item_id__feedback_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-                item_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReactionIn"];
+                "application/json": components["schemas"]["FeedbackIn"];
             };
         };
         responses: {
@@ -1513,6 +1305,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeedbackOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_library_api_v1_profiles__profile_id__library_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quiz_next_api_v1_profiles__profile_id__quiz_next_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuizIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizStepOut"];
                 };
             };
             /** @description Validation Error */
@@ -1557,142 +1415,6 @@ export interface operations {
             };
         };
     };
-    get_shelf_api_v1_profiles__profile_id__shelf_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                profile_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ShelfItemOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    next_warmup_pair_api_v1_profiles__profile_id__warmup_next_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                profile_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WarmupNextIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WarmupNextOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    add_person_signal_api_v1_profiles__profile_id__person_signals_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                profile_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PersonSignalIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FeedbackOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    react_to_ref_api_v1_profiles__profile_id__reactions_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                profile_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RefReactionIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FeedbackOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_exclusions_api_v1_profiles__profile_id__exclusions_get: {
         parameters: {
             query?: never;
@@ -1706,41 +1428,6 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExclusionOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    add_exclusion_api_v1_profiles__profile_id__exclusions_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                profile_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ExclusionCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
                 headers: {
                     [name: string]: unknown;
                 };

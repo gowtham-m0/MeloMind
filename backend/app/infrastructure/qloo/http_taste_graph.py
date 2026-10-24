@@ -9,8 +9,8 @@ import httpx
 
 from app.application.ports import EntityMatch, InsightsQuery, TagMatch, TasteSource
 from app.core.errors import UpstreamError
+from app.domain.countries import country_name
 from app.domain.models import EntityType
-from app.infrastructure.qloo.countries import country_name
 from app.infrastructure.qloo.urns import (
     COUNTRY_FILTER_TYPES,
     PUBLICATION_YEAR_TYPES,
@@ -26,6 +26,10 @@ MAX_ATTEMPTS = 3
 BACKOFF_SECONDS = 0.5
 MAX_RETRY_AFTER_SECONDS = 5.0
 AGE_55_AND_OLDER = "55_and_older"
+DESCRIPTION_MAX = 600
+ISBN13_LENGTH = 13
+TAGS_MAX = 6
+GENRE_TAG_PREFIX = "urn:tag:genre:"
 
 Sleep = Callable[[float], Awaitable[None]]
 
@@ -93,7 +97,63 @@ def parse_entity(raw: Any) -> EntityMatch | None:
         or _as_int(properties.get("publication_year")),
         popularity=_as_float(raw.get("popularity")),
         affinity=_as_float(query.get("affinity")),
+        image_url=_image_url(properties.get("image")),
+        description=_text(properties.get("description"))
+        or _text(properties.get("short_description")),
+        isbn13=_isbn(properties.get("isbn13")),
+        tags=_tag_names(raw.get("tags")),
+        # Search keeps external IDs in `properties`; insights at the top level.
+        external=_external(raw.get("external")) or _external(properties.get("external")),
     )
+
+
+def _image_url(value: Any) -> str | None:
+    """`properties.image.url`, when it's an https URL."""
+    url = value.get("url") if isinstance(value, Mapping) else None
+    return url if isinstance(url, str) and url.startswith("https://") else None
+
+
+def _text(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    text = " ".join(value.split())
+    return text[:DESCRIPTION_MAX] or None
+
+
+def _isbn(value: Any) -> str | None:
+    text = str(value).replace("-", "").strip() if isinstance(value, str | int) else ""
+    return text if len(text) == ISBN13_LENGTH and text.isdigit() else None
+
+
+def _tag_names(value: Any) -> tuple[str, ...]:
+    """Up to `TAGS_MAX` tag names, genres first, for card chips and the taste page."""
+    if not isinstance(value, list):
+        return ()
+    genres: list[str] = []
+    others: list[str] = []
+    for tag in value:
+        if not isinstance(tag, Mapping) or not isinstance(tag.get("name"), str):
+            continue
+        name = tag["name"].strip()
+        kind = tag.get("type")
+        bucket = genres if isinstance(kind, str) and kind.startswith(GENRE_TAG_PREFIX) else others
+        if name and name not in genres and name not in others:
+            bucket.append(name)
+    return tuple((genres + others)[:TAGS_MAX])
+
+
+def _external(value: Any) -> dict[str, str]:
+    """`{platform: id}` from either shape: `{"spotify": {"id": …}}` (search) or
+    `{"spotify": [{"id": …}]}` (insights). The first ID wins."""
+    if not isinstance(value, Mapping):
+        return {}
+    ids: dict[str, str] = {}
+    for platform, entry in value.items():
+        first = entry[0] if isinstance(entry, list) and entry else entry
+        raw_id = first.get("id") if isinstance(first, Mapping) else None
+        if isinstance(platform, str) and isinstance(raw_id, str | int):
+            ids[platform] = str(raw_id)
+    return ids
 
 
 def parse_tag(raw: Any) -> TagMatch | None:

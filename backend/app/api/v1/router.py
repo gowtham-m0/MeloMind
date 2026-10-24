@@ -7,10 +7,9 @@ from app.api.v1.routes import (
     demo,
     exclusions,
     favourites,
+    feed,
     health,
-    person,
     profiles,
-    sessions,
     taste,
 )
 
@@ -20,7 +19,6 @@ api_router.include_router(demo.router)
 api_router.include_router(profiles.router)
 api_router.include_router(favourites.router)
 api_router.include_router(taste.router)
-api_router.include_router(sessions.router)
+api_router.include_router(feed.router)
 api_router.include_router(agent_runs.router)
-api_router.include_router(person.router)
 api_router.include_router(exclusions.router)

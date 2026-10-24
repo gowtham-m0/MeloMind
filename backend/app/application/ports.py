@@ -3,7 +3,7 @@
 Adapters in `infrastructure/` implement these. The application never imports an adapter.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal, Protocol
 from uuid import UUID
@@ -11,10 +11,10 @@ from uuid import UUID
 from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel
 
+from app.domain.feed import Feed, FeedItem
 from app.domain.feedback import Exclusion, Feedback
 from app.domain.models import EntityType, Favourite, Profile
 from app.domain.runs import AgentRun, AgentStep, RunStatus
-from app.domain.sessions import Session, SessionStatus
 
 TasteSource = Literal["qloo_live", "demo_fixture"]
 MediaProvider = Literal["youtube", "demo"]
@@ -24,7 +24,11 @@ INSIGHTS_TAKE_MAX = 50
 
 @dataclass(frozen=True)
 class EntityMatch:
-    """One entity from the taste graph: a search match or an insights candidate."""
+    """One entity from the taste graph: a search match or an insights candidate.
+
+    `external` maps a platform (`spotify`, `netflix`, `imdb`, `goodreads`…) to its ID there, and
+    `tags` holds up to a few tag names, genres first.
+    """
 
     entity_id: str
     name: str
@@ -33,6 +37,11 @@ class EntityMatch:
     release_year: int | None = None
     popularity: float | None = None
     affinity: float | None = None
+    image_url: str | None = None
+    description: str | None = None
+    isbn13: str | None = None
+    tags: tuple[str, ...] = ()
+    external: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -41,7 +50,7 @@ class InsightsQuery:
 
     `year_min`/`year_max` apply to films, TV and books only, and `country_code` (ISO 3166-1
     alpha-2) to films and TV only; adapters drop them for other types. `score_entities` limits
-    the results to these IDs, each scored against the signals (the Person-mode warm-up).
+    the results to these IDs, each scored against the signals (the taste quiz).
     """
 
     entity_type: EntityType
@@ -95,7 +104,7 @@ class TasteGraph(Protocol):
 
 @dataclass(frozen=True)
 class PlayableMedia:
-    """An embeddable video for an item. Demo media stands in for a video in fixture mode."""
+    """An embeddable video for an item's optional preview."""
 
     video_id: str
     title: str
@@ -104,7 +113,7 @@ class PlayableMedia:
 
 
 class MediaResolver(Protocol):
-    """Finds a playable, embeddable video."""
+    """Finds a playable, embeddable video for the optional preview."""
 
     async def resolve(self, query: str) -> PlayableMedia | None:
         """The best embeddable video for the query, or None when nothing is playable.
@@ -116,7 +125,7 @@ class MediaResolver(Protocol):
 
 
 class LanguageModel(Protocol):
-    """The one door to the LLM for structured answers (compose, interpret, extract)."""
+    """The one door to the LLM for structured answers (explain, interpret, extract)."""
 
     async def structured[SchemaT: BaseModel](
         self, system: str, prompt: str, schema: type[SchemaT]
@@ -135,7 +144,7 @@ class ChatModels:
 
 
 class ProfileRepository(Protocol):
-    """Profiles and their favourites. Deleting a profile deletes its favourites."""
+    """Profiles and their favourites. Deleting a profile deletes everything it owns."""
 
     async def list_for_owner(self, owner_id: UUID) -> list[Profile]:
         """Every profile the user owns, oldest first, with favourites."""
@@ -166,42 +175,53 @@ class ProfileRepository(Protocol):
         ...
 
 
-class SessionRepository(Protocol):
-    """Sessions with their items. Deleting a profile deletes its sessions."""
+class FeedRepository(Protocol):
+    """Feed snapshots. Deleting a profile deletes its feeds."""
 
-    async def add(self, session: Session) -> None:
-        """Store a new session and its items."""
+    async def add(self, feed: Feed) -> None:
+        """Store a new feed (usually while it's still building)."""
         ...
 
-    async def get(self, session_id: UUID) -> Session | None:
-        """One session with its items, whoever owns it. Services check ownership."""
+    async def get(self, feed_id: UUID) -> Feed | None:
+        """One feed, whoever owns it. Services check ownership."""
         ...
 
-    async def update(self, session: Session) -> None:
-        """Save the session's fields and replace its items."""
+    async def update(self, feed: Feed) -> None:
+        """Save the feed's status, items and flags."""
         ...
 
-    async def list_for_profile(
-        self, profile_id: UUID, statuses: frozenset[SessionStatus] | None = None
-    ) -> list[Session]:
-        """The profile's sessions, newest first, optionally only those with these statuses."""
+    async def latest(self, profile_id: UUID, done_only: bool = False) -> Feed | None:
+        """The profile's newest feed, or its newest finished one."""
+        ...
+
+
+class CatalogRepository(Protocol):
+    """Every item the app has shown, by ref, so details and the library work after the feed
+    moves on. Holds Qloo data on the server only, like the cache."""
+
+    async def put_many(self, items: list[FeedItem]) -> None:
+        """Store or refresh these items."""
+        ...
+
+    async def get_many(self, refs: list[str]) -> dict[str, FeedItem]:
+        """The known items among these refs."""
         ...
 
 
 class FeedbackRepository(Protocol):
-    """Reactions and signals, kept for learning."""
+    """Signals, kept for learning."""
 
     async def add(self, feedback: Feedback) -> None:
-        """Store one reaction or signal."""
+        """Store one signal."""
         ...
 
     async def list_for_profile(self, profile_id: UUID) -> list[Feedback]:
-        """Every reaction and signal for the profile, oldest first."""
+        """Every signal for the profile, oldest first."""
         ...
 
 
 class ExclusionRepository(Protocol):
-    """Items the caregiver rejected or hid. At most one per item ref per profile."""
+    """Items marked "not interested". At most one per item ref per profile."""
 
     async def save(self, exclusion: Exclusion) -> None:
         """Store an exclusion, replacing any with the same ID."""

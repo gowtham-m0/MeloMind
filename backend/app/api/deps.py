@@ -10,38 +10,40 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.api.auth import CurrentUser, SupabaseTokenVerifier
+from app.application.agent.builder import AgentFeedBuilder
 from app.application.agent.deps import AgentLimits
-from app.application.agent.planner import AgentPlanner
-from app.application.modes.registry import default_registry
 from app.application.ports import (
     AgentRunRepository,
+    CatalogRepository,
     ChatModels,
     ExclusionRepository,
     FeedbackRepository,
+    FeedRepository,
     LanguageModel,
     MediaResolver,
     ProfileRepository,
-    SessionRepository,
     TasteGraph,
 )
+from app.application.rows.registry import default_registry
 from app.application.services.background import AsyncioBackgroundRunner, BackgroundRunner
 from app.application.services.demo import DemoSeedService
 from app.application.services.exclusions import ExclusionService
+from app.application.services.feed import FeedService
 from app.application.services.feedback import FeedbackService
+from app.application.services.items import ItemService
+from app.application.services.library import LibraryService
 from app.application.services.profiles import ProfileService
+from app.application.services.quiz import QuizService
 from app.application.services.rate_limit import SlidingWindowRateLimiter
 from app.application.services.runs import AgentRunService
-from app.application.services.sessions import SessionService
-from app.application.services.shelf import ShelfService
 from app.application.services.taste import TasteService
-from app.application.services.warmup import WarmupService
 from app.core.errors import UnauthorizedError
 from app.core.settings import Settings, get_settings
+from app.domain.feed import ItemSource
 from app.domain.models import DemoProfileSpec
 from app.infrastructure.llm.factory import build_chat_model
 from app.infrastructure.llm.language_model import LangChainLanguageModel
 from app.infrastructure.media.cached import CachedMediaResolver
-from app.infrastructure.media.demo import DemoMediaResolver
 from app.infrastructure.media.youtube import (
     YOUTUBE_BASE_URL,
     YOUTUBE_TIMEOUT_SECONDS,
@@ -53,17 +55,23 @@ from app.infrastructure.persistence.memory_feedback import (
     InMemoryExclusionRepository,
     InMemoryFeedbackRepository,
 )
+from app.infrastructure.persistence.memory_feeds import (
+    InMemoryCatalogRepository,
+    InMemoryFeedRepository,
+)
 from app.infrastructure.persistence.memory_profiles import InMemoryProfileRepository
 from app.infrastructure.persistence.memory_runs import InMemoryAgentRunRepository
-from app.infrastructure.persistence.memory_sessions import InMemorySessionRepository
 from app.infrastructure.persistence.postgres_caches import PostgresMediaCache, PostgresQlooCache
 from app.infrastructure.persistence.postgres_feedback import (
     PostgresExclusionRepository,
     PostgresFeedbackRepository,
 )
+from app.infrastructure.persistence.postgres_feeds import (
+    PostgresCatalogRepository,
+    PostgresFeedRepository,
+)
 from app.infrastructure.persistence.postgres_profiles import PostgresProfileRepository
 from app.infrastructure.persistence.postgres_runs import PostgresAgentRunRepository
-from app.infrastructure.persistence.postgres_sessions import PostgresSessionRepository
 from app.infrastructure.qloo.cached_taste_graph import CachedTasteGraph
 from app.infrastructure.qloo.demo_profiles import load_demo_profiles
 from app.infrastructure.qloo.fixture_taste_graph import FixtureTasteGraph
@@ -84,15 +92,16 @@ QlooModeDep = Annotated[QlooMode, Depends(get_qloo_mode)]
 
 @dataclass(frozen=True)
 class Adapters:
-    """The adapters chosen for the ports. The LLM ones are None when no key is set."""
+    """The adapters chosen for the ports. The LLM ones and media are None when no key is set."""
 
     taste_graph: TasteGraph
-    media: MediaResolver
     profiles: ProfileRepository
-    sessions: SessionRepository
+    feeds: FeedRepository
+    catalog: CatalogRepository
     feedback: FeedbackRepository
     exclusions: ExclusionRepository
     runs: AgentRunRepository
+    media: MediaResolver | None = None
     language_model: LanguageModel | None = None
     chat_models: ChatModels | None = None
 
@@ -101,12 +110,13 @@ def memory_adapters(taste_graph: TasteGraph, media: MediaResolver | None = None)
     """In-memory storage around a taste graph: for tests and for local runs without a database."""
     return Adapters(
         taste_graph=taste_graph,
-        media=media or DemoMediaResolver(),
         profiles=InMemoryProfileRepository(),
-        sessions=InMemorySessionRepository(),
+        feeds=InMemoryFeedRepository(),
+        catalog=InMemoryCatalogRepository(),
         feedback=InMemoryFeedbackRepository(),
         exclusions=InMemoryExclusionRepository(),
         runs=InMemoryAgentRunRepository(),
+        media=media,
     )
 
 
@@ -117,11 +127,12 @@ class Container:
     taste: TasteService
     profiles: ProfileService
     demo: DemoSeedService
-    sessions: SessionService
+    feeds: FeedService
     runs: AgentRunService
     feedback: FeedbackService
-    shelf: ShelfService
-    warmup: WarmupService
+    items: ItemService
+    library: LibraryService
+    quiz: QuizService
     exclusions: ExclusionService
     token_verifier: SupabaseTokenVerifier | None
 
@@ -136,53 +147,61 @@ def wire(
     """Build the services from chosen adapters. Tests call this with fakes."""
     taste = TasteService(adapters.taste_graph)
     profiles = ProfileService(adapters.profiles)
-    planner = AgentPlanner(
+    builder = AgentFeedBuilder(
         feedback=adapters.feedback,
         exclusions=adapters.exclusions,
         taste=adapters.taste_graph,
-        media=adapters.media,
         runs=adapters.runs,
+        rows=default_registry(settings.feed_row_size),
         limits=AgentLimits(
             max_tool_calls=settings.agent_max_tool_calls,
             max_model_calls=settings.agent_max_model_calls,
             timeout_seconds=settings.agent_timeout_seconds,
             max_retries=settings.agent_max_retries,
+            feed_max_qloo_calls=settings.feed_max_qloo_calls,
+            row_size=settings.feed_row_size,
         ),
         language_model=adapters.language_model,
         chat_models=adapters.chat_models,
     )
-    sessions = SessionService(
+    feeds = FeedService(
         profiles,
-        adapters.sessions,
+        adapters.feeds,
         adapters.runs,
         adapters.exclusions,
-        planner,
+        adapters.catalog,
+        builder,
         runner,
-        default_registry(),
-        SlidingWindowRateLimiter(settings.plan_rate_limit_per_hour),
+        SlidingWindowRateLimiter(settings.feed_rate_limit_per_hour),
     )
-    exclusions = ExclusionService(profiles, adapters.exclusions, adapters.sessions)
-    shelf = ShelfService(profiles, adapters.sessions, adapters.exclusions, adapters.media)
-    feedback = FeedbackService(
-        profiles, sessions, adapters.sessions, adapters.feedback, exclusions, shelf
-    )
+    feedback = FeedbackService(profiles, adapters.feedback, adapters.exclusions, feeds)
     return Container(
         taste=taste,
         profiles=profiles,
-        demo=DemoSeedService(adapters.profiles, taste, demo_profiles, sessions),
-        sessions=sessions,
+        demo=DemoSeedService(adapters.profiles, taste, demo_profiles, feeds),
+        feeds=feeds,
         runs=AgentRunService(profiles, adapters.runs),
         feedback=feedback,
-        shelf=shelf,
-        warmup=WarmupService(
+        items=ItemService(
             profiles,
-            adapters.sessions,
+            adapters.feeds,
+            adapters.catalog,
             adapters.exclusions,
+            adapters.taste_graph,
+            adapters.media,
+        ),
+        library=LibraryService(
+            profiles, adapters.feedback, adapters.catalog, ItemSource(adapters.taste_graph.source)
+        ),
+        quiz=QuizService(
+            profiles,
+            adapters.exclusions,
+            adapters.taste_graph,
             taste,
             feedback,
-            settings.warmup_pairs,
+            settings.quiz_pairs,
         ),
-        exclusions=exclusions,
+        exclusions=ExclusionService(profiles, adapters.exclusions, feeds),
         token_verifier=token_verifier,
     )
 
@@ -218,7 +237,8 @@ async def build_container(settings: Settings) -> AsyncIterator[Container]:
             stack.push_async_callback(engine.dispose)
             db = create_sessionmaker(engine)
             profiles: ProfileRepository = PostgresProfileRepository(db)
-            sessions: SessionRepository = PostgresSessionRepository(db)
+            feeds: FeedRepository = PostgresFeedRepository(db)
+            catalog: CatalogRepository = PostgresCatalogRepository(db)
             feedback: FeedbackRepository = PostgresFeedbackRepository(db)
             exclusions: ExclusionRepository = PostgresExclusionRepository(db)
             runs: AgentRunRepository = PostgresAgentRunRepository(db)
@@ -226,7 +246,8 @@ async def build_container(settings: Settings) -> AsyncIterator[Container]:
             qloo_cache = PostgresQlooCache(db)
         else:
             profiles = InMemoryProfileRepository()
-            sessions = InMemorySessionRepository()
+            feeds = InMemoryFeedRepository()
+            catalog = InMemoryCatalogRepository()
             feedback = InMemoryFeedbackRepository()
             exclusions = InMemoryExclusionRepository()
             runs = InMemoryAgentRunRepository()
@@ -243,7 +264,7 @@ async def build_container(settings: Settings) -> AsyncIterator[Container]:
             taste_graph = FixtureTasteGraph()
 
         youtube_key = settings.youtube_api_key.get_secret_value().strip()
-        media: MediaResolver
+        media: MediaResolver | None = None
         if youtube_key:
             youtube_client = await stack.enter_async_context(
                 httpx.AsyncClient(base_url=YOUTUBE_BASE_URL, timeout=YOUTUBE_TIMEOUT_SECONDS)
@@ -251,8 +272,6 @@ async def build_container(settings: Settings) -> AsyncIterator[Container]:
             media = CachedMediaResolver(
                 YouTubeMediaResolver(youtube_client, youtube_key), media_cache
             )
-        else:
-            media = DemoMediaResolver()
 
         chat_models, language_model = build_llm(settings)
         runner = AsyncioBackgroundRunner()
@@ -264,12 +283,13 @@ async def build_container(settings: Settings) -> AsyncIterator[Container]:
         )
         adapters = Adapters(
             taste_graph=taste_graph,
-            media=media,
             profiles=profiles,
-            sessions=sessions,
+            feeds=feeds,
+            catalog=catalog,
             feedback=feedback,
             exclusions=exclusions,
             runs=runs,
+            media=media,
             language_model=language_model,
             chat_models=chat_models,
         )
@@ -317,9 +337,9 @@ def get_demo_service(container: ContainerDep) -> DemoSeedService:
     return container.demo
 
 
-def get_session_service(container: ContainerDep) -> SessionService:
-    """Sessions: planning, review and status changes."""
-    return container.sessions
+def get_feed_service(container: ContainerDep) -> FeedService:
+    """The feed: latest snapshot and refresh."""
+    return container.feeds
 
 
 def get_run_service(container: ContainerDep) -> AgentRunService:
@@ -328,31 +348,37 @@ def get_run_service(container: ContainerDep) -> AgentRunService:
 
 
 def get_feedback_service(container: ContainerDep) -> FeedbackService:
-    """Caregiver reactions and person signals."""
+    """Likes, saves, opens and dismissals."""
     return container.feedback
 
 
-def get_shelf_service(container: ContainerDep) -> ShelfService:
-    """The Person-mode shelf."""
-    return container.shelf
+def get_item_service(container: ContainerDep) -> ItemService:
+    """Item details, more like this and previews."""
+    return container.items
 
 
-def get_warmup_service(container: ContainerDep) -> WarmupService:
-    """The Person-mode warm-up."""
-    return container.warmup
+def get_library_service(container: ContainerDep) -> LibraryService:
+    """Liked and saved items."""
+    return container.library
+
+
+def get_quiz_service(container: ContainerDep) -> QuizService:
+    """The taste quiz."""
+    return container.quiz
 
 
 def get_exclusion_service(container: ContainerDep) -> ExclusionService:
-    """Rejected and hidden items."""
+    """The not-interested list."""
     return container.exclusions
 
 
 TasteServiceDep = Annotated[TasteService, Depends(get_taste_service)]
 ProfileServiceDep = Annotated[ProfileService, Depends(get_profile_service)]
 DemoServiceDep = Annotated[DemoSeedService, Depends(get_demo_service)]
-SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
+FeedServiceDep = Annotated[FeedService, Depends(get_feed_service)]
 RunServiceDep = Annotated[AgentRunService, Depends(get_run_service)]
 FeedbackServiceDep = Annotated[FeedbackService, Depends(get_feedback_service)]
-ShelfServiceDep = Annotated[ShelfService, Depends(get_shelf_service)]
-WarmupServiceDep = Annotated[WarmupService, Depends(get_warmup_service)]
+ItemServiceDep = Annotated[ItemService, Depends(get_item_service)]
+LibraryServiceDep = Annotated[LibraryService, Depends(get_library_service)]
+QuizServiceDep = Annotated[QuizService, Depends(get_quiz_service)]
 ExclusionServiceDep = Annotated[ExclusionService, Depends(get_exclusion_service)]

@@ -1,4 +1,4 @@
-"""Reading agent runs: the log the caregiver watches while the agent works."""
+"""Reading agent runs: the log the user watches while the agent works."""
 
 from uuid import UUID
 

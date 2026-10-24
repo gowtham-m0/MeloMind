@@ -1,5 +1,5 @@
 """Use cases over the taste graph: finding entities by name for favourites and the demo seed,
-and scoring the warm-up set against what the person just chose."""
+and scoring the taste quiz set against what the user just picked."""
 
 import logging
 from collections.abc import Sequence
@@ -13,9 +13,9 @@ from app.application.ports import (
     TasteSource,
 )
 from app.core.errors import InvalidInputError, UpstreamError
+from app.domain.feed import is_favourite_ref
 from app.domain.models import EntityType, FavouriteKind, search_type_for
 from app.domain.names import names_match
-from app.domain.sessions import is_favourite_ref
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class TasteService:
         return self._taste_graph.source
 
     async def search(self, query: str, kind: FavouriteKind | None = None) -> list[EntityMatch]:
-        """Matches for a name the caregiver typed, of the type the favourite's kind needs."""
+        """Matches for a name the user typed, of the type the favourite's kind needs."""
         text = " ".join(query.split())
         if not text:
             raise InvalidInputError("Type a name to search for.")
@@ -74,11 +74,11 @@ class TasteService:
             try:
                 results = await self._taste_graph.insights(query)
             except UpstreamError:
-                logger.warning("Warm-up scoring: Qloo failed")
+                logger.warning("Quiz scoring: Qloo failed")
                 results = []
             affinities = {r.entity_id: r.affinity for r in results if r.affinity is not None}
         logger.info(
-            "Warm-up scoring used %s", "Qloo" if affinities else "the same type and closest year"
+            "Quiz scoring used %s", "Qloo" if affinities else "the same type and closest year"
         )
 
         def similarity(candidate: EntityMatch) -> tuple[bool, float, bool, int]:

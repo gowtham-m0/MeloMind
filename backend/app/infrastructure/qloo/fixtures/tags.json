@@ -21,6 +21,18 @@
     { "tag_id": "demo-tag-tamil-film-music", "name": "Tamil film music", "kind": "region" },
     { "tag_id": "demo-tag-tamil-cinema", "name": "Tamil cinema", "kind": "region" },
     { "tag_id": "demo-tag-tamil-literature", "name": "Tamil literature", "kind": "region" },
-    { "tag_id": "demo-tag-hindi-film-music", "name": "Hindi film music", "kind": "region" }
+    { "tag_id": "demo-tag-hindi-film-music", "name": "Hindi film music", "kind": "region" },
+    { "tag_id": "demo-tag-indie-rock", "name": "Indie rock", "kind": "genre" },
+    { "tag_id": "demo-tag-alt-pop", "name": "Alternative pop", "kind": "genre" },
+    { "tag_id": "demo-tag-psychedelic", "name": "Psychedelic", "kind": "genre" },
+    { "tag_id": "demo-tag-singer-songwriter", "name": "Singer-songwriter", "kind": "genre" },
+    { "tag_id": "demo-tag-sci-fi", "name": "Science fiction", "kind": "genre" },
+    { "tag_id": "demo-tag-coming-of-age", "name": "Coming of age", "kind": "genre" },
+    { "tag_id": "demo-tag-literary", "name": "Literary fiction", "kind": "genre" },
+    { "tag_id": "demo-tag-romance", "name": "Romance", "kind": "genre" },
+    { "tag_id": "demo-tag-thriller", "name": "Thriller", "kind": "genre" },
+    { "tag_id": "demo-tag-comedy-drama", "name": "Comedy drama", "kind": "genre" },
+    { "tag_id": "demo-tag-hindi", "name": "Hindi", "kind": "region" },
+    { "tag_id": "demo-tag-2010s", "name": "2010s", "kind": "decade" }
   ]
 }

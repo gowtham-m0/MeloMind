@@ -17,7 +17,7 @@ SONG_TITLE_REFUSAL = (
 async def search_entities(
     ctx: ToolContext, name: str, entity_type: EntityType | None = None
 ) -> list[Candidate]:
-    """Up to 5 matches for a name. Refuses song titles, which Qloo can't know (rule 15)."""
+    """Up to 5 matches for a name. Refuses song titles, which Qloo can't know (rule 12)."""
     text = " ".join(name.split())
     if not text or len(text) > NAME_MAX:
         raise ToolRefusalError(f"Give a name of 1 to {NAME_MAX} characters.")
@@ -41,6 +41,11 @@ async def search_entities(
             signal=f"found by searching for {text}",
             release_year=match.release_year,
             popularity=match.popularity,
+            image_url=match.image_url,
+            description=match.description,
+            isbn13=match.isbn13,
+            tags=match.tags,
+            external=tuple(sorted(match.external.items())),
         )
         for match in matches
         if not ctx.context.blocklist.blocks(match.entity_id, match.name)

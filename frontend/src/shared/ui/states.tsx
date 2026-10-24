@@ -1,52 +1,72 @@
+import { cn } from "cn";
+import { RotateCw } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Button } from "./button";
+import { LogoMark } from "./logo";
 
-interface ErrorBannerProps {
-  error: Error;
-  title?: string;
-  onRetry?: () => void;
+/** A shimmering placeholder block. */
+export function Skeleton({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        "animate-pulse rounded-[10px] bg-[linear-gradient(100deg,var(--surface-2)_30%,var(--surface-3)_50%,var(--surface-2)_70%)]",
+        className,
+      )}
+    />
+  );
 }
 
-/** A calm, visible error with the backend's message and an optional retry. */
-export function ErrorBanner({ error, title = "Something went wrong", onRetry }: ErrorBannerProps) {
+interface MessageProps {
+  title: string;
+  children?: ReactNode;
+  action?: ReactNode;
+  className?: string;
+}
+
+/** Nothing here yet: says why, and what to do next. */
+export function EmptyState({ title, children, action, className }: MessageProps) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-start gap-3 rounded-2xl border border-dashed border-line bg-surface-2/60 p-6",
+        className,
+      )}
+    >
+      <LogoMark className="size-9 opacity-80" />
+      <h3 className="text-xl font-semibold">{title}</h3>
+      {children && <p className="max-w-prose text-body">{children}</p>}
+      {action}
+    </div>
+  );
+}
+
+interface ErrorProps {
+  title?: string;
+  error: unknown;
+  onRetry?: () => void;
+  className?: string;
+}
+
+/** Something broke: names the problem and offers the way back. */
+export function ErrorState({ title = "That didn't load", error, onRetry, className }: ErrorProps) {
+  const detail = error instanceof Error ? error.message : "Something went wrong.";
   return (
     <div
       role="alert"
-      className="flex flex-col gap-3 rounded-lg border-2 border-destructive bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+      className={cn(
+        "flex flex-col items-start gap-3 rounded-2xl border border-film/30 bg-film/6 p-6",
+        className,
+      )}
     >
-      <p>
-        <strong className="text-destructive">{title}.</strong> {error.message}
-      </p>
+      <h3 className="text-xl font-semibold">{title}</h3>
+      <p className="max-w-prose text-body">{detail}</p>
       {onRetry && (
-        <Button variant="outline" onClick={onRetry}>
-          Try again
+        <Button variant="secondary" onClick={onRetry}>
+          <RotateCw /> Try again
         </Button>
       )}
     </div>
-  );
-}
-
-interface EmptyStateProps {
-  title: string;
-  children?: ReactNode;
-}
-
-/** What to show when a list has nothing in it yet, with what to do next. */
-export function EmptyState({ title, children }: EmptyStateProps) {
-  return (
-    <div className="flex flex-col items-start gap-3 rounded-lg border-2 border-dashed p-6">
-      <p className="font-serif text-xl font-semibold">{title}</p>
-      {children}
-    </div>
-  );
-}
-
-/** A quiet loading message, announced to screen readers. No spinners or flashing. */
-export function LoadingState({ label = "Loading…" }: { label?: string }) {
-  return (
-    <p role="status" aria-live="polite" className="text-muted-foreground">
-      {label}
-    </p>
   );
 }

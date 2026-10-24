@@ -12,11 +12,11 @@ from app.application.agent.tools.get_insights import InsightsRequest, get_insigh
 from app.application.agent.tools.research import research_tools
 from app.application.agent.tools.search_entities import search_entities
 from app.application.agent.tools.submit_candidates import submit_candidates
-from app.domain.feedback import Exclusion, ExclusionKind
+from app.domain.feedback import Exclusion
 from app.domain.models import EntityType
 from app.infrastructure.qloo.fixture_taste_graph import FixtureTasteGraph
 from tests.fakes import (
-    MARGARET_FAVOURITES,
+    LEO_FAVOURITES,
     SOUND_OF_MUSIC,
     SUPREMES,
     FailingTasteGraph,
@@ -39,14 +39,14 @@ async def make_ctx(
     ctx = ToolContext(
         taste=recorder,
         log=log,
-        context=make_context(favourites=MARGARET_FAVOURITES, **context),  # type: ignore[arg-type]
+        context=make_context(favourites=LEO_FAVOURITES, **context),  # type: ignore[arg-type]
         max_qloo_calls=max_calls,
     )
     return ctx, recorder
 
 
 async def test_get_insights_always_adds_the_profiles_exclusions() -> None:
-    blocked = [Exclusion(uuid4(), FOUR_TOPS, "The Four Tops", ExclusionKind.REJECTED)]
+    blocked = [Exclusion(uuid4(), FOUR_TOPS, "The Four Tops")]
     ctx, recorder = await make_ctx(blocked=blocked)
 
     found = await get_insights(
@@ -88,16 +88,41 @@ async def test_get_insights_ignores_unknown_ids_and_clamps_take() -> None:
 
     query = recorder.insights_queries[0]
     assert query.signal_entities == (SOUND_OF_MUSIC.ref,)
-    assert query.take == 20
+    assert query.take == 30
 
 
-async def test_artists_are_never_asked_for_with_the_age_signal_alone() -> None:
+async def test_artists_always_need_a_signal() -> None:
     ctx, recorder = await make_ctx()
 
-    with pytest.raises(ToolRefusalError):
-        await get_insights(ctx, InsightsRequest(EntityType.ARTIST, age_55_plus=True))
+    with pytest.raises(ToolRefusalError, match="Artists need"):
+        await get_insights(ctx, InsightsRequest(EntityType.ARTIST, popularity_min=0.8))
 
     assert recorder.insights_queries == []
+
+
+async def test_films_without_a_signal_need_a_popularity_floor() -> None:
+    ctx, recorder = await make_ctx()
+
+    with pytest.raises(ToolRefusalError, match="popularity_min"):
+        await get_insights(ctx, InsightsRequest(EntityType.MOVIE))
+    found = await get_insights(
+        ctx, InsightsRequest(EntityType.MOVIE, country_code="US", popularity_min=0.8)
+    )
+
+    assert len(recorder.insights_queries) == 1
+    assert recorder.insights_queries[0].popularity_min == 0.8
+    assert all(candidate.signal == "popular where you are" for candidate in found)
+
+
+async def test_insights_candidates_carry_the_signal_behind_them() -> None:
+    ctx, _ = await make_ctx()
+
+    found = await get_insights(ctx, InsightsRequest(EntityType.ARTIST, (SUPREMES.ref,)))
+
+    assert found
+    assert found[0].because_ref == SUPREMES.ref
+    assert found[0].because_name == "The Supremes"
+    assert found[0].signal == "similar to The Supremes, which you love"
 
 
 async def test_a_qloo_failure_is_logged_and_gives_no_candidates() -> None:
@@ -146,7 +171,7 @@ async def test_the_qloo_call_budget_is_enforced_by_the_tools() -> None:
 
 
 async def test_submit_accepts_only_qloo_recommendations_that_are_not_blocked() -> None:
-    blocked = [Exclusion(uuid4(), "demo-artist-marvin-gaye", "Marvin Gaye", ExclusionKind.HIDDEN)]
+    blocked = [Exclusion(uuid4(), "demo-artist-marvin-gaye", "Marvin Gaye")]
     ctx, _ = await make_ctx(blocked=blocked)
     recommended = await get_insights(ctx, InsightsRequest(EntityType.ARTIST, (SUPREMES.ref,)))
     await search_entities(ctx, "The Beatles")
@@ -184,16 +209,34 @@ async def test_the_langchain_tools_return_json_and_refusals_as_text() -> None:
         )
     )
     picks = [
-        {"entity_id": insights["candidates"][0]["entity_id"], "why": "A 60s musical"},
-        {"entity_id": found[0]["entity_id"], "why": "Only searched for"},
+        {"entity_id": insights["candidates"][0]["id"], "why": "A 60s musical"},
+        {"entity_id": found[0]["id"], "why": "Only searched for"},
     ]
     submitted = json.loads(await tools["submit_candidates"].ainvoke({"candidates": picks}))
 
     assert "Qloo has no songs" in refused
     assert found[0]["name"] == "The Beatles"
     assert len(insights["candidates"]) == 3
-    assert set(insights["candidates"][0]) == {"entity_id", "name", "year", "affinity"}
+    assert set(insights["candidates"][0]) == {"id", "name", "year", "affinity"}
     assert insights["ignored_unknown_ids"] == ["nope"]
     assert submitted["accepted"] == 1
-    assert submitted["refused_unknown_ids"] == [found[0]["entity_id"]]
+    assert submitted["refused_unknown_ids"] == [found[0]["id"]]
     assert tools["submit_candidates"].return_direct
+    featured = next(iter(ctx.submitted.values()))
+    assert featured.featured
+    assert featured.entity_id.startswith("demo-")
+
+
+async def test_the_agent_sees_short_aliases_never_long_ids() -> None:
+    ctx, recorder = await make_ctx()
+    tools = {tool.name: tool for tool in research_tools(ctx)}
+    alias = ctx.short(SOUND_OF_MUSIC.ref)
+
+    answer = json.loads(
+        await tools["get_insights"].ainvoke({"type": "movie", "signal_ids": [alias], "take": 2})
+    )
+
+    assert alias == "e1"
+    assert recorder.insights_queries[0].signal_entities == (SOUND_OF_MUSIC.ref,)
+    assert all(len(candidate["id"]) <= 4 for candidate in answer["candidates"])
+    assert ctx.resolve(answer["candidates"][0]["id"]).startswith("demo-movie-")

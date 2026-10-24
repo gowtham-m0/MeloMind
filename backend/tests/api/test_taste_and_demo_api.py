@@ -24,6 +24,7 @@ def test_search_returns_matches_with_type_and_year(
             "name": "To Kill a Mockingbird",
             "type": "book",
             "release_year": 1960,
+            "image_url": None,
         }
     ]
 
@@ -56,7 +57,7 @@ def test_demo_seed_is_idempotent_and_private(
     assert first.status_code == 200
     assert first.json() == second.json()
     profiles = client.get("/api/v1/profiles", headers=auth(user_id)).json()
-    assert [profile["display_name"] for profile in profiles] == ["Margaret", "Lakshmi"]
+    assert [profile["display_name"] for profile in profiles] == ["Aanya", "Leo"]
     assert [profile["id"] for profile in profiles] == first.json()["profile_ids"]
     assert all(profile["is_demo"] for profile in profiles)
     assert all(fav["verified"] for profile in profiles for fav in profile["favourites"])

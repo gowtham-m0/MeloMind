@@ -1,17 +1,19 @@
-"""The values the plan_session workflow passes between its nodes (docs/AGENT.md, section 2)."""
+"""The values the build_feed workflow passes between its nodes (docs/AGENT.md, section 2)."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Literal
 from uuid import UUID
 
+from app.domain.feed import ItemSource
 from app.domain.feedback import Blocklist
 from app.domain.models import EntityType
-from app.domain.policies import era_middle_year, era_window
-from app.domain.sessions import ItemSource, SessionItem
+from app.domain.policies import era_window
 
 ResearchOutcome = Literal["ok", "too_few", "limit_hit", "timeout", "error", "skipped"]
 Tier = Literal["A", "B", "C"]
+
+ALL_TYPES = (EntityType.ARTIST, EntityType.MOVIE, EntityType.TV_SHOW, EntityType.BOOK)
 
 
 @dataclass(frozen=True)
@@ -30,102 +32,83 @@ class SignalRef:
 
 
 @dataclass(frozen=True)
-class PlanContext:
-    """What `load_context` gathered. Only what the plan needs: no notes, no health data."""
+class FeedContext:
+    """What `load_context` gathered. Only what the feed needs: no journal text, no keys."""
 
     profile_id: UUID
     first_name: str
-    birth_year: int
+    birth_year: int | None
     country_code: str | None
-    places: tuple[str, ...]
-    languages: tuple[str, ...]
     favourite_signals: tuple[SignalRef, ...]
     learned_signals: tuple[SignalRef, ...]
     text_favourites: tuple[str, ...]
     song_titles: tuple[str, ...]
     blocklist: Blocklist
     learned_weights: Mapping[str, float] = field(default_factory=dict)
-    target_minutes: int = 20
+    previous_refs: frozenset[str] = frozenset()
+    previous_tags: tuple[str, ...] = ()
 
     @property
-    def era(self) -> tuple[int, int]:
-        """The years they were 13 to 21."""
-        return era_window(self.birth_year)
-
-    @property
-    def era_year(self) -> int:
-        """The year they turned 17: stands in for an unknown year when finding media."""
-        return era_middle_year(self.birth_year)
+    def era(self) -> tuple[int, int] | None:
+        """The years they were 13 to 21, when the birth year is known."""
+        return era_window(self.birth_year) if self.birth_year else None
 
     @property
     def signals(self) -> tuple[SignalRef, ...]:
-        """Favourites first, then learned items."""
-        return self.favourite_signals + self.learned_signals
+        """Learned items first (the newest taste), then favourites."""
+        return self.learned_signals + self.favourite_signals
 
 
 @dataclass(frozen=True)
 class Candidate:
-    """An entity a tool returned this run, with the basis for its reason (`signal`)."""
+    """An entity a tool returned this run, with the basis for its reason.
+
+    `signal` is that basis in words ("similar to The Strokes, which you love"), and
+    `because_ref`/`because_name` the item behind it, when there is one. `featured` marks the
+    research agent's own best picks, which lead the "Recommended for you" row.
+    """
 
     entity_id: str
     name: str
     entity_type: EntityType
     source: ItemSource
     signal: str
+    because_ref: str | None = None
+    because_name: str | None = None
     release_year: int | None = None
     popularity: float | None = None
     affinity: float | None = None
     why: str = ""
-
-
-@dataclass(frozen=True)
-class PlannedItem:
-    """A session item with its place in the ranking (0 is best)."""
-
-    item: SessionItem
-    rank: int
+    image_url: str | None = None
+    description: str | None = None
+    isbn13: str | None = None
+    tags: tuple[str, ...] = ()
+    external: tuple[tuple[str, str], ...] = ()
+    featured: bool = False
 
 
 @dataclass(frozen=True)
 class ResearchBrief:
-    """The goal and constraints the mode gives the research agent."""
+    """The goal and constraints given to the research agent."""
 
     goal: str
     tier: Tier
-    mix: tuple[tuple[EntityType, int], ...]
-    spares: int
-    era: tuple[int, int]
+    per_type: int
     country_code: str | None
     popularity_min: float | None
-    use_age_signal: bool
     signals: tuple[SignalRef, ...]
+    dismissed: tuple[str, ...] = ()
     tag_hints: tuple[str, ...] = ()
-
-    @property
-    def item_count(self) -> int:
-        """How many items the session needs, before spares."""
-        return sum(count for _, count in self.mix)
 
 
 @dataclass(frozen=True)
 class FallbackQuery:
     """One rule-based insights query. `signal_from` uses earlier results of that type as signals,
-    so cold-start artists can follow the era's films."""
+    so cold-start artists can follow popular films."""
 
     entity_type: EntityType
     take: int
     signal_ids: tuple[str, ...] = ()
-    tag_queries: tuple[str, ...] = ()
     signal_from: EntityType | None = None
-    age_55_plus: bool = False
-    era: tuple[int, int] | None = None
     country_code: str | None = None
     popularity_min: float | None = None
-
-
-@dataclass(frozen=True)
-class Selection:
-    """The mode's picks in play order, plus spares best first."""
-
-    selected: list[Candidate]
-    spares: list[Candidate]

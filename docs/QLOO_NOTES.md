@@ -41,10 +41,10 @@ findings, never real responses or real entity IDs.
 | `GET /entities` | Details for IDs we already hold. Param: `entity_ids` | not yet |
 | `GET /v2/insights` | Recommendations. **`filter.type` is required** | ✓ *(live)* |
 | `GET /v2/tags` | Tag IDs for `signal.interests.tags`. Params: `filter.query`, `take` | ✓ *(live)* |
-| `GET /v2/analysis/compare` and `GET /v2/insights/compare` | Bridge (Phase 4). Params: `a.signal.interests.entities`, `b.signal.interests.entities`, `take` | ✓ *(live)*: **both paths work** and return the same shape |
+| `GET /v2/analysis/compare` and `GET /v2/insights/compare` | Taste page tags and Taste match (Phase 4). Params: `a.signal.interests.entities`, `b.signal.interests.entities`, `take` | ✓ *(live)*: **both paths work** and return the same shape |
 
 - **Compare returns tags, not recommendations** *(live)*: for each group, the tags that describe
-  it, plus shared tags. Bridge can use the shared tags as `signal.interests.tags` in a normal
+  it, plus shared tags. Taste match uses the shared tags as `signal.interests.tags` in a normal
   insights call to find items both sides may enjoy.
 - **Never call** `/recommendations` or `/recs`.
 
@@ -65,18 +65,25 @@ film is the signal. Never send a song title or a lyric to Qloo.
 | `filter.release_country` | ✗ | ✓ | ✓ | ✗ | **Needs the full country name** (`United States`, `India`). ISO codes (`US`, `IN`) and `USA` return **nothing**, silently |
 | `filter.popularity.min` | ✓ | ✓ | ✓ | ✓ | Works (0–1) |
 | `filter.exclude.entities` | ✓ | ✓ | ✓ | ✓ | Works: the excluded item disappears |
-| `filter.results.entities` | ✓ | ✓ | ✓ | ✓ | **Works**: returns only the given IDs of that type, each with an affinity. Warm-up scoring can use it |
-| `take` | ✓ | ✓ | ✓ | ✓ | **Default is 20, not 5** (`CLAUDE.md` is wrong). Honoured up to 50 |
+| `filter.results.entities` | ✓ | ✓ | ✓ | ✓ | **Works**: returns only the given IDs of that type, each with an affinity. The taste quiz uses it |
+| `take` | ✓ | ✓ | ✓ | ✓ | **Default is 20, not 5**. Honoured up to 50 |
 
 **Artists have no era filter.** Learned from the live calls:
 - With **no entity signal**, artists ignore the era completely: the age signal alone returns
-  today's biggest bands (2000s rock). So the "nothing specific" cold start **must not** ask for
-  artists that way.
+  today's biggest bands (2000s rock). So a cold start with nothing **must not** ask for artists
+  that way.
 - Artists **do** come out right when the signal is from their era: an era film, an era artist, or
-  an era/genre tag (`urn:tag:genre:music:60s`, `urn:tag:genre:music:tamil`). So for cold start,
-  first get era films (they have a year filter), then use those films as the signal for artists.
+  an era/genre tag (`urn:tag:genre:music:60s`, `urn:tag:genre:music:tamil`). So for the
+  `throwback` row and a cold start, first get films (they have a year and country filter), then
+  use those films as the signal for artists.
 - Films, TV and books with only the age signal, the era and a popularity floor work fine: no error,
   and they return big hits from those years.
+
+**Books steer books only** *(live, 24 Oct)*. A book in `signal.interests.entities` works for
+`filter.type=urn:entity:book`, but for artists, films and TV Qloo returns **400** "All of the
+provided signal.interests.entities were invalid". Artists, films and TV work as signals for every
+type. So `get_insights` drops book signals for other types, and the cross-culture rail uses the
+newest artist, film or show.
 
 The adapter's `InsightsQuery` maps only to the parameters in this table. Anything else is
 rejected in code, never passed through. The adapter converts our ISO `country_code` to the full
@@ -112,6 +119,10 @@ English country name for `filter.release_country`.
 
 ## 5. Coverage check (23 Oct)
 
+*Written for the old dementia demo profiles (1960s US and Tamil). Still useful as a record of
+regional coverage. The new demo profiles (Aanya: 2010s–2020s indie, India; Leo: classic film
+and jazz, US) need their own check in Phase 2, including image coverage.*
+
 **Margaret** (1960s US): **excellent.** All four favourites are found first try. Insights from
 The Supremes give Motown artists, 1960s musicals, 1960s US TV and 1960s novels.
 
@@ -134,11 +145,37 @@ The Supremes give Motown artists, 1960s musicals, 1960s US TV and 1960s novels.
 - An artist signal like P. Susheela without an era gives **modern** Tamil films (2019–2023), so
   films must always carry the era filter.
 
-**Decision: keep Lakshmi.** Her song favourite becomes the best hint-ladder demo: singer
-T. M. Soundararajan → not found; composer M. S. Viswanathan → not found; the film the song comes
-from, Pasamalar (1961) → found ✓. The log shows the agent recovering, exactly as `PLAN.md` hopes.
+This made a good hint-ladder demo: singer T. M. Soundararajan → not found; composer
+M. S. Viswanathan → not found; the film the song comes from, Pasamalar (1961) → found ✓. Keep it
+as a resolver test case.
 
-## 6. Response shapes *(live, field names only)*
+**Live run, 24 Oct** (profile with One Direction, The Strokes, Glass Animals): insights gave
+Lorde, The 1975, Arctic Monkeys and Two Door Cinema Club for artists, and 2016–2024 films and TV
+with an Indian lean from the country. The Qloo side was good; the YouTube lookups were not (Shorts,
+ranking clips), which led to the pivot.
+
+## 6. Images, external IDs and ISBNs *(live, 24 Oct)*
+
+Checked with 3 searches and 20 insights results per type. Field names and coverage only.
+
+| Field | Search | Insights | Shape | Our use |
+|---|---|---|---|---|
+| `properties.image.url` | 3/3 every type | 20/20 every type | `{ "url": "https://images.qloo.com/…" }` | `image_url` on every card |
+| `properties.isbn13` | 2/3 books | 18/20 books | string | Google Books link; Open Library cover only as a fallback |
+| `properties.description` / `short_description` | films, TV, books / artists, some books | 20/20 | string | The detail view |
+| `tags` | yes (`tag_id`, `name`, `type`, `value`) | 19–20/20 (`id`, `name`, `type`) | list | Card chips: prefer `urn:tag:genre:*` names |
+| `external` | inside `properties`, 3/3; **values are objects** `{ "id": … }` | top level, 20/20; **values are lists** `[{ "id": … }]` | see below | Direct platform links |
+
+`external` keys seen:
+- **Artists:** `spotify` (22-character ID, 10/10), `lastfm`, `musicbrainz`, `wikidata`, `imdb`, `facebook`, `instagram`, `twitter`.
+- **Films and TV:** `imdb` (`tt…`), **`netflix`** (numeric ID, 10/10 for a sci-fi film signal), `letterboxd`, `metacritic`, `rottentomatoes`, `wikidata`.
+- **Books:** `goodreads` (ID plus ratings).
+
+So direct links are common: Spotify for artists, Netflix and IMDb for films and TV, Goodreads for books. The adapter normalises both shapes to `{ platform: id }`, taking the first ID.
+
+**Caution:** a Netflix ID means the title is on Netflix somewhere, not necessarily in the user's country. Label it "Open on Netflix", and keep JustWatch for "where to watch".
+
+## 7. Response shapes *(live, field names only)*
 
 ### `/search`
 
@@ -217,7 +254,7 @@ from, Pasamalar (1961) → found ✓. The log shows the agent recovering, exactl
 }
 ```
 
-## 7. How the adapters map onto this
+## 8. How the adapters map onto this
 
 Both adapters implement the `TasteGraph` port, so the rest of the app never sees a Qloo response.
 
@@ -229,6 +266,10 @@ Both adapters implement the `TasteGraph` port, so the rest of the app never sees
 | `release_year` | `properties.release_year`, else `properties.publication_year`, else none | `release_year` |
 | `popularity` | `popularity` (optional) | `popularity` |
 | `affinity` | `query.affinity` | `insights.json` → `related[signal][].affinity` |
+| `image_url` | `properties.image.url` | `image_url` (`null` in fixtures: the UI shows the fallback tile) |
+| `external` | `properties.external` (search) or top-level `external` (insights), normalised to `{platform: id}` | `external` |
+| `isbn13` | `properties.isbn13` (books) | `isbn13` |
+| `tags` | `tags[].name` (up to 4) | `tags` |
 | `source` | `qloo_live` | `demo_fixture` |
 
 Fixture details are in `backend/app/infrastructure/qloo/fixtures/README.md`.

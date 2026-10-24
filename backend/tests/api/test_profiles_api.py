@@ -57,9 +57,8 @@ def test_profile_crud(client: TestClient, auth: AuthHeaders, user_id: UUID) -> N
 @pytest.mark.parametrize(
     "body",
     [
-        {"display_name": "Margaret"},
-        {"display_name": "Margaret", "birth_year": 1919},
-        {"display_name": "Margaret", "birth_year": 1991},
+        {"display_name": "Margaret", "birth_year": 1899},
+        {"display_name": "Margaret", "birth_year": 9999},
         {"display_name": "   ", "birth_year": 1948},
         {"birth_year": 1948},
         {"display_name": "Margaret", "birth_year": 1948, "country_code": "USA"},
@@ -74,7 +73,7 @@ def test_create_validation(
 
 
 @pytest.mark.parametrize(
-    "body", [{"birth_year": None}, {"display_name": None}, {"birth_year": 2001}]
+    "body", [{"display_name": None}, {"birth_year": 9999}, {"birth_year": 1899}]
 )
 def test_patch_validation(
     client: TestClient, auth: AuthHeaders, user_id: UUID, body: dict[str, Any]

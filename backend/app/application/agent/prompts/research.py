@@ -1,52 +1,44 @@
-"""The research agent's system prompt and task, built from the mode's brief (docs/AGENT.md §10).
+"""The research agent's system prompt and task, built from the brief (docs/AGENT.md §10).
 
-The agent sees only the first name, birth year, places and favourites: never notes or keys.
+The agent sees only the first name, country and the titles of favourites and liked items: never
+journal text or keys.
 """
 
-from app.application.agent.tools.context import TYPE_NOUNS, count_noun
-from app.application.agent.types import PlanContext, ResearchBrief
+from collections.abc import Callable
 
-# Submit a few more than the session needs, so the guardrails have spares to swap in.
-EXTRA_PICKS = 4
+from app.application.agent.tools.context import TYPE_NOUNS
+from app.application.agent.types import FeedContext, ResearchBrief
+
+FEATURED = 12
 
 _TIER_GUIDANCE = {
-    "A": "Use the favourites as signals: Qloo expands them well.",
+    "A": "Use the signals below: Qloo expands them well. Mix them across calls.",
     "B": (
-        "There are only one or two favourites. Use them in every call, plus the "
-        "older-audience signal and any region or decade tags you find."
+        "Only one or two signals are known. Use them in every call, and add a genre tag from "
+        "find_tags if a type comes back thin."
     ),
     "C": (
-        "Nothing specific is known yet. For films, TV and books, use the older-audience signal, "
-        "the era years and a high popularity floor: the big hits of their youth. For artists, "
-        "first find era films, then use those films (and any era or region tags) as signals. "
-        "Never ask for artists with the age signal alone: it returns today's bands."
+        "Nothing specific is known yet. For films, TV and books, ask for popular picks with a "
+        "popularity_min of 0.7 (and the country for films and TV). For artists, first get "
+        "films, then use the best few films as the signal: never ask for artists without one."
     ),
 }
 
 
-def _mix_text(brief: ResearchBrief) -> str:
-    return ", ".join(count_noun(count, entity_type) for entity_type, count in brief.mix)
-
-
-def research_system_prompt(brief: ResearchBrief, context: PlanContext, max_qloo_calls: int) -> str:
-    """The system prompt: role, brief, allowed signals and rules."""
-    start, end = brief.era
+def research_system_prompt(
+    brief: ResearchBrief,
+    context: FeedContext,
+    max_qloo_calls: int,
+    alias: Callable[[str], str] = str,
+) -> str:
+    """The system prompt: role, brief, allowed signals (by their short ids) and rules."""
     lines = [
-        "You research songs, films, TV and books for a caregiver-led music and memory session. "
-        "The caregiver approves everything before the person sees it.",
+        "You research music, films, TV shows and books for a personal home feed, like a "
+        "streaming app's home screen but across all four.",
         "",
-        f"Person: {context.first_name}, born {context.birth_year}.",
-    ]
-    if context.places:
-        lines.append(f"Places they lived: {', '.join(context.places)}.")
-    if context.languages:
-        lines.append(f"Languages: {', '.join(context.languages)}.")
-    lines += [
-        "",
+        f"User: {context.first_name}.",
         f"Goal: {brief.goal}",
-        f"Mix needed: {_mix_text(brief)}, plus {brief.spares} spares.",
-        f"Era: {start}–{end}, the years they were 13 to 21. Use year_min and year_max for "
-        "films, TV and books. Artists have no year filter, so steer them with era signals.",
+        f"Aim for about {brief.per_type} of each type: artists, films, TV shows and books.",
     ]
     if brief.country_code:
         lines.append(f"Country (films and TV only): {brief.country_code}.")
@@ -54,40 +46,39 @@ def research_system_prompt(brief: ResearchBrief, context: PlanContext, max_qloo_
         lines.append(f"Popularity floor: {brief.popularity_min}.")
     lines += ["", _TIER_GUIDANCE[brief.tier]]
     if brief.signals:
-        lines += ["", "Signals you may use (ID: name):"]
+        lines += ["", "Signals you may use, strongest and newest first (id: name):"]
         lines += [
-            f"- {signal.ref}: {signal.name}"
+            f"- {alias(signal.ref)}: {signal.name}"
             + (f" ({TYPE_NOUNS[signal.entity_type]})" if signal.entity_type else " (tag)")
             for signal in brief.signals
         ]
     if context.song_titles:
         lines += [
             "",
-            "Favourite songs (never search these titles; search the singer instead): "
+            "Favourite songs (never search these titles; Qloo has no songs): "
             + ", ".join(f"“{title}”" for title in context.song_titles)
             + ".",
         ]
     if brief.tag_hints:
-        lines.append(f"Tags worth looking up: {', '.join(brief.tag_hints)}.")
-    want = brief.item_count + brief.spares + EXTRA_PICKS
+        lines.append(f"Genres they've been into lately: {', '.join(brief.tag_hints)}.")
     lines += [
         "",
         "Steps:",
-        "1. In your first reply, call get_insights once for EACH type in the mix, all in the "
-        "same reply (parallel calls). Put every favourite's ID above in signal_ids for every "
-        "call: the family chose them, so they always steer the picks. Add tags only as extras.",
+        "1. In your first reply, call get_insights once for EACH of the four types, all in the "
+        "same reply (parallel calls). Use the first few signals above in signal_ids, and spread "
+        "the others across types so the feed isn't about one thing.",
         "2. Only if a type came back with too few, call get_insights for it once more, looser.",
-        f"3. Then call submit_candidates once with about {want} of the best results, covering "
-        "every type in the mix. A why is optional (at most 8 words). That ends your work.",
+        f"3. Then call submit_candidates once with your {FEATURED} best picks to lead the "
+        "feed, at least two of each type. A why is optional (at most 8 words). Every other "
+        "result is kept too, so don't list them. That ends your work.",
         "",
         "Rules:",
-        "- Submit only entity IDs that get_insights returned: candidates are Qloo's "
-        "recommendations, never your own ideas.",
-        "- Use only IDs from this brief or your tool results. The favourites' IDs are above: "
-        "don't search for them.",
+        "- Submit only ids that get_insights returned: picks are Qloo's recommendations, "
+        "never your own ideas.",
+        "- Use only ids from this brief or your tool results. Don't search for the signals above.",
         "- search_entities and find_tags are only for finding extra signals. Never search a "
-        "song title or a lyric: Qloo has no songs.",
-        f"- You have {max_qloo_calls} Qloo calls in total. No health claims.",
+        "song title or a lyric.",
+        f"- You have {max_qloo_calls} Qloo calls in total.",
     ]
     return "\n".join(lines)
 
@@ -95,6 +86,6 @@ def research_system_prompt(brief: ResearchBrief, context: PlanContext, max_qloo_
 def research_task(brief: ResearchBrief) -> str:
     """The first message: start researching."""
     return (
-        f"Research candidates for this mix: {_mix_text(brief)}, plus {brief.spares} spares. "
-        "When you have enough, call submit_candidates."
+        f"Research about {brief.per_type} artists, films, TV shows and books, then submit your "
+        f"{FEATURED} best picks."
     )

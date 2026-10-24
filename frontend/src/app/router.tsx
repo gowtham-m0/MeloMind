@@ -1,48 +1,28 @@
 import { createBrowserRouter } from "react-router";
 
-import { BridgePage } from "@/pages/BridgePage";
+import { AppShell } from "@/features/shell/AppShell";
+import { DiscoverPage } from "@/pages/DiscoverPage";
 import { HomePage } from "@/pages/HomePage";
-import { HowItWorksPage } from "@/pages/HowItWorksPage";
-import { MemoriesPage } from "@/pages/MemoriesPage";
-import { MemoryNodePage } from "@/pages/MemoryNodePage";
+import { LandingPage } from "@/pages/LandingPage";
 import { NewProfilePage } from "@/pages/NewProfilePage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
-import { PersonModePage } from "@/pages/PersonModePage";
-import { PlanSessionPage } from "@/pages/PlanSessionPage";
-import { ProfileEditPage } from "@/pages/ProfileEditPage";
-import { ProfilePage } from "@/pages/ProfilePage";
 import { ProfilesPage } from "@/pages/ProfilesPage";
-import { ReviewPage } from "@/pages/ReviewPage";
-import { SessionPage } from "@/pages/SessionPage";
-import { SessionPlayPage } from "@/pages/SessionPlayPage";
+import { SavedPage } from "@/pages/SavedPage";
 
-import { CaregiverLayout } from "./layouts/CaregiverLayout";
-import { PersonLayout } from "./layouts/PersonLayout";
-
-/** Every route. Person mode gets its own full-screen layout with no navigation. */
+/** Every route. A profile's screens share the app shell under `/p/:profileId`. */
 export const router = createBrowserRouter([
+  { path: "/", element: <LandingPage /> },
+  { path: "/profiles", element: <ProfilesPage /> },
+  { path: "/profiles/new", element: <NewProfilePage /> },
   {
-    element: <CaregiverLayout />,
+    path: "/p/:profileId",
+    element: <AppShell />,
     children: [
-      { path: "/", element: <HomePage /> },
-      { path: "/profiles", element: <ProfilesPage /> },
-      { path: "/profiles/new", element: <NewProfilePage /> },
-      { path: "/profiles/:id", element: <ProfilePage /> },
-      { path: "/profiles/:id/edit", element: <ProfileEditPage /> },
-      { path: "/profiles/:id/plan", element: <PlanSessionPage /> },
-      { path: "/profiles/:id/memories", element: <MemoriesPage /> },
-      { path: "/profiles/:id/memories/:nodeId", element: <MemoryNodePage /> },
-      { path: "/profiles/:id/review", element: <ReviewPage /> },
-      { path: "/profiles/:id/bridge", element: <BridgePage /> },
-      { path: "/sessions/:id", element: <SessionPage /> },
-      { path: "/sessions/:id/play", element: <SessionPlayPage /> },
-      { path: "/how-it-works", element: <HowItWorksPage /> },
-      { path: "*", element: <NotFoundPage /> },
+      { index: true, element: <HomePage /> },
+      { path: "discover", element: <DiscoverPage /> },
+      { path: "discover/:type", element: <DiscoverPage /> },
+      { path: "saved", element: <SavedPage /> },
     ],
   },
-  {
-    path: "/profiles/:id/person",
-    element: <PersonLayout />,
-    children: [{ index: true, element: <PersonModePage /> }],
-  },
+  { path: "*", element: <NotFoundPage /> },
 ]);

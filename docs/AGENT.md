@@ -1,22 +1,26 @@
 # The MeloMind agent: design
 
 Owner: the agent owner. Reviewer: the backend owner. This is the design for `backend/app/application/agent/` and
-`application/modes/`. It adds detail to `CLAUDE.md` ("The agent", "Cold start", "Person mode",
-"Memory Graph") and never overrides it. Qloo specifics are in `docs/QLOO_NOTES.md`.
+`application/rows/`. It adds detail to `CLAUDE.md` ("The agent", "The feed", "Journal") and never
+overrides it. Qloo specifics are in `docs/QLOO_NOTES.md`.
+
+> **Pivot, 24 Oct 2026.** `plan_session` became `build_feed`, session modes became feed row
+> strategies, and `link_memory` became `link_journal`. The research step, middleware, fallback and
+> agent log carry over unchanged in spirit.
 
 ---
 
 ## 1. Shape
 
-- **One agent, three workflows**, all sharing one set of tools: `plan_session`,
-  `resolve_favourite` and `link_memory`.
+- **One agent, three workflows**, all sharing one set of tools: `build_feed`,
+  `resolve_favourite` and `link_journal`.
 - **Hybrid.** Each workflow is a fixed LangGraph `StateGraph` where code sets the order. Only the
-  `research` step of `plan_session` is a tool-calling agent (LangChain `create_agent`) that
-  chooses its own Qloo calls. It compiles to a graph and runs as one node.
-- **Ports only.** Nodes and tools receive `TasteGraph`, `MediaResolver`, `LanguageModel` and the
+  `research` step of `build_feed` is a tool-calling agent (LangChain `create_agent`) that chooses
+  its own Qloo calls. It compiles to a graph and runs as one node.
+- **Ports only.** Nodes and tools receive `TasteGraph`, `LanguageModel`, `SpeechToText` and the
   repositories from the workflow builder. They never import an adapter.
-- **Every run is an `agent_run`** (kind `plan`, `resolve` or `link`) with a status (`running`,
-  `done`, `failed`, and `needs_hint` once Workflow 2 exists) and a plain-English log. The frontend polls
+- **Every run is an `agent_run`** (kind `feed`, `resolve` or `link`) with a status (`running`,
+  `done`, `failed`, or `needs_hint` for the resolver) and a plain-English log. The frontend polls
   `/agent-runs/{id}`.
 - **A result is always produced.** When the agent fails or hits a limit, code takes over.
 
@@ -25,45 +29,49 @@ Owner: the agent owner. Reviewer: the backend owner. This is the design for `bac
 Shared by all workflows: `run_id`, `profile_id`, `log` (list of entries), `limits` (counters
 for tool calls, model calls and the deadline), `errors`.
 
-**`PlanState`**
+**`FeedState`**
 
 | Field | Written by | Holds |
 |---|---|---|
-| `mode`, `brief` | start, `research` | The mode's name and its research brief |
-| `context` | `load_context` | Profile (first name, birth year, country, places, languages), verified favourites with Qloo IDs, text favourites, feedback totals, `blocked_ids` (rejected and upset), `learned_weights`, prompt-allowed titles of confirmed memory links per item |
-| `candidates` | `research`, `fallback` | `{entity_id, name, type, year, popularity, affinity, source, signal}` |
-| `research_outcome` | `research` | `ok`, `too_few`, `limit_hit`, `timeout` or `error` |
+| `brief` | start | Signals, recent likes, dismissed items, country, birth year if set |
+| `context` | `load_context` | Profile (first name, country, birth year), verified favourites with Qloo IDs, text favourites, feedback totals, `excluded_ids`, `learned_weights`, confirmed journal signals, the previous feed's item refs |
+| `pool` | `research`, `fallback` | `{entity_id, name, type, year, popularity, affinity, image_url, external, isbn13, source, signal}` |
+| `research_outcome` | `research` | `ok`, `too_few`, `limit_hit`, `timeout`, `skipped` or `error` |
 | `fallback_attempts` | `fallback` | 0–2 |
-| `ranked`, `selected`, `spares` | `select_items` | Ordered candidates |
-| `media` | `resolve_media` | Per item: video ID, duration, or "No playable version found" |
-| `items` | `guardrails`, `compose` | Final session items with `source`, `reason`, `prompts`, `duration_s` |
+| `drafts` | `build_rows`, `guardrails` | Ordered rows of candidates |
+| `hero` | `build_rows`, `guardrails` | One item |
+| `rows`, `hero_item`, `taste_tags` | `decorate` | Cards with reasons, images and links |
+| `summary` | `explain` | The "what changed" line |
 
 **`ResolveState`**: `input_text` (never stored after the run), `kind_hint`, `interpretation`
 (`song_title`, `singer`, `composer`, `film`, `year`), `steps_tried`, `proposals` (≤ 3),
 `question` (when the run ends with `needs_hint`).
 
-**`LinkState`**: `note_id`, `note_text` (held in memory for this run only, never logged),
+**`LinkState`**: `entry_id`, `entry_text` (held in memory for this run only, never logged),
 `mentions`, `resolved` (mention → Qloo entity), `node_matches` (mention → existing node), `proposals`.
 
-## 3. Workflow 1: `plan_session`
+## 3. Workflow 1: `build_feed`
 
 | # | Step | Reads → writes | Logs (example) | On failure |
 |---|---|---|---|---|
-| 1 | `load_context` (code) | `profile_id` → `context` | "Loaded Margaret: born 1948, Chicago, 4 favourites, 2 blocked items." | Profile missing: run `failed` (404 at the API) |
-| 2 | `research` (**agent**) | `brief`, `context` → `candidates`, `research_outcome` | Each tool call (section 6), then "Submitted 14 candidates." | Any error, limit or timeout: keep what was found, set the outcome, go on |
-| 3 | `fallback` (code) | Runs only if the outcome isn't `ok` or there are fewer than the mode's minimum. Mode's `fallback_queries`, then `relax` up to `AGENT_MAX_RETRIES` (2) | "Agent found 3 items; running the rule-based plan. Widened the era to 1956–1974." | Still too few: continue with what exists; the log says so |
-| 4 | `select_items` (code) | `candidates`, `learned_weights` → `ranked`, `selected`, `spares` | "Picked 4 artists, 2 films, 1 TV show, 1 book, plus 4 spares." | — |
-| 5 | `resolve_media` (code) | `selected` → `media` | "No playable version of Shindig!; swapped in Bewitched." | Unplayable: use a spare of the same type. Never an unrelated video |
-| 6 | `guardrails` (**code only**) | `selected`, `media`, `blocked_ids` → `items` | "Removed 1 blocked item. Session is 20 min 40 s." | See section 9 |
-| 7 | `compose` (LLM + template) | `items`, profile basics, prompt-allowed linked titles → `reason`, `prompts` | "Wrote reasons and prompts." or "LLM timed out; used templates." | Invalid output or 15-second timeout: templates |
+| 1 | `load_context` (code) | `profile_id` → `context` | "Loaded Aanya: India, 4 favourites, 6 likes, 1 dismissed." | Profile missing: run `failed` (404 at the API) |
+| 2 | `research` (**agent**) | `brief`, `context` → `pool`, `research_outcome` | Each tool call (section 6), then "The agent picked 12 favourites from 40 results after 4 Qloo calls." | Any error, limit or timeout: keep what was found, set the outcome, go on |
+| 3 | `fallback` (code) | Runs only if the outcome isn't `ok` or a type has fewer than 6. One `get_insights` per short type with the top signals; relax up to `AGENT_MAX_RETRIES` (2) | "Only 3 books found; ran the rule-based query. Dropped the popularity floor." | Still short: continue; that row may be dropped |
+| 4 | `build_rows` (code) | Pick the hero (the best featured pick with an image). Then each `FeedRow` in `RowRegistry` that `applies`: take from `pool`, run its spec's queries within `FEED_MAX_QLOO_CALLS`, rank (affinity → learned weight → popularity; items the last feed showed sink within their band) | "Top pick: The Strokes." "Because you liked Arctic Monkeys: 12 picks." | When the budget runs out, a row uses research results only; a short row is left out and the log says so |
+| 5 | `guardrails` (**code only**) | See section 9 | "Removed 2 items you're not interested in." "Dropped “TV shows for you”: too few picks left." | — |
+| 6 | `decorate` (code) | Reasons from each pick's signal ("Similar to The Strokes, which you love.") or the row's fixed reason; image URL (Qloo, then Open Library by ISBN, else `null`); platform links from `domain/links.py`; taste tags | "Added images for 96 of 96 picks, and where to find each." | Missing image: `null`, the UI shows the fallback tile |
+| 7 | `explain` (LLM + template) | Recently liked titles, tags now and last time, counts → one `summary` line. The first feed always uses the template | "More indie rock and sci-fi today, because you liked Foster the People." | Invalid output, a line over 140 characters, or a 15-second timeout: the template |
 
-Media rules: an artist item resolves to an embeddable YouTube video found by searching the
-artist's name and era; the video's own title is shown. A song favourite searches
-`"<song_title> <singer>"`. Films and TV resolve to a clip or theme. Books: see section 12.
+The feed is saved as a snapshot in `feeds` with its `agent_run_id`. `GET /feed` returns the latest
+`done` snapshot, so the home screen never waits for a build.
+
+**Debounced rebuilds.** Feedback marks the feed `stale`. The frontend shows "Refresh for new picks"
+and starts a rebuild on tap. A not-interested item is also removed from the current snapshot at once,
+so it disappears without waiting.
 
 ## 4. Workflow 2: `resolve_favourite` (the hint ladder)
 
-Input: whatever the caregiver typed, plus an optional kind. Stop at the first accepted match.
+Input: whatever the user typed, plus an optional kind. Stop at the first accepted match.
 At most `RESOLVE_MAX_SEARCHES` (5) Qloo searches, so later rungs are skipped when the budget runs
 out. A rung with nothing to search (no composer known, say) is skipped without spending a search.
 
@@ -76,164 +84,172 @@ out. A rung with nothing to search (no composer known, say) is skipped without s
 | 5 | Search the film the song comes from | `search_entities(film, movie)` |
 | 6 | Search the film's lead actor | `search_entities(actor, artist)` *(to verify: actors may be `person`)* |
 | 7 | A genre or region tag as the signal | `find_tags(query)` |
-| 8 | Ask the caregiver for a hint (singer, film or year). Run ends `needs_hint` | none |
-| 9 | Keep as text: playable and usable in prompts, not a Qloo signal | none |
+| 8 | Ask the user for a hint (singer, film or year). Run ends `needs_hint` | none |
+| 9 | Keep as text: shown on the taste page, not a Qloo signal | none |
 
 - **Never search Qloo for a song title or lyric.** A lyric is used in rung 1 only, then dropped.
   The log says "Interpreted a lyric hint", never the lyric.
 - **Acceptance (code):** the result's type matches the rung's expected type; the name matches
   after normalising case, punctuation and initials; and, when both years are known, the year is
   within 5 years for films and books. An artist with no year passes on name and type.
-- **Output:** up to 3 proposals `{entity_id, name, type, year, rung, why}`. The caregiver
+- **Output:** up to 3 proposals `{entity_id, name, type, year, image_url, rung, why}`. The user
   confirms one, and only then is it saved as a verified favourite.
 
-## 5. Workflow 3: `link_memory`
+## 5. Workflow 3: `link_journal`
 
-1. **Extract** (LLM, structured output) from the note text. Schema:
-   `mentions: [{ kind, text, year?, relation?, confidence }]`, where `kind` is one of `person`,
-   `place`, `year`, `decade`, `song`, `artist`, `movie`, `tv_show`, `book`; `relation` is for people
-   ("sister"); `confidence` is 0–1. Mentions under 0.5 confidence are dropped.
+1. **Extract** (LLM, structured output, Groq only) from the entry text. Schema:
+   `mentions: [{ kind, text, year?, confidence }]` plus `mood?`, where `kind` is one of `artist`,
+   `song`, `movie`, `tv_show`, `book`, `place`; `confidence` is 0–1. Mentions under 0.5 confidence
+   are dropped. People's names are never extracted.
 2. **Resolve** songs, artists, films, TV shows and books with the hint ladder (shared budget of
-   `LINK_MAX_SEARCHES`, 10, per note).
-3. **Match** people and places to existing nodes with `find_memory_nodes`, or propose a new node.
-   Years and decades map to `decade` nodes.
-4. **Propose links**: `{ target: node_id | new_node {kind, title, year?, qloo_id?}, link_kind,
-   evidence }` with `source = agent`, `status = suggested`. Code drops any proposal whose
-   `(from, to, kind)` was rejected before. The caregiver confirms each one with ✓ or ✗.
+   `LINK_MAX_SEARCHES`, 10, per entry).
+3. **Match** places and already-linked items to existing nodes with `find_journal_links`, or
+   propose a new node.
+4. **Propose links**: `{ target: node_id | new_node {kind, title, year?, qloo_id?, image_url?},
+   link_kind: "mentions", evidence }` with `source = agent`, `status = suggested`. Code drops any
+   proposal whose `(from, to, kind)` was rejected before. The user confirms each one with ✓ or ✗.
+
+**On confirm** (service code, not the agent): a media node with a Qloo ID gets a
+`journal_confirmed` feedback signal (+1.0), and the feed is marked stale.
 
 ## 6. Tools (`agent/tools/`)
 
 Each is a thin wrapper over a port. Each validates its inputs and logs its call and result count.
+The agent never sees Qloo's long IDs: tools answer with short aliases (`e1`, `e2`…) that
+`ToolContext` maps back, because Groq's free tier counts tokens a minute (section 7).
 
 | Tool | Input | Output | Port | Validation |
 |---|---|---|---|---|
-| `search_entities` | `name`, `type?` | ≤ 5 matches: `entity_id`, `name`, `type`, `year` | `TasteGraph.search` | Non-empty; type in the four we use; rejects text the interpreter flagged as a song title or lyric |
+| `search_entities` | `name`, `type?` | ≤ 5 matches: `entity_id`, `name`, `type`, `year`, `image_url` | `TasteGraph.search` | Non-empty; type in the four we use; rejects text the interpreter flagged as a song title or lyric |
 | `find_tags` | `query` | ≤ 5 tags: `tag_id`, `name` | `TasteGraph.tags` | Non-empty |
-| `get_insights` | `type`, `signals` (entity and tag IDs), `era?`, `country?`, `popularity_min?`, `older_audience?`, `take` | Candidates with affinity | `TasteGraph.insights` | **Adds the profile's `blocked_ids` itself**; maps era to `release_year` or `publication_year` by type and drops it for artists; drops country for artists and books; `take` 1–20 |
-| `find_memory_nodes` | `query`, `kind?` | Existing nodes: `node_id`, `kind`, `title` | memory repository | Scoped to this profile |
-| `compare_tastes` (Phase 4) | `group_a`, `group_b` (IDs) | Shared and bridging entities | `TasteGraph.compare` | 1–5 IDs per group |
-| `submit_candidates` | `[{entity_id, why?}]` | Accepted count | none | **Accepts only IDs that `get_insights` returned in this run** (rule 9: candidates are Qloo's recommendations; a name found by search is a signal, not a pick), never a blocked ID. Ends the agent's run (`return_direct`) |
+| `get_insights` | `type`, `signals` (entity and tag IDs), `era?`, `country?`, `popularity_min?`, `take` | Candidates with affinity, image, tags and external IDs | `TasteGraph.insights` | **Adds the profile's `excluded_ids` itself**; maps era to `release_year` or `publication_year` by type and drops it for artists; drops country for artists and books; **drops book signals unless the type is book** (Qloo rejects them); without signals, needs a popularity floor, and artists always need a signal; `take` 1–30 |
+| `find_journal_links` | `query`, `kind?` | Existing nodes: `node_id`, `kind`, `title` | journal repository | Scoped to this profile |
+| `compare_tastes` | `group_a`, `group_b` (IDs) | Each side's tags and the shared tags | `TasteGraph.compare` | 1–5 IDs per group |
+| `submit_candidates` | `[{entity_id, why?}]` | Accepted count | none | The agent's **12 featured picks**, which lead the hero and "Recommended for you". **Accepts only IDs that `get_insights` returned in this run** (rule 1), never an excluded ID. Every other `get_insights` result still joins the pool. Ends the agent's run (`return_direct`) |
 | `propose_matches` | `[{entity_id, rung, why}]` | — | none | ≤ 3; IDs must come from this run |
 | `propose_links` | proposals (section 5) | — | none | Nodes must exist or be well-formed new nodes |
 
 ## 7. Limits
 
-Middleware on `create_agent`: `ToolCallLimitMiddleware` (12 Qloo calls per plan, 5 searches per
-favourite, 10 per note), `ModelCallLimitMiddleware` (8), `ToolRetryMiddleware` (temporary errors
-only), `ModelFallbackMiddleware` (backup model). An `asyncio` deadline of 25 seconds wraps the
-whole research step. Hitting any limit ends research with `limit_hit` or `timeout` and keeps the
+Middleware on `create_agent`: `ToolCallLimitMiddleware` (12 Qloo calls in research, 5 searches
+per favourite, 10 per entry), `ModelCallLimitMiddleware` (8), `ToolRetryMiddleware` (temporary
+errors only), `ModelFallbackMiddleware` (backup model). An `asyncio` deadline of 25 seconds wraps
+the whole research step. Hitting any limit ends research with `limit_hit` or `timeout` and keeps the
 candidates already submitted.
 
-How it is built (`agent/research_agent.py`, `nodes/research.py`):
-- The tools count Qloo calls themselves. When the 12 are spent they refuse, telling the agent to
-  call `submit_candidates`, so it can still answer. `ToolCallLimitMiddleware` (12 + 2 calls,
-  `exit_behavior="end"`) is the hard backstop.
-- Research gets `AGENT_TIMEOUT_SECONDS` (25) of its own; compose gets at most 15 seconds, else
-  templates. Media for the selected items is looked up in parallel.
-- When research ends early without submitting, it keeps every recommendation `get_insights`
-  returned, which are still Qloo's picks. The fallback then runs only for types that are short.
-- Groq's free tier allows 8,000 tokens a minute, and every agent turn resends the history. So
-  tool answers are compact JSON, reasoning effort is low, the prompt asks for all four
-  `get_insights` calls in one turn, and `submit_candidates` ends the run. A Groq 429 hands over
-  to Gemini through `ModelFallbackMiddleware`; Gemini's API needs a deadline of at least 10
-  seconds, so its calls get 15. A live plan for Margaret took 2 model calls, 4 Qloo calls and
-  about 24 seconds in all.
-- Without LLM keys, research is skipped (`skipped`) and the fallback plans the session.
+Row top-ups in `build_rows` are code, not agent calls. Together with research they stay within
+`FEED_MAX_QLOO_CALLS` (24) per feed; most are cache hits after the first build.
 
-## 8. Session modes
+What we learned from Phase 2 (still true):
+- The tools count Qloo calls themselves. When the budget is spent they refuse, telling the agent
+  to call `submit_candidates`, so it can still answer. `ToolCallLimitMiddleware` is the hard backstop.
+- When research ends early without submitting, keep every recommendation `get_insights` returned;
+  they're still Qloo's picks. The fallback then runs only for types that are short.
+- Every agent turn resends the history, and free LLM tiers count tokens a minute (Groq's allows
+  only 8,000, which is why Gemini became the main model on 24 Oct). Keep tool answers compact JSON
+  with short aliases, reasoning effort low, ask for all four `get_insights` calls in one turn,
+  submit only the 12 featured picks, and let `submit_candidates` end the run. A live feed for Aanya
+  on Gemini: 2 model calls, 4 Qloo calls in research, about 28 seconds in all.
+- A provider can't reliably pick up the other's half-finished tool conversation, so the fallback
+  mostly helps when the main model fails on its first turn. `ModelFallbackMiddleware` hands a
+  failed Gemini call to Groq; Gemini needs a deadline of at least 10 seconds, so its calls get 15.
+- Without LLM keys, research is `skipped` and the fallback builds the pool.
 
-`SessionMode` has four methods: `research_brief(state)`, `fallback_queries(state)`,
-`relax(queries, attempt)` and `select(ranked, state)`. Modes register in `ModeRegistry` by name;
-the plan endpoint takes `mode` and nothing else changes.
+## 8. Row strategies
 
-**Cold-start tiers** (chosen by `research_brief` from the context):
+`FeedRow` has two methods: `applies(context)` and `specs(context, pool)`. Each `RowSpec` names the
+row's fixed queries (`RowQuery`), which research results it may take (`pool_types`), its order
+(`rank`, `featured` or `popularity`), whether to interleave types or take one per type, a fixed
+reason, and a minimum size. `build_rows` fills every spec the same way. Rows register in
+`RowRegistry` with an order, so earlier rows take items first and later rows can't repeat them.
+Items the user already loves (their signals) are never recommended back.
+
+| Order | Key | `applies` | `queries` | `select` |
+|---|---|---|---|---|
+| 1 | `for_you` | always | none | Top 12 of the pool across all types, at least 2 of each type when available |
+| 1b | `cross_culture` (right rail) | an artist, film or show signal | One `get_insights` per *other* type with the newest such signal (an artist → a film, a TV show, a book). Books can't cross types | 1 per type, plus 1 of its own type from the pool: 4 items labelled Watch, Read or Listen |
+| 2 | `because_<ref>` | ≥ 1 strong signal | One `get_insights` with the newest strong signal, type = its own type's best cross-domain pair (artist → artist, film → film) | 12 by affinity. Up to 2 such rows, for the two newest strong signals |
+| 3 | `music` | always | Top-up artist insights if the pool has < 12 artists | Artists |
+| 4 | `films` | always | Top-up | Films |
+| 5 | `tv` | always | Top-up | TV shows |
+| 6 | `books` | always | Top-up | Books |
+| 7 | `popular_<country>` | country set | Films and TV with `filter.release_country`, popularity ≥ 0.8, the signals | 12 by popularity |
+| 8 | `journal` | ≥ 1 confirmed journal media link | `get_insights` with the confirmed journal items as signals | 12 by affinity |
+| 9 | `throwback` | birth year set | Films and TV in the era window (`birth_year + 13` to `+ 21`), plus era tags for artists | 12 by popularity |
+
+**Cold start** (chosen in the brief):
 
 | Tier | When | Signals | Filters |
 |---|---|---|---|
-| A | ≥ 3 verified favourites | The favourites, plus learned items with weight ≥ 0.6 | Era window, country for films/TV, `take` per type |
-| B | 1–2 favourites or a hint | Those, plus the hint ladder's result (singer, film or tag) | Era, country, age signal |
-| C | Nothing specific | Films, TV, books: `signal.demographics.age=55_and_older` (plus a region tag if known). **Artists:** the top era films just found, plus an era or region music tag | Era, country, **high popularity floor** (0.7): the big hits of their youth |
+| A | ≥ 3 verified favourites or strong signals | Those, newest first | `take` per type |
+| B | 1–2 favourites | Those, plus quiz picks | Country for films/TV |
+| C | Nothing | Quiz picks; if none, popular films for the country, then those films as the signal for artists | **High popularity floor** (0.7) |
 
-Tier C artists must never be asked for with the age signal alone: live tests show that returns
-today's biggest bands, because artists have no era filter (`QLOO_NOTES.md`, section 3).
+Artists must never be asked for with the age signal alone: live tests show that returns generic
+bands, because artists have no era filter (`QLOO_NOTES.md`, section 3).
 
-**`standard`**: goal "a 20-minute session they're likely to love". Mix 4 artists, 2 films,
-1 TV show, 1 book, plus 4 spares. Minimum 8 candidates. Fallback: one `get_insights` per type with
-the tier's signals. Relax: widen the era by 5 years per attempt, then lower the popularity floor
-by 0.2.
-
-**`warmup`**: about 12 varied, well-known items across types and decades of their era, popularity
-floor 0.7, all playable. `compose` skips the LLM: Person mode never shows prompts. The caregiver
-approves the set like any session.
-
-**`bridge`** (Phase 4): elder's signals vs a visitor's 3 favourites through `compare_tastes`.
-Compare returns each side's tags and the shared tags, not items; the shared tags then become
-`signal.interests.tags` in an ordinary `get_insights` call.
+**The taste quiz** (`QuizService`, not a row): a set of about 16 popular, varied items for the
+country (cached per country). Pairs: first, two different types; after a tap, the unseen item most
+like the pick (`get_insights` with `filter.results.entities` = the unseen set and the pick as the
+signal) plus one item of a different type. Each pick is a `quiz_pick` signal (+0.5).
 
 ## 9. Fallback and guardrails
 
-**Fallback** runs the mode's fixed queries through the same `get_insights` tool, so exclusions
-still apply. Results carry `source = qloo_live` or `demo_fixture`, like research results.
+**Fallback** runs fixed queries through the same `get_insights` tool, so exclusions still apply.
+Results carry `source = qloo_live` or `demo_fixture`, like research results.
 
 **Guardrails** (code only, in this order):
-1. Remove anything in `blocked_ids` (rejected or upset), matched by ID, and text items by
-   normalised name.
+1. Remove anything in `excluded_ids`, matched by ID, and text items by normalised name.
 2. Remove items without a `source` or a reason basis (the signal that led to them).
-3. Remove items with no playable video; refill from spares of the same type, then any spare.
-4. Fit the target: `SESSION_TARGET_MINUTES` ± 10 % (18–22 minutes). Add spares while short; drop
-   the lowest-ranked item while long.
-5. After `compose`, check text in code: a prompt starting "Do you remember" or containing a
-   medical claim ("treats", "improves memory", "reduces agitation"…) is replaced by a template.
+3. Dedupe: an item appears at most once in the feed (hero included), keeping its earliest row.
+4. Drop rows below their minimum (4, or 2 for the rail), and if the hero was removed, promote the
+   first main-row item with an image. Fewer than 3 main rows is logged as a warning.
 
-Guardrail 3 exempts books (section 13). Guardrail 4 drops the lowest-ranked item of a type that has
-more than one, so the mix keeps its variety. The warm-up has no length to fit: it is capped at its
-mix size. The templates live in `application/agent/prompts/templates.py`, because both
-`compose` and guardrail 5 need them and the application can't import infrastructure.
+Reasons are built in code from each pick's signal (`agent/cards.py`), capped at 120 characters, so
+the LLM never writes one. The summary template lives in `application/agent/prompts/templates.py`.
 
 ## 10. Research agent system prompt (outline)
 
-1. Role: "You research songs, films, TV and books for a caregiver-led music and memory session."
-2. The brief: goal, mix, era window, country, popularity floor, caregiver instructions, tier.
-3. Allowed signals: the verified favourites' IDs and names, learned items, region tags.
-4. Steps and rules: call `get_insights` once per type, all in the first turn; at most once more
-   for a type that came back short; then call `submit_candidates` once with about the mix plus
-   spares plus 4, from `get_insights` results only, with an optional `why` of up to 8 words
-   (compose writes the caregiver's reasons). Never search a song title or lyric, and don't search
-   for favourites whose IDs are in the brief.
-5. It never sees memory note text, keys, or anything beyond first name, birth year, places and
-   favourites.
+1. Role: "You research music, films, TV shows and books that this person will probably love."
+2. The brief: signals (names and IDs), recent likes, dismissed types or tags, country, tier.
+3. Steps and rules: call `get_insights` once per type, all in the first turn; at most once more
+   for a type that came back short; optionally use a tag from `find_tags` to add variety; then
+   call `submit_candidates` once with about 8–10 per type, from `get_insights` results only, with
+   an optional `why` of up to 8 words. Never search a song title or lyric, and don't search for
+   favourites whose IDs are in the brief.
+4. It never sees journal text, keys, or anything beyond first name, country and the titles above.
 
 ## 11. Agent log style
 
 One entry per decision, in plain English, past tense, no jargon or IDs. Show the step, what was
 tried and the outcome, using → and ✓ / ✗:
 
+- "Asked Qloo for films like The Strokes and Lorde → 10 found."
 - "Searched singer T. M. Soundararajan → no match. Tried TMS → found (artist) ✓."
-- "Asked Qloo for films like The Sound of Music, 1961–1969 → 12 found."
-- "Hit the 12-call limit; switched to the rule-based plan."
-- "Removed Gone with the Wind: outside the era." / "Removed 1 item the caregiver rejected."
+- "Hit the 12-call limit; switched to the rule-based picks."
+- "Removed 2 items you're not interested in." / "Dropped the TV row (3 items)."
+- "Your journal mentioned Interstellar → found (film) ✓."
 
-Entries are `{node, message, level, at}`, where `level` is `info` or `warning`. Never log keys, memory note text, lyrics or raw Qloo
-responses.
+Entries are `{node, message, level, at}`, where `level` is `info` or `warning`. Never log keys,
+journal text, lyrics or raw Qloo responses.
 
 ## 12. Privacy boundaries
 
 | Call | May receive |
 |---|---|
-| Qloo (any endpoint) | Entity IDs, tag IDs, the age bracket, years, country, and names of artists, films, TV shows and books for `/search`. **Never** the person's or family's names, note text, song titles or lyrics |
-| LLM, `research` | First name, birth year, places, favourites' names, the brief |
-| LLM, `interpret` (resolve rung 1) | The caregiver's input for this favourite |
-| LLM, `extract` (link) | The text of the one note being linked |
-| LLM, `compose` | Item titles, types and years, first name, birth year, places, and titles of confirmed linked nodes with "Use in prompts" on |
-| YouTube | Item title, artist or song title, decade |
+| Qloo (any endpoint) | Entity IDs, tag IDs, years, country, and names of artists, films, TV shows and books for `/search`. **Never** the user's name, journal text, song titles or lyrics |
+| LLM, `research` | First name, country, favourites' and liked items' names, the brief |
+| LLM, `interpret` (resolve rung 1) | The user's input for this favourite |
+| LLM, `extract` (link) | The text of the one entry being linked (Groq only) |
+| LLM, `explain` | Item titles, types and years, signal titles, first name |
+| Speech to text | The one recording being transcribed (Groq only); discarded afterwards |
+| YouTube (preview only) | Item title, type and year |
 
-## 13. Open questions (for the backend owner and the team)
+## 13. Open questions
 
-1. **Books in sessions (decided in Phase 2):** a fixed conversation slot with no video, counted
-   as 3 minutes (`BOOK_TALK_SECONDS`), with gentle prompts for the caregiver. No quotes from books
-   (copyright, and they could be made up). Guardrail 3 exempts books; the shelf skips them.
-2. **Artists to songs:** we play the YouTube result for "<artist> <decade>". Is showing that video's
-   title on the card acceptable, given titles can be messy?
-3. **Settled by live tests:** both compare paths work; `filter.results.entities` works for the
-   warm-up; `take` defaults to 20, not 5; `filter.release_country` needs full country names.
-   `CLAUDE.md` has been corrected.
+1. **Settled 24 Oct:** images are on every entity (`properties.image.url`); `external` holds
+   Spotify, IMDb, Netflix and Goodreads IDs (QLOO_NOTES, section 6); books steer books only.
+2. **Country for music:** films and TV have `filter.release_country`; is there a working location
+   signal for artists (`signal.location`)? If not, `popular_<country>` stays films and TV.
+3. **Settled by live tests:** both compare paths work; `filter.results.entities` works for scoring;
+   `take` defaults to 20; `filter.release_country` needs full country names.

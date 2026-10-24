@@ -15,6 +15,7 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 TAG_AFFINITY = 0.5
 # Affinity for an entity in the scored set that nothing in the signals relates to.
 UNRELATED_AFFINITY = 0.1
+TAGS_MAX = 6
 
 
 @dataclass(frozen=True)
@@ -27,8 +28,10 @@ class _Entity:
     country: str
     popularity: float
     tags: frozenset[str]
+    tag_names: tuple[str, ...] = ()
 
     def to_match(self, affinity: float | None = None) -> EntityMatch:
+        # Demo data has no images: the UI shows the designed fallback tile.
         return EntityMatch(
             entity_id=self.entity_id,
             name=self.name,
@@ -37,6 +40,7 @@ class _Entity:
             release_year=self.release_year,
             popularity=self.popularity,
             affinity=affinity,
+            tags=self.tag_names,
         )
 
 
@@ -44,7 +48,7 @@ def _read(fixtures_dir: Path, name: str) -> dict[str, Any]:
     return json.loads((fixtures_dir / name).read_text(encoding="utf-8"))
 
 
-def _parse_entity(raw: dict[str, Any]) -> _Entity:
+def _parse_entity(raw: dict[str, Any], tag_names: dict[str, str]) -> _Entity:
     names = [raw["name"], *raw.get("aliases", [])]
     return _Entity(
         entity_id=raw["entity_id"],
@@ -55,6 +59,7 @@ def _parse_entity(raw: dict[str, Any]) -> _Entity:
         country=raw["country"],
         popularity=raw["popularity"],
         tags=frozenset(raw["tags"]),
+        tag_names=tuple(tag_names[tag] for tag in raw["tags"] if tag in tag_names)[:TAGS_MAX],
     )
 
 
@@ -62,16 +67,19 @@ class FixtureTasteGraph:
     """Search and insights over `fixtures/`, applying the same filters as live Qloo."""
 
     def __init__(self, fixtures_dir: Path = FIXTURES_DIR) -> None:
-        entities = [_parse_entity(raw) for raw in _read(fixtures_dir, "entities.json")["entities"]]
+        self._tags = [
+            TagMatch(tag_id=raw["tag_id"], name=raw["name"])
+            for raw in _read(fixtures_dir, "tags.json")["tags"]
+        ]
+        names = {tag.tag_id: tag.name for tag in self._tags}
+        entities = [
+            _parse_entity(raw, names) for raw in _read(fixtures_dir, "entities.json")["entities"]
+        ]
         self._entities = {entity.entity_id: entity for entity in entities}
         self._related: dict[str, dict[str, float]] = {
             signal: {item["entity_id"]: item["affinity"] for item in items}
             for signal, items in _read(fixtures_dir, "insights.json")["related"].items()
         }
-        self._tags = [
-            TagMatch(tag_id=raw["tag_id"], name=raw["name"])
-            for raw in _read(fixtures_dir, "tags.json")["tags"]
-        ]
 
     @property
     def source(self) -> TasteSource:

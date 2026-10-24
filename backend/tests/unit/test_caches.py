@@ -1,5 +1,6 @@
 """Tests for the server-side caches: Qloo results and media lookups."""
 
+from dataclasses import replace
 from datetime import timedelta
 
 import pytest
@@ -87,3 +88,26 @@ async def test_a_stale_miss_is_looked_up_again_but_failures_are_never_cached() -
     assert await cache.get("broken") is None
     entry = await cache.get("nothing")
     assert entry is not None and entry.cached_at <= utc_now()
+
+
+class _RichGraph(FixtureTasteGraph):
+    """Fixture graph whose results carry the fields only live Qloo has."""
+
+    async def insights(self, query: InsightsQuery) -> list[EntityMatch]:
+        return [
+            replace(match, image_url="https://images.example.test/x.jpg", external={"imdb": "tt1"})
+            for match in await super().insights(query)
+        ]
+
+
+async def test_cached_results_keep_images_tags_and_external_ids() -> None:
+    graph = CachedTasteGraph(_RichGraph(), InMemoryQlooCache())
+    query = InsightsQuery(EntityType.ARTIST, take=2, signal_entities=("demo-artist-the-supremes",))
+
+    first = await graph.insights(query)
+    cached = await graph.insights(query)
+
+    assert cached == first
+    assert cached[0].tags and isinstance(cached[0].tags, tuple)
+    assert cached[0].external == {"imdb": "tt1"}
+    assert cached[0].image_url == "https://images.example.test/x.jpg"

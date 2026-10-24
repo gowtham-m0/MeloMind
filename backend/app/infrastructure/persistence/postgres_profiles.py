@@ -17,6 +17,7 @@ def _favourite_to_domain(row: FavouriteRow) -> Favourite:
         kind=FavouriteKind(row.kind),
         qloo_id=row.qloo_id,
         song_title=row.song_title,
+        image_url=row.image_url,
         created_at=row.created_at,
     )
 
@@ -29,6 +30,7 @@ def _favourite_to_row(favourite: Favourite) -> FavouriteRow:
         kind=favourite.kind.value,
         qloo_id=favourite.qloo_id,
         song_title=favourite.song_title,
+        image_url=favourite.image_url,
         created_at=favourite.created_at,
     )
 

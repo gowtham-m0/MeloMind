@@ -1,6 +1,8 @@
 # Phase 1: Foundations
 
-**Dates:** Sat 24 Oct · **Hours:** about 7 each · **Previous:** [Phase 0](phase-0-setup.md) · **Next:** [Phase 2: Core loop](phase-2-core-loop.md)
+> **Status: done (24 Oct).** Written before the pivot to a personal taste dashboard (see `docs/PLAN.md`, section 0). What carries over: auth, profiles (now Netflix-style, with `birth_year` optional from Phase 2), favourites, taste search, the Qloo live and fixture adapters, `qloo_cache` and the demo seed (new demo profiles in Phase 2). Mentions of caregivers, the birth-year era and the 1920–1990 range below are historical.
+
+**Dates:** Sat 24 Oct · **Hours:** about 7 each · **Previous:** [Phase 0](phase-0-setup.md) · **Next:** [Phase 2: Feed and the new frontend](phase-2-core-loop.md)
 
 **Goal:** a caregiver can try the demo, create a profile with just a name and birth year, and add favourites through Qloo search, all running locally. The Qloo adapter switches between fixtures and live.
 

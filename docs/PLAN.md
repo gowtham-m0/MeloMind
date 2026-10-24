@@ -1,287 +1,167 @@
 # MeloMind: plan, decisions and risks
 
+## 0. The pivot (Sat 24 Oct)
+
+MeloMind started as a music-and-memory session tool for people living with dementia and their caregivers. On 24 Oct, after the first live run, we changed direction.
+
+**What we saw**
+- Qloo's picks were good: from One Direction and The Strokes it returned Lorde, The 1975 and Arctic Monkeys.
+- The product around them wasn't. YouTube lookups came back as Shorts and ranking clips, the session-and-approval flow was heavy, and the whole experience depended on embedded video.
+
+**What we're building instead**
+- **A personal taste dashboard** across music, films, TV and books, with the feel of the YouTube, Spotify or Netflix home screen: a hero pick, rows, thumbnails and instant feedback.
+- Clicking a card **opens it where it lives** (YouTube or Spotify, Netflix or Prime Video or JioHotstar via JustWatch, Google Books or Goodreads), so we no longer depend on finding a playable video.
+- An **everyday journal** you write or speak, which the agent reads for mentions that shape your feed. This keeps the best idea from the Memory Graph.
+- **UI/UX is the main goal.** The frontend is rebuilt from scratch with a new design system.
+
+**What carries over:** the repo, CI, auth, profiles, favourites, the Qloo adapters and cache, `TasteService`, the agent (research step, middleware limits, fallback, agent log), feedback and learned weights, exclusions, the favourite resolver design, and the "this or that" scoring (now the onboarding taste quiz).
+
+**What's gone:** caregivers, Person mode, session approval, the player, reactions such as "sang along", the upset review queue, Bridge, the no-images rule and the medical-safety rules that only applied to that audience.
+
+---
+
 ## 1. Decisions and trade-offs
 
 These are decided. Change one only if the whole team agrees, and update `CLAUDE.md` when you do.
 
 ### Product
 
-**1. The caregiver runs MeloMind, the person chooses by tapping, and the AI never talks to the person**
+**1. A home feed of rows, across four kinds of taste**
+- **What it is:** a hero pick plus rows ("For you", "Because you liked X", "Music", "Films", "TV", "Books", "Popular in <country>", "From your journal"), each a row strategy.
 - **Why:**
-  - It's safe, and judges will trust it.
-  - The person keeps real choice without having to talk to a machine.
-  - The caregiver controls everything the person sees.
-- **Costs:** less "wow" than a talking companion.
-- **Mitigation:** Person mode, the Memory Graph and the Bridge session provide the emotional moments instead.
-- **Rejected:** a chat or voice companion for the person, because:
-  - it could confuse or distress them;
-  - speech recognition struggles with impaired speech;
-  - it raises consent questions we can't answer in 9 days.
+  - Everyone already knows how to use it, so judges get it in seconds.
+  - Cross-domain rows ("you like this band, so try this film") are exactly what Qloo is good at and single-domain apps can't do.
+  - Rows are a clean Strategy pattern: adding one changes no workflow or API.
+- **Costs:** more Qloo calls per feed; rows can repeat each other.
+- **Mitigation:** one research pool shared by most rows, a per-feed Qloo budget, `qloo_cache`, dedupe across rows in the guardrails.
+- **Rejected:** one long mixed list (no structure, less explainable); a chat-first UI (slower, less visual).
 
-**2. Person mode: big cards and taps, not conversation**
+**2. Thumbnails on every card**
+- **Why:** recognition is visual. A wall of text titles doesn't feel like a product.
+- **How:** Qloo's `properties.image` for artists, films and TV; Open Library covers by ISBN for books; a designed gradient tile as the fallback.
+- **Costs:** Qloo image coverage is unknown for some entities; image URLs can break.
+- **Mitigation:** the fallback tile always looks intentional; `onError` swaps to it.
+- **Rejected:** TMDB or Spotify image APIs (more keys and terms to manage); storing images (copyright and storage).
+
+**3. "Open where it lives" with smart search links, not a streaming-availability API**
+- **Why:** it works for every country and every platform with no extra key, and JustWatch's search page already shows which service streams a title in the user's country.
+- **Costs:** a search link isn't a guaranteed "it's on Netflix".
+- **Mitigation:** honest labels ("Search on Netflix"); direct links when Qloo gives a trusted external ID.
+- **Rejected:** TMDB watch providers (new service and key, more work this week). Possible after judging.
+
+**4. The taste updates visibly**
+- **Why:** "it learns" must be something judges can see in 10 seconds.
+- **How:** like, save, open and "not interested" update learned weights; a refresh rebuilds the feed; a toast and the agent log say what changed ("More indie rock, fewer thrillers").
+- **Costs:** simple heuristics, not machine learning.
+- **Mitigation:** call them what they are; they're explainable and testable.
+
+**5. The journal is the signature feature**
+- **What it is:** a daily diary you write or speak. The agent finds the artists, films, shows and books you mention, you confirm them, and they become signals and a "From your journal" row. Confirmed items also appear on the taste map.
 - **Why:**
-  - It answers "how does the person choose?" without any AI conversation.
-  - Two big cards at a time keep the choice simple, with the caregiver beside them.
-  - Each tap is a gentle learning signal.
-- **Costs:**
-  - A second interface to build and test.
-  - Taps are noisy, because a person may tap at random.
-  - Without pictures, the cards rely on reading (see decision 7).
-- **Mitigation:**
-  - Only caregiver-approved, playable items appear.
-  - Tap weights are small and count once per item per day, and a skip never hides anything.
-  - A large Stop button, no time limits, no autoplay, and a caregiver unlock to leave.
-- **Rejected:**
-  - autoplay radio, which removes the person's choice;
-  - a search box or menus, which are too hard to use.
+  - It's personal in a way no recommendation app is.
+  - It's genuinely agentic: extraction, the hint ladder, matching, and the user confirming.
+  - It shows Qloo and the agent working together on real-life text.
+- **Costs:** personal data; LLM calls; speech to text.
+- **Mitigation:** strict privacy (text never to Qloo, Groq only, audio discarded); suggestions need confirmation; Groq Whisper uses the key we already have.
+- **Rejected:** a graph database (two Postgres tables are enough); a separate speech provider.
 
-**3. Cold start from Qloo, with a warm-up that's just another session mode**
-- **Why:**
-  - Qloo needs no history, so a birth year alone gives a first session. That's a strong Qloo story for judges.
-  - The `warmup` mode reuses approval, guardrails and exclusions. It also proves that modes can be added without touching the workflows.
-  - Every optional question has "Not sure, skip", so onboarding takes about a minute.
-- **Costs:**
-  - The first picks are generic when the family gives nothing specific.
-  - The warm-up costs up to 6 extra Qloo calls.
-  - Scoring a set with `filter.results.entities` is unverified.
-- **Mitigation:**
-  - A high popularity floor, so the first picks are the big hits of their youth.
-  - Cache Qloo responses.
-  - If set scoring doesn't work, pick the same type and the closest year.
+**6. Onboarding in about a minute**
+- **Why:** first impressions decide the Design score.
+- **How:** name, optional country and birth year, pick favourites with image search, then a 6-round "this or that" taste quiz, then the feed builds live in front of you.
+- **Costs:** the quiz needs a set to score; the first feed takes up to 25 seconds.
+- **Mitigation:** the quiz set comes from popular items for the country (cached); the build screen shows the agent log as it works.
 
-**4. The Memory Graph is the signature feature**
-- **What it is:** linked notes about the person's life (people, places, songs, films and decades), with backlinks and graph, timeline and list views. It works like Obsidian, but inside MeloMind.
-- **Why:**
-  - Nothing else in this space connects one person's memories to a taste graph.
-  - It's visual: judges watch the graph grow as the agent suggests links.
-  - It shows Qloo and the agent working together. Song and film nodes are Qloo entities, and "because of" links come from Qloo.
-  - It makes sessions more personal over time.
-  - It gives the family something lasting.
-- **Costs:**
-  - The biggest new feature.
-  - Graph views can look empty or messy.
-  - It holds personal data.
-  - More LLM calls.
-- **Mitigation:**
-  - Seeded demo memories, a 30-node cap, grouping by decade, and a list view that always works.
-  - The caregiver confirms every suggested link.
-  - Strict privacy rules (`CLAUDE.md`, rule 14).
-  - Built after the core loop, so nothing in the core depends on it.
-- **Rejected:**
-  - **Connecting to real Obsidian.** Its Local REST API is a desktop-only community plugin on localhost, so judges couldn't use it. A Markdown export that opens in Obsidian is possible later.
-  - **A graph database such as Neo4j.** It's another service to run, and overkill for a few hundred nodes per profile. Two Postgres tables are enough.
-  - **Plain notes without links.** They'd give the agent nothing to use and judges nothing to see.
-
-**5. The Bridge session is the second showcase, built last**
-- **Why:** it's emotional, it shows off Qloo's compare endpoint, and it's smaller than a group mode.
-- **Costs:** it may be cut, and its business story is weaker than care homes.
-- **Mitigation:**
-  - Start it only after the Memory Graph's exit check passes.
-  - The pitch works without it.
-  - Mention care homes under "What's next".
-
-**6. A bigger scope: the core loop, the Memory Graph and Bridge**
-- **Why:** Claude Code writes most of the code, so the team chose the full vision.
-- **Costs:**
-  - About 47 hours each instead of 39.
-  - Claude Code writes quickly, but a person still reviews every line, tests on a phone and fixes integration bugs. That's where the time goes.
-  - With day jobs, the feature freeze moves to Thursday night, and Friday is the only shipping day.
-- **Mitigation:**
-  - The build order, so whatever is unfinished is the least important part.
-  - The cut lines.
-  - Ask at kickoff whether anyone can take Thursday or Friday off.
-
-**7. No images for now**
-- **Why:** it keeps the scope down. Cards with a title, a type icon, the year and a decade colour are clear enough to build and test the product.
-- **Costs:** pictures are easier to recognise than written titles for many people, especially as reading gets harder, so Person mode is weaker without them.
-- **Mitigation:** design the card with room for an image, so adding one later is a small change.
-
-**8. Favourites can be entered as names, song titles or remembered lyrics**
-- **Why:** families often remember a line from a chorus rather than a title. This removes friction and shows the agent working.
-- **Costs:**
-  - The AI can confidently guess wrong, especially for obscure or regional songs.
-  - Extra Qloo calls.
-- **Mitigation:**
-  - The hint ladder, limited to 5 searches per favourite.
-  - The caregiver confirms every guess.
-  - Plain search-and-pick stays the main path.
+**7. Favourites can be entered as names, song titles or remembered lyrics**
+- **Why:** people remember a line from a chorus rather than a title. It removes friction and shows the agent working.
+- **Costs:** the AI can guess wrong; extra Qloo calls.
+- **Mitigation:** the hint ladder, limited to 5 searches; the user confirms every guess; plain search-and-pick stays the main path.
 - **Copyright:** a lyric is only a search hint. It's never stored or displayed.
 
-**9. Voice is optional, for the caregiver only, and last priority**
-- **Why:** it adds no Qloo depth and can fail during judging. The person never uses voice (decision 1).
-- **Costs:** looks less flashy.
-- **Mitigation:** add a mic button to "Ask the agent" only if time is left over.
+**8. Netflix-style profiles**
+- **Why:** households share devices, and the demo can show two very different tastes side by side.
+- **Costs:** a profile picker screen.
+- **Mitigation:** it reuses the existing profiles code.
 
 ### Agent
 
-**10. One agent on LangGraph, built as a hybrid, with three workflows**
+**9. One agent on LangGraph, built as a hybrid, with three workflows**
 - **What it is:**
   - Fixed workflows where code controls the order.
   - One research step where a tool-calling agent (LangChain `create_agent`) decides its own Qloo calls.
-  - The same tools power three workflows: planning a session, resolving a favourite, and linking a memory note.
-- **Why:**
-  - It's genuinely agentic where it matters. The agent chooses its Qloo calls, recovers from empty results and suggests links, and the log shows its reasoning.
-  - Everything else stays predictable: ranking, media lookups and guardrails.
-  - It clearly meets the "built with an agent framework" rule.
-- **Costs:**
-  - Two layers to understand.
-  - The prompts and tools need careful testing.
-  - More LLM calls than a fixed pipeline.
-- **Mitigation:**
-  - Hard limits through middleware: 12 Qloo calls, 8 model calls, 25 seconds.
-  - A rule-based fallback whenever the agent fails or hits a limit.
-  - Exclusions are added inside the tool, so the agent can't skip them.
-  - Tests use a scripted fake model.
-- **Rejected:**
-  - **A fixed graph only:** it looks like a pipeline and can't improvise.
-  - **Fully agentic:** 30–60-second sessions, a burnt YouTube quota and an unpredictable demo.
-  - **Deep Agents:** built for long research and coding jobs, so overkill for a 20-second task.
-  - **Multi-agent:** more failure points, and slower.
+  - The same tools power three workflows: building the feed, resolving a favourite, and linking a journal entry.
+- **Why:** it's genuinely agentic where it matters (choosing Qloo calls, recovering from empty results, reading journal entries), and predictable everywhere else (rows, ranking, guardrails). It clearly meets the "built with an agent framework" rule.
+- **Costs:** two layers to understand; prompts and tools need careful testing.
+- **Mitigation:** middleware limits (12 Qloo calls, 8 model calls, 25 seconds); a rule-based fallback; exclusions added inside the tool; a scripted fake model in tests.
+- **Rejected:** a fixed graph only (looks like a pipeline); fully agentic rows (slow and unpredictable); Deep Agents (overkill); multi-agent (more failure points).
 
-**11. The LLM behind a port, with a template fallback**
-- **Choice:** Groq (`openai/gpt-oss-120b`) as the main model, for speed inside the 25-second budget, with Gemini (`gemini-3.8-flash`) as the fallback when Groq fails or times out. A factory builds either one.
+**10. The LLM behind a port, with a template fallback**
+- **Choice:** Gemini (`gemini-3.8-flash`) as the main model, Groq (`openai/gpt-oss-120b`) as the fallback. Groq Whisper for speech.
+- **Changed 24 Oct:** Groq was the main model, but its free tier's 8,000 tokens a minute broke feed builds. Every pick comes from Qloo, so the model's own knowledge doesn't affect freshness; limits and reliability do.
 - **Why:** you can switch providers, the demo never breaks, and tests run without an LLM.
-- **Costs:** two code paths to keep working, and a second provider's key.
-- **Mitigation:** test both paths. Memory notes stay on Groq, because a free Gemini key can use prompts for training.
+- **Mitigation:** journal text stays on Groq (called explicitly), because a free Gemini key can use prompts for training.
 
-**12. Simple, interpretable learning rules from caregiver reactions and the person's taps**
-- **Why:** they're explainable, need no training data, and are easy to test and show judges.
-- **Costs:** simpler than machine learning, and taps are noisy.
-- **Mitigation:**
-  - The honest framing is "configurable heuristics".
-  - Caregiver reactions outweigh taps, and only the caregiver can hide or reject an item.
+**11. Simple, interpretable learning rules**
+- **Why:** explainable, no training data, easy to test and show.
+- **Costs:** simpler than machine learning.
+- **Mitigation:** the honest framing is "configurable heuristics".
 
 ### Platform
 
-**13. Python and FastAPI for the backend**
-- **Why:** the team knows Python, LangGraph is native to it, Pydantic gives typed schemas, and the API docs are generated automatically.
-- **Costs:** one deployment at the end (Vercel and Lightsail), with CORS setup, so a deploy problem shows up late.
-- **Mitigation:**
-  - The `Dockerfile` exists from Phase 0, and the backend is tested in Docker locally in every phase.
-  - Restrict CORS to the Vercel domain when deploying.
-- **Rejected:** Next.js full-stack, because the team is less fluent in it and LangGraph's JavaScript version lags the Python one.
+**12. Python and FastAPI for the backend** — unchanged. The `Dockerfile` exists; restrict CORS to the Vercel domain when deploying.
 
-**14. React, Vite and TypeScript for the frontend**
-- **Why:** a large ecosystem, accessible components quickly from shadcn/ui, and it deploys as static files.
-- **Costs:** if your frontend person knows Angular better, React is slower for them.
-- **Mitigation:** decide at kickoff, because the framework matters less than fluency.
-- **Rejected:** Next.js, since no server rendering is needed.
+**13. React, Vite and TypeScript, with a new design system**
+- **Why:** the old screens were designed for older users; the new product needs a modern, premium look.
+- **How:** the layout of the reference mockup (`image.png`: sidebar, search, hero banner, category tiles, rows, a right rail with mood chips, quick actions and cross-culture picks) with a light look inspired by yuzuhire.com (Chillax and Switzer, amber `#E8A838`, glass top bar). Tokens and components in `shared/ui/`. See `CLAUDE.md`, "Design system".
+- **Design skills are compulsory:** `impeccable` and Emil Kowalski's skills (`emil-design-eng`, `animate`, `review-animations`, `improve-animations`, `break-ui`), committed in `.claude/skills/` so all three of us use the same ones.
+- **Proposed additions (need team agreement, rule 15):** Fontshare fonts (a stylesheet link, no package); optionally `framer-motion` for card and sheet motion. Without it, use CSS transitions.
 
-**15. One monorepo**
-- **Why:** one public repo to submit, shared docs and `CLAUDE.md`, and one CI.
-- **Costs:** two deploy roots.
-- **Mitigation:** build the Docker image from `backend/` for Lightsail, and set Vercel's root folder to `frontend/`.
+**14. One monorepo** — unchanged.
 
-**16. Supabase (Postgres plus anonymous auth)**
-- **Why:** a managed database, free, and anonymous sign-in gives each judge their own data with no sign-up.
-- **Costs:**
-  - The free plan pauses after 7 days of low activity.
-  - Verifying logins takes some setup.
-- **Mitigation:**
-  - A daily keep-alive request.
-  - Verify tokens against the JWKS using PyJWT.
-- **Rejected:**
-  - SQLite inside the container, because data is lost on redeploy;
-  - no auth at all, because judges would see each other's data;
-  - Firebase, because the team knows it less well.
+**15. Supabase (Postgres plus anonymous auth)** — unchanged. A daily keep-alive request.
 
-**17. SQLAlchemy and Alembic**
-- **Why:** standard, testable, and migrations live with the backend code.
-- **Costs:** some boilerplate.
-- **Mitigation:** keep models simple, and keep in-memory repositories for tests.
-- **Rejected:** calling the Supabase client from the backend, which ties the code to one vendor and is harder to test.
+**16. SQLAlchemy and Alembic** — unchanged. New tables: `feeds`, `journal_nodes`, `journal_links`. The sessions tables are dropped in a migration.
 
-**18. A Qloo adapter with hand-written fixtures and a live mode**
-- **Why:** you can build before the key arrives, the demo still works if Qloo has problems, and tests are deterministic.
-- **Costs:** the fixtures may not match real responses exactly.
-- **Mitigation:** the agent owner records the real response shapes as soon as the key arrives and fixes the parser.
+**17. A Qloo adapter with hand-written fixtures and a live mode** — unchanged. Fixtures gain image URLs that point at nothing real (the UI shows the fallback tile) and are labelled demo data.
 
-**19. YouTube for media**
-- **Why:** it has the widest catalogue, including old and Indian music and film clips. It also embeds, and it's free.
-- **Costs:**
-  - About 100 searches a day.
-  - Some videos can't be embedded.
-  - Ads may play in embedded videos.
-- **Mitigation:**
-  - Cache every lookup.
-  - Check `embeddable` before using a video.
-  - Pre-warm the demo profiles.
-  - List ads under known limitations.
-- **Rejected:**
-  - Spotify, which hasn't given new apps 30-second previews since Nov 2024;
-  - Apple Music, which needs a paid developer account and a subscription.
+**18. YouTube is optional**
+- **Why:** quota is about 100 searches a day and search quality is mixed (Shorts, ranking clips). The feed must not depend on it.
+- **How:** only the detail view's Preview button calls it, on demand, cached, with the Shorts filter.
 
-**20. Polling for agent runs**
-- **Why:** simple, and it works through any proxy. Planning, resolving a favourite and linking a note all poll the same `/agent-runs/{id}` route.
-- **Costs:** updates arrive about a second late.
-- **Mitigation:** poll every second while a run is going. Server-sent events (SSE) can come later if there's time.
+**19. Polling for agent runs** — unchanged. Feed builds, favourite resolving and journal linking all poll `/agent-runs/{id}`.
 
-**21. API types generated from the OpenAPI schema**
-- **Why:** the frontend and backend can't drift apart silently.
-- **Costs:** one more script.
-- **Mitigation:** run `npm run gen:api` after every API change.
+**20. API types generated from the OpenAPI schema** — unchanged.
 
-**22. Hosting on Vercel, AWS Lightsail and Supabase, once, on Thursday night**
-- **Why:**
-  - Lightsail's container service is always on, so there's no cold start while judges try the app. It costs about $7/month.
-  - Vercel serves the static frontend, and Supabase holds the database and auth.
-  - Hosting happens once, on Thursday night after the feature freeze. Until then everything runs on localhost, with the backend also tested in Docker, and Supabase used from localhost.
-- **Costs:**
-  - About $7/month on a personal AWS account, until 6 Nov.
-  - Supabase's free plan can pause.
-  - AWS setup (IAM, ports, env vars) is new work on the deadline path.
-- **Mitigation:**
-  - An IAM user limited to Lightsail, and an AWS Budgets alert (for example $10).
-  - A daily Supabase ping.
-  - Friday is the buffer for a failed deploy.
+**21. Hosting on Vercel, AWS Lightsail and Supabase, once, on Thursday night** — unchanged.
 
 ### Process
 
-**23. Focused testing: the critical rules plus one end-to-end test**
-- **Why:** it protects what judges will actually try, within the time available.
-- **Costs:** lower overall coverage.
-- **Mitigation:** the must-have tests listed in `CLAUDE.md`.
+**22. Focused testing:** the critical rules plus one end-to-end test.
 
-**24. Claude Code writes most of the code**
-- **Why:** much faster.
-- **Costs:** three people's AI sessions can produce code that doesn't fit together.
-- **Mitigation:**
-  - the rules in `CLAUDE.md`;
-  - API contracts agreed first;
-  - a human reads every line of every PR;
-  - small PRs.
+**23. Claude Code writes most of the code**, with `CLAUDE.md`, contracts first, a human reading every line, and small PRs.
 
 ---
 
 ## 2. Hard questions we checked
 
-Before building, we put the plan through the questions a sceptical judge or teammate would ask.
-
 | Question | Answer |
 |---|---|
-| Isn't Person mode the AI talking to the person? | No. Person mode shows only the titles, type icons and years of items the caregiver approved. It never shows prompts, reasons or any other AI-written text. |
-| What if the person taps at random? | Taps carry small weights and count once per item per day, and a skip never hides anything. Caregiver reactions outweigh them, and "What we learned" shows what changed. |
-| What if the person taps something upsetting? | Only approved items appear, and Stop is always on screen. The caregiver's long-press button hides the item at once and sends it to the review queue. |
-| What if Qloo has nothing for this person? | The cold-start tiers fall back to era, region and the age signal, and the fallback relaxes its queries twice. The log says what happened. |
-| Is the agent really agentic, or a pipeline with an LLM? | The research step chooses its own Qloo calls, the hint ladder recovers from empty results, and the link suggestions are its own reading of a note. The log shows each decision. |
-| Is the Memory Graph just a notes app? | No. Song, artist, film and book nodes are Qloo entities the agent resolved, "because of" links come from Qloo, and confirmed nodes can become Qloo signals. |
-| Could a personal prompt hurt someone, for example by mentioning a spouse who has died? | Each node has a "Use in prompts" switch, and the caregiver sees, and can edit, every prompt before approving a session. |
-| Isn't storing memories a privacy risk? | Notes are private to the profile and never sent to Qloo. The LLM sees one only while suggesting its links. There are no medical fields, and notes are deleted with the profile. |
-| Can a judge see everything in 5 minutes, without real data? | Yes. The demo profiles come with favourites, memories with confirmed links, and a warm-up set ready to approve (see "The judge path"). |
+| Isn't this just Netflix? | Netflix only knows Netflix. MeloMind spans music, films, TV and books and links across them ("you love this band, so try this film"), which is what Qloo's cross-domain graph is for. And it explains every pick. |
+| Is the agent really agentic, or a pipeline with an LLM? | The research step chooses its own Qloo calls, the hint ladder recovers from empty results, and journal linking is the agent's own reading of your words. The log shows each decision. |
+| Do the links actually take you to the thing? | Music opens the artist's top songs on YouTube or Spotify. Films and TV open JustWatch for your country, which lists where it streams, plus Netflix and Prime search. Books open by ISBN when we have it. Labels say "Search on" unless the link is direct. |
+| What if Qloo has no image? | A designed gradient tile with the type's colour and icon. It's part of the design, not a broken image. |
+| What if Qloo has nothing for someone? | The quiz picks, country and popularity carry the first feed, and the fallback relaxes its queries twice. The log says what happened. |
+| Isn't a journal a privacy risk? | Entries are private to the profile, never sent to Qloo, seen by the LLM only while suggesting links (Groq only), and voice is never stored. Entries can be deleted. |
+| Can a judge see everything in 5 minutes, without real data? | Yes. The demo profiles come with favourites, likes and journal entries with confirmed links (see "The judge path"). |
 | What if we run out of time? | The build order means the unfinished part is the least important one, and the cut lines decide what goes. |
-| Will the name cause trouble? | Possibly, because "Melomind" is an existing EEG headset. Decide at kickoff. |
 
 ---
 
-## 3. Open decisions for the kickoff (Phase 0)
+## 3. Open decisions
 
-1. **Roles:** who owns the frontend, the backend and the agent. The person who knows LangGraph best should own the agent.
-2. **Frontend framework:** React, unless your frontend person is much faster in Angular.
-3. **LLM provider:** decided: Groq as the main model, Gemini as the fallback (see decision 11). Use personal accounts with a spending cap, never work accounts.
-4. **Name:** "Melomind" is already the name of myBrain Technologies' EEG relaxation headset, which uses music, so it's close to your space. Either keep it and accept some confusion and trademark risk, or pick another name now, before anything is published.
-5. **Time off:** the plan has about 2 hours of slack per person. If anyone can take Thu 29 or Fri 30 Oct off, say so now. It decides how likely Bridge is to make it.
-6. **Daily check-in time:** a fixed 10 minutes.
-7. **Qloo key:** requested; the agent owner tracks it.
+1. **Team agreement on the pivot** (all three, Sat 24 Oct).
+2. **`framer-motion`:** yes or no (frontend owner proposes).
+3. **Taste map library:** react-force-graph or Cytoscape.js (Phase 3, first hour).
+4. **Name:** keep MeloMind (decided 24 Oct).
 
 ---
 
@@ -289,15 +169,15 @@ Before building, we put the plan through the questions a sceptical judge or team
 
 | Owner | Area | Owns |
 |---|---|---|
-| **Frontend** | Frontend and experience | `frontend/**`, including Person mode and the Memory Graph views; design and accessibility; caregiver conversations; screenshots and video |
-| **Backend** | Backend platform and data | `backend/app/api/**`, `infrastructure/persistence/**`, `alembic/`; the application services except `TasteService` (profiles, sessions, feedback, shelf, warm-up, memory); auth, CI, the `Dockerfile`, the Thursday-night deploy, the end-to-end test, the README |
-| **Agent** | Agent and integrations | `application/agent/**`, `application/modes/**`, `TasteService`, `infrastructure/{qloo,media,llm}/**`; `docs/AGENT.md`, `docs/QLOO_NOTES.md`; demo fixtures; the Devpost description |
+| **Frontend** | Frontend and experience | `frontend/**`: the design system, onboarding, the feed, the detail view, the taste page, the journal and the taste map; accessibility; screenshots and video |
+| **Backend** | Backend platform and data | `backend/app/api/**`, `infrastructure/persistence/**`, `alembic/`; the application services except `TasteService` (profiles, feed, feedback, quiz, journal, taste profile); `domain/links.py`; auth, CI, the `Dockerfile`, the Thursday-night deploy, the end-to-end test, the README |
+| **Agent** | Agent and integrations | `application/agent/**`, `application/rows/**`, `TasteService`, `infrastructure/{qloo,media,llm}/**`; `docs/AGENT.md`, `docs/QLOO_NOTES.md`; demo fixtures; the Devpost description |
 
 **Shared files** (one person leads, one reviews):
 
 | File | Leads | Reviews |
 |---|---|---|
-| `domain/models.py` | Backend | Agent |
+| `domain/models.py`, `domain/feed.py` | Backend | Agent |
 | `domain/policies.py` (learning rules) | Backend | Agent |
 | `application/ports.py` | Agent | Backend |
 | `docs/API_CONTRACT.md` | Backend | Frontend |
@@ -318,20 +198,12 @@ Before building, we put the plan through the questions a sceptical judge or team
 
 **Reviewing**
 - **A human reads every line before merging.**
-- Reviewers check:
-  - the layer rule;
-  - no secrets;
-  - no real Qloo data;
-  - tests exist;
-  - the contract is updated.
-- For screens, the reviewer also opens the preview at phone width.
+- Reviewers check the layer rule, no secrets, no real Qloo data, tests exist, and the contract is updated.
+- For screens, the reviewer also opens the preview at phone and desktop width and compares it with the design system.
 
 **Contracts**
 - When a contract changes, the owner updates `API_CONTRACT.md` first, tells the team, and then builds.
 - The frontend can build against a contract before its route exists, by mocking responses with the generated types.
-
-**Skills**
-- If you add Claude Code skills (for UI polish, planning or reviews), read them first. Then commit them to the repo's `.claude/skills/` so all three of you use the same ones.
 
 ---
 
@@ -339,17 +211,16 @@ Before building, we put the plan through the questions a sceptical judge or team
 
 This is what a judge does in about 5 minutes. The demo data, the end-to-end test, the video and the testing instructions all follow it.
 
-1. Open the app and tap **Try the demo**.
-2. Open Margaret's profile. Her favourites and memories are already there.
-3. **Plan today's session** and watch the agent log.
-4. Review the draft and **approve** it.
-5. Play an item, mark it **sang along**, and **reject** another.
-6. Open **Person mode**. Approve the warm-up set, do the warm-up, play from the shelf and tap ♥.
-7. Add a **memory note**, confirm the agent's suggested links, and find the note in the graph.
-8. **Plan again.** The picks change, a prompt uses the memory, and the log explains why.
-9. If it's built, plan a **Bridge** visit with a grandchild's 3 favourites.
+1. Open the app and tap **Try the demo**. Pick the profile **Aanya** (indie and alt rock, Bangalore).
+2. The **feed** opens instantly: a hero pick and rows with thumbnails. Hover a card and read why it's there.
+3. Open a card's **detail view**: why you're seeing it, where to find it, more like this. Tap **Search on Netflix** or **Listen on YouTube**; it opens in a new tab.
+4. **Like** two items and mark one **Not interested**. Tap **Refresh**: the rows change, the dismissed item is gone, and the toast and agent log say what changed.
+5. Open the **journal**. Speak or type "Rewatched Interstellar with my brother, then had Glass Animals on repeat." Confirm the suggested links.
+6. Back on the feed, **From your journal** has appeared.
+7. Open the **taste page**: your taste in a sentence, top tags, and the taste map with the new journal links.
+8. (Optional) **Start fresh**: make a new profile, add 3 favourites, take the taste quiz, and watch the first feed build live.
 
-Lakshmi (born 1950, Chennai) is the second sample profile. Keep her only if Qloo's coverage of older Indian titles is good enough (the agent owner checks this in Phase 1).
+The second demo profile, **Leo** (classic films and jazz, US), shows how different a feed can be.
 
 ---
 
@@ -357,27 +228,16 @@ Lakshmi (born 1950, Chennai) is the second sample profile. Keep her only if Qloo
 
 Each phase has its own file in `docs/phases/`, with the contract, every person's tasks, Claude Code prompts and checks.
 
-**Build order:** the core loop, then the Memory Graph, then Bridge. Don't start a phase's features until the previous phase's exit check passes.
+**Build order:** the feed and the new frontend, then the journal and taste page, then polish. Don't start a phase's features until the previous phase's exit check passes.
 
 | Phase | Dates | Goal | Done when |
 |---|---|---|---|
-| [0. Kickoff and setup](phases/phase-0-setup.md) | Fri 23 Oct | Open decisions, then the repo, folders, boilerplate and a `Dockerfile`. **No business logic** | Locally, the frontend shows "Backend: ok" from the backend (also running in Docker), and CI is green |
-| [1. Foundations](phases/phase-1-foundations.md) | Sat 24 Oct | Onboarding with cold-start inputs, profiles, favourites, demo login, Qloo adapter | Locally, a profile created with only a name and birth year saves, and 3 favourites added by search survive a refresh |
-| [2. Core loop](phases/phase-2-core-loop.md) | Sun 25 – Mon 26 Oct | Agent, sessions, caregiver review and player, Person mode, learning | The full loop and Person mode work locally, and the second plan changes because of them |
-| [3. Memory Graph](phases/phase-3-memory-graph.md) | Tue 27 – Wed 28 Oct | Notes, suggested links, backlinks, views, personal prompts, favourite resolver | Locally, a note's confirmed links show in the graph, and the next session's prompts use them |
-| [4. Bridge and freeze](phases/phase-4-bridge-and-freeze.md) | Thu 29 Oct | Bridge, swap, Ask the agent, review queue, end-to-end test, then the one and only deploy | **Feature freeze on Thursday night**, then the live site is deployed and the judge path runs on it |
+| [0. Kickoff and setup](phases/phase-0-setup.md) | Fri 23 Oct | Repo, folders, boilerplate, `Dockerfile` | ✓ Done |
+| [1. Foundations](phases/phase-1-foundations.md) | Sat 24 Oct | Profiles, favourites, demo login, Qloo adapter | ✓ Done |
+| [2. Feed and the new frontend](phases/phase-2-core-loop.md) | Sat 24 – Mon 26 Oct | Backend refactor to the feed; new design system; onboarding with the taste quiz; dashboard; detail view; feedback | Locally, liking and dismissing then refreshing changes the feed, and the log explains it |
+| [3. Journal and taste page](phases/phase-3-memory-graph.md) | Tue 27 – Wed 28 Oct | Write or speak entries, link suggestions, "From your journal", taste page and taste map, favourite resolver | Locally, a spoken entry's confirmed links show in the feed and on the taste map |
+| [4. Polish and freeze](phases/phase-4-bridge-and-freeze.md) | Thu 29 Oct | Ask the agent, Taste match, motion and states polish, end-to-end test, then the one and only deploy | **Feature freeze on Thursday night**, then the live site is deployed and the judge path runs on it |
 | [5. Ship](phases/phase-5-ship.md) | Fri 30 Oct | Submission | Submitted by **11 PM IST**, and checked from a logged-out browser |
-
-**Hours per person:**
-- Phase 0: about 4.5
-- Phase 1: about 7
-- Phase 2: about 15
-- Phase 3: about 10
-- Phase 4: about 6
-- Phase 5: about 5
-- **Total: about 47**
-
-About 49 hours are available each: a long Friday evening, two full weekend days and five weekday evenings. That leaves about 2 hours of slack, so use the cut lines rather than late nights.
 
 The hard deadline is **Sat 31 Oct, 9:15 AM IST**. Treat the overnight gap as an emergency buffer, not as working time.
 
@@ -387,22 +247,16 @@ The hard deadline is **Sat 31 Oct, 9:15 AM IST**. Treat the overnight gap as an 
 
 | Who needs | What | From | By |
 |---|---|---|---|
-| Frontend, Agent | The repo exists | Backend | Fri 23, first hour |
-| Frontend | Phase 1 contract | Backend | Sat 10 AM |
-| Backend | Domain models agreed | Agent reviews | Sat 11 AM |
-| Backend | `TasteService.search`, for `/taste/search` and the demo seed | Agent | Sat 4 PM |
-| Frontend, Backend | Phase 2 contract | Backend | Sun 10 AM |
-| Frontend, Backend | Stub planner in the real shape | Agent | Sun 11 AM |
-| Backend | `TasteService.score`, for the warm-up | Agent | Sun evening |
-| Agent | `media_cache` and `agent_runs` repositories (in-memory until then) | Backend | Sun evening |
-| Frontend | Phase 2 routes running on localhost (the planner may still be the stub) | Backend | Sun night |
-| Backend | Real planner merged | Agent | Mon 8 PM |
-| All | Full loop and Person mode working locally | All | **Mon night** |
-| Frontend, Agent | Phase 3 contract and memory repositories | Backend | Tue, start of the evening |
-| Backend | `resolve_favourite` and `link_memory` callable | Agent | Tue night |
-| Frontend | Memory routes live | Backend | Wed 8 PM |
-| Agent | Caregiver quote | Frontend | Wed night |
-| Frontend | Bridge, swap, instructions, "learned" and review-queue routes | Backend, Agent | Thu 8 PM |
+| All | Pivot agreed, new docs read | All | Sat 24, evening |
+| Frontend, Agent | Phase 2 contract (feed, items, feedback, quiz) | Backend | Sat 24, night |
+| Frontend | Design system tokens and components in `shared/ui/` | Frontend | Sun 25, noon |
+| Backend | `TasteGraph` returns images and external IDs | Agent | Sun 25, noon |
+| Frontend | Stub feed in the real shape (fixtures) | Agent | Sun 25, noon |
+| Backend | `build_feed` workflow and row strategies merged | Agent | Mon 26, 8 PM |
+| All | Feed loop working locally | All | **Mon night** |
+| Frontend, Agent | Phase 3 contract and journal repositories | Backend | Tue 27, start of the evening |
+| Backend | `link_journal` and `resolve_favourite` callable | Agent | Tue night |
+| Frontend | Journal and taste routes live | Backend | Wed 8 PM |
 | All | Feature freeze | All | **Thu night** |
 | All | Live site deployed | Backend | Thu night |
 
@@ -412,24 +266,18 @@ The hard deadline is **Sat 31 Oct, 9:15 AM IST**. Treat the overnight gap as an 
 
 | Risk | Level | Mitigation | Owner |
 |---|---|---|---|
-| The Qloo key arrives late | Medium | Fixtures carry Phases 0–2; ask in #api-help | Agent |
-| Qloo has little data for older or Indian titles | Medium | Coverage check in Phase 1, the hint ladder and fallbacks; lead the demo with Margaret | Agent |
-| A Qloo parameter we rely on doesn't work (`filter.results.entities`, compare, the age signal) | Medium | The "To verify" list in Phase 1, with a fallback for each | Agent |
-| The LLM is slow, wrong or down | Medium | Structured output, a 15-second timeout, the template fallback | Agent |
-| The research agent loops, wanders or is slow | Medium | Middleware limits, a 25-second timeout, the rule-based fallback | Agent |
-| The AI misidentifies a song or suggests a wrong link | Medium | The caregiver confirms every guess and link; rejected links are never suggested again | Agent |
-| Random taps teach the wrong thing | Low–Medium | Small weights, once per item per day, skips never hide; caregiver reactions outweigh taps | Backend |
-| Person mode confuses or upsets someone in real use | Medium | Only approved items, two choices at most, no time limits, Stop always visible, a caregiver present, and the caregiver button hides an item at once | Frontend |
-| A personal prompt mentions someone painful | Medium | The "Use in prompts" switch; the caregiver sees and can edit every prompt | Agent |
-| Memory notes hold sensitive personal data | Medium | The privacy rules (`CLAUDE.md`, rule 14), no medical fields, deleted with the profile | Backend |
-| The Memory Graph looks empty or messy | Medium | Seeded memories, the 30-node cap, decade grouping, the list view | Frontend |
-| YouTube quota, non-embeddable videos or ads | Medium | Cache, the embeddable check, warm caches, ads listed as a known limitation | Agent |
+| The pivot costs a day | High | Reuse the backend; rebuild only the frontend; cut lines below | All |
+| Qloo images are missing for many items | Medium | Check coverage first thing in Phase 2; designed fallback tiles; Open Library for books | Agent |
+| Feeds feel repetitive or random | Medium | One research pool, dedupe across rows, reasons on every card, "Because you liked X" rows | Agent |
+| Feed builds are slow (25 s) | Medium | Saved snapshot opens instantly; rebuilds in the background; `qloo_cache` | Agent |
+| Search links feel unreliable | Low–Medium | Honest labels, JustWatch per country, direct links from external IDs | Backend |
+| The LLM is slow, wrong or down | Medium | Structured output, timeouts, the template fallback | Agent |
+| Speech to text fails or is slow | Medium | Typing always works; show the transcript for editing; Groq only | Agent |
+| Journal entries hold personal data | Medium | Privacy rules (`CLAUDE.md`, rule 11), deleted with the profile | Backend |
+| The new design isn't finished in time | High | Design system first (Sunday noon), then screens; cut dark mode and motion first | Frontend |
 | The app is asleep or paused during judging | High | Lightsail always on, a Supabase ping, a check on 2 Nov | Backend |
-| The first deploy fails close to the deadline | High | Dockerfile from Phase 0, test in Docker locally every phase, deploy Thursday night with Friday as the buffer | Backend |
+| The first deploy fails close to the deadline | High | Dockerfile from Phase 0, deploy Thursday night with Friday as the buffer | Backend |
 | Three people's AI-written code doesn't fit together | High | `CLAUDE.md`, contracts first, a human reviews every PR | All |
-| Merge conflicts in shared files | Medium | The ownership table; shared files change only through a PR from their lead | All |
-| Scope: three big features in 8 days, alongside day jobs | High | The build order, the cut lines, a freeze on Thursday night, and asking about time off | All |
-| Name confusion with the Melomind headset | Low–Medium | Decide at kickoff | All |
 
 ---
 
@@ -437,19 +285,19 @@ The hard deadline is **Sat 31 Oct, 9:15 AM IST**. Treat the overnight gap as an 
 
 | If behind on | Cut first | Then cut |
 |---|---|---|
-| Monday night (no full loop) | The warm-up (keep the shelf) | Bridge entirely; Phase 3 shrinks to notes, backlinks and the list view |
-| Monday night (research agent unreliable) | Make the rule-based plan the default, with the agent behind a flag | Make the favourite resolver and link suggestions the agentic showcase |
-| Wednesday night (Memory Graph unfinished) | The graph view (keep the list, the timeline and backlinks) | Bridge entirely; Thursday goes to finishing the Memory Graph |
-| Thursday night | The Bridge screens (keep the API), the How it works page | The end-to-end test in CI (run it by hand) |
+| Monday night (no feed loop) | The `throwback` and `popular_<country>` rows; "More like this" | The taste quiz (favourites only) |
+| Monday night (research agent unreliable) | Make the rule-based pool the default, with the agent behind a flag | Make journal linking the agentic showcase |
+| Wednesday night (journal unfinished) | The taste map (keep the list); voice (keep typing) | The favourite resolver ("type a line you remember") |
+| Thursday night | Taste match; Ask the agent; dark mode | The end-to-end test in CI (run it by hand) |
 | Friday | The video (screenshots are enough) | Polish |
 
 **Never cut:**
 - demo login;
-- caregiver approval, and Person mode showing only approved items;
-- the guarantee that excluded items never return;
-- an always-visible Stop;
-- the agent log;
-- caregiver confirmation of Memory Graph links;
+- thumbnails (or the designed fallback) on every card;
+- platform links on every item;
+- the guarantee that "not interested" items never return;
+- a reason on every pick, and the agent log;
+- user confirmation of journal links;
 - deployment (one working live site), and keeping the app awake through judging.
 
 ---
@@ -460,4 +308,4 @@ The hard deadline is **Sat 31 Oct, 9:15 AM IST**. Treat the overnight gap as an 
 - Check the live site on **2 Nov**, the day judging starts, and again mid-week.
 - Keep Lightsail running and the Supabase ping going until **6 Nov, 10:15 AM IST**.
 - Watch Devpost and email for any questions from judges.
-- **After judging:** images, the Markdown export for Obsidian, and voice for the caregiver.
+- **After judging:** real streaming availability (TMDB watch providers), dark mode, sharing a taste card, Spotify import.

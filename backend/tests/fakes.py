@@ -1,5 +1,5 @@
 """Test doubles: an inline background runner, a scripted chat model for the research agent,
-and fakes for media and the language model. None of them touch the network."""
+and fakes for media, the language model and the taste graph. None of them touch the network."""
 
 import asyncio
 from collections.abc import Callable, Sequence
@@ -13,7 +13,7 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from pydantic import BaseModel, PrivateAttr
 
 from app.application.agent.log import RunLog
-from app.application.agent.types import PlanContext, SignalRef
+from app.application.agent.types import FeedContext, SignalRef
 from app.application.ports import EntityMatch, InsightsQuery, PlayableMedia, TagMatch, TasteSource
 from app.application.services.background import Job
 from app.core.errors import UpstreamError
@@ -178,7 +178,7 @@ class FailingTasteGraph:
 async def make_log() -> tuple[RunLog, InMemoryAgentRunRepository]:
     """A run log over an in-memory run, and the repository to read its steps back."""
     runs = InMemoryAgentRunRepository()
-    run = AgentRun(profile_id=uuid4(), kind=RunKind.PLAN)
+    run = AgentRun(profile_id=uuid4(), kind=RunKind.FEED)
     await runs.add(run)
     return RunLog(runs, run.id), runs
 
@@ -192,31 +192,28 @@ async def log_messages(runs: InMemoryAgentRunRepository, log: RunLog) -> list[st
 
 def make_context(
     *,
-    birth_year: int = 1948,
+    birth_year: int | None = 1958,
     favourites: Sequence[SignalRef] = (),
     learned: Sequence[SignalRef] = (),
     blocked: Sequence[Exclusion] = (),
-    languages: Sequence[str] = ("English",),
     country_code: str | None = "US",
     song_titles: Sequence[str] = (),
     weights: dict[str, float] | None = None,
-    target_minutes: int = 20,
-) -> PlanContext:
-    """A plan context for tests, with sensible defaults (Margaret, born 1948, US)."""
-    return PlanContext(
+    previous_refs: frozenset[str] = frozenset(),
+) -> FeedContext:
+    """A feed context for tests, with sensible defaults (Leo, born 1958, US)."""
+    return FeedContext(
         profile_id=uuid4(),
-        first_name="Margaret",
+        first_name="Leo",
         birth_year=birth_year,
         country_code=country_code,
-        places=("Chicago, Illinois",),
-        languages=tuple(languages),
         favourite_signals=tuple(favourites),
         learned_signals=tuple(learned),
         text_favourites=(),
         song_titles=tuple(song_titles),
         blocklist=Blocklist.from_exclusions(blocked),
         learned_weights=weights or {},
-        target_minutes=target_minutes,
+        previous_refs=previous_refs,
     )
 
 
@@ -224,4 +221,4 @@ SUPREMES = SignalRef("demo-artist-the-supremes", "The Supremes", EntityType.ARTI
 TEMPTATIONS = SignalRef("demo-artist-the-temptations", "The Temptations", EntityType.ARTIST)
 SOUND_OF_MUSIC = SignalRef("demo-movie-the-sound-of-music", "The Sound of Music", EntityType.MOVIE)
 MOCKINGBIRD = SignalRef("demo-book-to-kill-a-mockingbird", "To Kill a Mockingbird", EntityType.BOOK)
-MARGARET_FAVOURITES = (SUPREMES, TEMPTATIONS, SOUND_OF_MUSIC, MOCKINGBIRD)
+LEO_FAVOURITES = (SUPREMES, TEMPTATIONS, SOUND_OF_MUSIC, MOCKINGBIRD)

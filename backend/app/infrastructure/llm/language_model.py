@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class LangChainLanguageModel:
     """Tries each model once, in order, and returns the first answer that fits the schema.
 
-    Pass only the main model where a prompt must never reach the fallback (memory notes and a
+    Pass only the main model where a prompt must never reach the fallback (journal entries and a
     free Gemini key).
     """
 

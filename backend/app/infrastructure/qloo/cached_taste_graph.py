@@ -17,11 +17,13 @@ from app.application.ports import (
 from app.domain.models import EntityType, utc_now
 
 CACHE_TTL = timedelta(days=1)
+# Bumped when the parsed shape changes, so older cached rows (without images) are ignored.
+CACHE_VERSION = 2
 
 
 def cache_key(*parts: Any) -> str:
     """A short, stable key for a request: the SHA-256 of its JSON form."""
-    text = json.dumps(parts, sort_keys=True, default=str)
+    text = json.dumps((CACHE_VERSION, *parts), sort_keys=True, default=str)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
@@ -32,7 +34,9 @@ def _match_to_row(match: EntityMatch) -> dict[str, Any]:
 
 
 def _row_to_match(row: dict[str, Any]) -> EntityMatch:
-    return EntityMatch(**{**row, "type": EntityType(row["type"])})
+    return EntityMatch(
+        **{**row, "type": EntityType(row["type"]), "tags": tuple(row.get("tags") or ())}
+    )
 
 
 class CachedTasteGraph:

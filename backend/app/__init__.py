@@ -1,1 +1,1 @@
-"""MeloMind backend: the FastAPI app behind caregiver-led music and memory sessions."""
+"""MeloMind backend: the FastAPI app behind a personal taste dashboard."""

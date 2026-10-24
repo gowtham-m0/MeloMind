@@ -6,11 +6,11 @@ from uuid import UUID
 from app.application.ports import ProfileRepository
 from app.core.errors import InvalidInputError, NotFoundError
 from app.domain.models import (
-    BIRTH_YEAR_MAX,
     BIRTH_YEAR_MIN,
     Favourite,
     FavouriteKind,
     Profile,
+    birth_year_max,
     utc_now,
 )
 
@@ -18,13 +18,14 @@ DISPLAY_NAME_MAX = 60
 TEXT_ITEM_MAX = 100
 TEXT_LIST_MAX = 10
 FAVOURITE_NAME_MAX = 120
+IMAGE_URL_MAX = 500
 
 
 class ProfileChanges(TypedDict, total=False):
-    """Fields a caregiver can change. Fields left out stay as they are."""
+    """Fields the user can change. Fields left out stay as they are."""
 
     display_name: str
-    birth_year: int
+    birth_year: int | None
     country_code: str | None
     places_lived: list[str]
     languages: list[str]
@@ -47,15 +48,9 @@ class ProfileService:
             raise NotFoundError("Profile not found.")
         return profile
 
-    async def create(
-        self, owner_id: UUID, display_name: str, birth_year: int, changes: ProfileChanges
-    ) -> Profile:
-        """A new profile. Only the display name and birth year are required."""
-        profile = Profile(
-            owner_id=owner_id,
-            display_name=_clean_display_name(display_name),
-            birth_year=_check_birth_year(birth_year),
-        )
+    async def create(self, owner_id: UUID, display_name: str, changes: ProfileChanges) -> Profile:
+        """A new profile. Only the display name is required."""
+        profile = Profile(owner_id=owner_id, display_name=_clean_display_name(display_name))
         _apply(profile, changes)
         await self._profiles.add(profile)
         return profile
@@ -81,8 +76,9 @@ class ProfileService:
         kind: FavouriteKind,
         entity_id: str | None = None,
         song_title: str | None = None,
+        image_url: str | None = None,
     ) -> Favourite:
-        """Save a favourite. It's verified when the caregiver picked a match from taste search."""
+        """Save a favourite. It's verified when the user picked a match from taste search."""
         profile = await self.get(owner_id, profile_id)
         name = _clean_text(name, FAVOURITE_NAME_MAX, "The favourite's name")
         title = _clean_optional(song_title, FAVOURITE_NAME_MAX, "The song title")
@@ -102,7 +98,12 @@ class ProfileService:
         if existing is not None:
             return existing
         favourite = Favourite(
-            profile_id=profile.id, name=name, kind=kind, qloo_id=qloo_id, song_title=title
+            profile_id=profile.id,
+            name=name,
+            kind=kind,
+            qloo_id=qloo_id,
+            song_title=title,
+            image_url=_clean_image_url(image_url) if qloo_id else None,
         )
         await self._profiles.add_favourite(favourite)
         return favourite
@@ -131,12 +132,23 @@ def _clean_display_name(value: str) -> str:
     return _clean_text(value, DISPLAY_NAME_MAX, "The name")
 
 
-def _check_birth_year(value: int) -> int:
-    if not BIRTH_YEAR_MIN <= value <= BIRTH_YEAR_MAX:
-        raise InvalidInputError(
-            f"The birth year must be between {BIRTH_YEAR_MIN} and {BIRTH_YEAR_MAX}."
-        )
+def _check_birth_year(value: int | None) -> int | None:
+    if value is None:
+        return None
+    latest = birth_year_max()
+    if not BIRTH_YEAR_MIN <= value <= latest:
+        raise InvalidInputError(f"The birth year must be between {BIRTH_YEAR_MIN} and {latest}.")
     return value
+
+
+def _clean_image_url(value: str | None) -> str | None:
+    """An image URL from taste search: https only, and short (rule 13: URLs only)."""
+    if value is None or not value.strip():
+        return None
+    url = value.strip()
+    if not url.startswith("https://") or len(url) > IMAGE_URL_MAX or any(c.isspace() for c in url):
+        raise InvalidInputError("The image must be an https URL.")
+    return url
 
 
 def _clean_country_code(value: str | None) -> str | None:

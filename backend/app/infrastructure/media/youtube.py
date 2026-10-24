@@ -1,7 +1,8 @@
 """`MediaResolver` over the YouTube Data API v3: `search`, then `videos.list` to check each video.
 
-A video is used only when `status.embeddable` is true, it's public, and its length suits one
-item (no hour-long compilations). Never an unrelated video: when nothing fits, the answer is None.
+A video is used only when `status.embeddable` is true, it's public, it isn't a
+Short, and its length suits one item (no hour-long compilations). Never an unrelated video: when
+nothing fits, the answer is None.
 """
 
 import asyncio
@@ -22,17 +23,19 @@ logger = logging.getLogger(__name__)
 YOUTUBE_BASE_URL = "https://www.googleapis.com/youtube/v3"
 YOUTUBE_TIMEOUT_SECONDS = 8.0
 SEARCH_RESULTS = 5
-MIN_DURATION_S = 60
+# Shorts run up to 60 s (some up to 3 min) and are mostly fan edits, so 90 s keeps most out.
+MIN_DURATION_S = 90
 MAX_DURATION_S = 600
 MAX_ATTEMPTS = 3
 BACKOFF_SECONDS = 1.0
 # After YouTube refuses (quota or rate limit), stop asking for a while: every lookup would fail,
-# and each retry only makes the caregiver wait longer.
+# and each retry only makes the user wait longer.
 PAUSE_SECONDS = 600.0
 
 Sleep = Callable[[float], Awaitable[None]]
 Clock = Callable[[], float]
 
+_SHORTS_TAG = re.compile(r"#shorts?\b", re.IGNORECASE)
 _ISO_DURATION = re.compile(r"^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$")
 
 
@@ -62,6 +65,8 @@ def _playable(video: Mapping[str, Any]) -> PlayableMedia | None:
     if duration is None or not MIN_DURATION_S <= duration <= MAX_DURATION_S:
         return None
     title = html.unescape(str(video.get("snippet", {}).get("title", "")))
+    if _SHORTS_TAG.search(title):
+        return None
     return PlayableMedia(video_id=str(video["id"]), title=title, duration_s=duration)
 
 
@@ -87,7 +92,7 @@ class YouTubeMediaResolver:
         self._paused_until = 0.0
 
     async def resolve(self, query: str) -> PlayableMedia | None:
-        """The first search result that is embeddable, public and 1–10 minutes long."""
+        """The first search result that is embeddable, public, not a Short and 1.5–10 min long."""
         if self._clock() < self._paused_until:
             raise UpstreamError("YouTube refused recent requests; trying again later.")
         found = await self._get(

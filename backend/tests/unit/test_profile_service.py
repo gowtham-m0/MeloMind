@@ -21,25 +21,26 @@ def service() -> ProfileService:
 
 
 async def create(service: ProfileService, **changes: object) -> UUID:
-    profile = await service.create(OWNER, "Margaret", 1948, ProfileChanges(**changes))  # type: ignore[typeddict-item]
+    profile = await service.create(OWNER, "Margaret", ProfileChanges(**changes))  # type: ignore[typeddict-item]
     return profile.id
 
 
-async def test_create_with_only_name_and_birth_year(service: ProfileService) -> None:
-    profile = await service.create(OWNER, "  Margaret  ", 1948, ProfileChanges())
+async def test_create_with_only_a_name(service: ProfileService) -> None:
+    profile = await service.create(OWNER, "  Margaret  ", ProfileChanges())
 
     assert profile.display_name == "Margaret"
+    assert profile.birth_year is None
     assert profile.country_code is None
     assert profile.places_lived == []
     assert [p.id for p in await service.list(OWNER)] == [profile.id]
 
 
-@pytest.mark.parametrize("birth_year", [1919, 1991])
+@pytest.mark.parametrize("birth_year", [1899, 9999])
 async def test_create_rejects_birth_year_out_of_range(
     service: ProfileService, birth_year: int
 ) -> None:
     with pytest.raises(InvalidInputError):
-        await service.create(OWNER, "Margaret", birth_year, ProfileChanges())
+        await service.create(OWNER, "Margaret", ProfileChanges(birth_year=birth_year))
 
 
 async def test_other_users_profiles_are_not_found(service: ProfileService) -> None:

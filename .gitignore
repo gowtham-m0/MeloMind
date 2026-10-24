@@ -45,3 +45,22 @@ desktop.ini
 
 # Claude Code local settings (shared skills in .claude/skills/ stay tracked)
 .claude/settings.local.json
+
+# Impeccable: review screenshots and live-mode session files are local (PRODUCT.md, DESIGN.md, design.json and surface briefs stay tracked)
+.impeccable/review/
+.impeccable/live/
+.impeccable/*.log
+
+# Claude Code local state
+.claude/scheduled_tasks.json
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+
+# Frontend build and test output
+frontend/coverage/
+frontend/.eslintcache
+frontend/public/__*
+
+# Python tooling
+.ruff_cache/
+.coverage.*
