@@ -17,9 +17,9 @@ Rules:
 
 | File | Holds |
 |---|---|
-| `profiles.json` | The two sample profiles, in the shape of `POST /profiles`, plus favourites by **name**. `demo/seed` resolves each name through `TasteService.search`, so no ID is hard-coded |
+| `profiles.json` | The two sample profiles, in the shape of `POST /profiles`, plus favourites, `likes` and `not_interested` items by **name**. `demo/seed` resolves each name through `TasteService.search`, so no ID is hard-coded |
 | `entities.json` | The catalogue: `entity_id`, `name`, optional `aliases`, `type` (`urn:entity:artist`, `movie`, `tv_show`, `book`), `release_year`, `country` (ISO 3166-1 alpha-2), `popularity` (0–1) and `tags` |
-| `insights.json` | `related`: for each favourite's entity, about 15 related entities with an invented `affinity` (0–1), across all four types |
+| `insights.json` | `related`: for each favourite's and liked item's entity, about 15 related entities with an invented `affinity` (0–1), across all four types |
 | `tags.json` | Genre and region tags for `find_tags` and the hint ladder's tag step |
 
 `release_year` means the release year for films and TV, the publication year for books, and

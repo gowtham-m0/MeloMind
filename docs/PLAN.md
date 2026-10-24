@@ -27,7 +27,7 @@ These are decided. Change one only if the whole team agrees, and update `CLAUDE.
 ### Product
 
 **1. A home feed of rows, across four kinds of taste**
-- **What it is:** a hero pick plus rows ("For you", "Because you liked X", "Music", "Films", "TV", "Books", "Popular in <country>", "From your journal"), each a row strategy.
+- **What it is:** a hero pick plus rows ("For you", "Because you liked X", "Music", "Songs", "Films", "TV", "Books", "New and notable", "Popular in <country>", "From your journal"), each a row strategy (songs come from the `add_songs` node, decision 18b).
 - **Why:**
   - Everyone already knows how to use it, so judges get it in seconds.
   - Cross-domain rows ("you like this band, so try this film") are exactly what Qloo is good at and single-domain apps can't do.
@@ -126,6 +126,14 @@ These are decided. Change one only if the whole team agrees, and update `CLAUDE.
 **18. YouTube is optional**
 - **Why:** quota is about 100 searches a day and search quality is mixed (Shorts, ranking clips). The feed must not depend on it.
 - **How:** only the detail view's Preview button calls it, on demand, cached, with the Shorts filter.
+
+**18b. Songs from Apple's iTunes Search API, as a lookup only** (added 25 Oct)
+- **What it is:** a "Songs for you" row and song cards: the top tracks of the artists Qloo already picked for the feed, with artwork, a 30-second preview and an Apple Music link. An artist's detail view lists their top songs; a song's "More like this" is "After this song".
+- **Why:** people think in songs, not artists, and Qloo has no song type. A song card plays on tap and opens straight on Apple Music, which makes music feel as concrete as films and books.
+- **Keeps rule 1:** Qloo still decides what's recommended (the artist); the catalogue only looks up that artist's songs. Signals on a song count for its artist.
+- **Costs:** a new external service, about 20 calls a minute, and Apple's terms (previews streamed only, shown next to the store link, credited "courtesy of iTunes").
+- **Mitigation:** no key needed; an in-memory cache and a rate limiter; an 8-second deadline per feed; no catalogue, or a failure, simply means no songs row; `SONGS_ENABLED=false` turns it off. Only Qloo's artist names are sent.
+- **Rejected:** Spotify (recommendations and related artists are closed to new apps, and Development Mode drops artist top tracks); ListenBrainz and Last.fm similar-track recommenders (Qloo stays the only recommender); Deezer (song search came back empty); LLM-written song lists (break rule 1).
 
 **19. Polling for agent runs** — unchanged. Feed builds, favourite resolving and journal linking all poll `/agent-runs/{id}`.
 

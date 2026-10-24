@@ -38,6 +38,7 @@ for tool calls, model calls and the deadline), `errors`.
 | `pool` | `research`, `fallback` | `{entity_id, name, type, year, popularity, affinity, image_url, external, isbn13, source, signal}` |
 | `research_outcome` | `research` | `ok`, `too_few`, `limit_hit`, `timeout`, `skipped` or `error` |
 | `fallback_attempts` | `fallback` | 0–2 |
+| `qloo_calls` | `research`, `fallback` | Qloo calls spent so far; `build_rows` gets the rest of `FEED_MAX_QLOO_CALLS` |
 | `drafts` | `build_rows`, `guardrails` | Ordered rows of candidates |
 | `hero` | `build_rows`, `guardrails` | One item |
 | `rows`, `hero_item`, `taste_tags` | `decorate` | Cards with reasons, images and links |
@@ -57,7 +58,8 @@ for tool calls, model calls and the deadline), `errors`.
 | 1 | `load_context` (code) | `profile_id` → `context` | "Loaded Aanya: India, 4 favourites, 6 likes, 1 dismissed." | Profile missing: run `failed` (404 at the API) |
 | 2 | `research` (**agent**) | `brief`, `context` → `pool`, `research_outcome` | Each tool call (section 6), then "The agent picked 12 favourites from 40 results after 4 Qloo calls." | Any error, limit or timeout: keep what was found, set the outcome, go on |
 | 3 | `fallback` (code) | Runs only if the outcome isn't `ok` or a type has fewer than 6. One `get_insights` per short type with the top signals; relax up to `AGENT_MAX_RETRIES` (2) | "Only 3 books found; ran the rule-based query. Dropped the popularity floor." | Still short: continue; that row may be dropped |
-| 4 | `build_rows` (code) | Pick the hero (the best featured pick with an image). Then each `FeedRow` in `RowRegistry` that `applies`: take from `pool`, run its spec's queries within `FEED_MAX_QLOO_CALLS`, rank (affinity → learned weight → popularity; items the last feed showed sink within their band) | "Top pick: The Strokes." "Because you liked Arctic Monkeys: 12 picks." | When the budget runs out, a row uses research results only; a short row is left out and the log says so |
+| 4 | `build_rows` (code) | Pick the hero (the best featured pick with an image). Then each `FeedRow` in `RowRegistry` that `applies`: take from `pool`, run its spec's queries within what's left of `FEED_MAX_QLOO_CALLS` after research and the fallback (`qloo_calls`), rank (affinity → learned weight → popularity; items the last feed showed sink within their band) | "Top pick: The Strokes." "Because you liked Arctic Monkeys: 12 picks." | When the budget runs out, a row uses research results only; a short row is left out and the log says so |
+| 4b | `add_songs` (code) | `hero`, `drafts` → `drafts`. The first 6 distinct, non-excluded artists in the feed (hero first, main rows in order); 2 top songs each from the `SongCatalog`, in turn, skipping excluded songs and repeated titles; a "Songs for you" draft inserted right after `music`. 8-second deadline for all lookups | "Looked up songs for 6 artists Qloo picked (Two Door Cinema Club, alt-J…) in Apple's catalogue → 12 songs." | No catalogue (`SONGS_ENABLED=false`, or tests), a timeout, or fewer than 4 songs: no songs row, the feed carries on. One artist failing just gives that artist no songs |
 | 5 | `guardrails` (**code only**) | See section 9 | "Removed 2 items you're not interested in." "Dropped “TV shows for you”: too few picks left." | — |
 | 6 | `decorate` (code) | Reasons from each pick's signal ("Similar to The Strokes, which you love.") or the row's fixed reason; image URL (Qloo, then Open Library by ISBN, else `null`); platform links from `domain/links.py`; taste tags | "Added images for 96 of 96 picks, and where to find each." | Missing image: `null`, the UI shows the fallback tile |
 | 7 | `explain` (LLM + template) | Recently liked titles, tags now and last time, counts → one `summary` line. The first feed always uses the template | "More indie rock and sci-fi today, because you liked Foster the People." | Invalid output, a line over 140 characters, or a 15-second timeout: the template |
@@ -137,8 +139,11 @@ errors only), `ModelFallbackMiddleware` (backup model). An `asyncio` deadline of
 the whole research step. Hitting any limit ends research with `limit_hit` or `timeout` and keeps the
 candidates already submitted.
 
-Row top-ups in `build_rows` are code, not agent calls. Together with research they stay within
-`FEED_MAX_QLOO_CALLS` (24) per feed; most are cache hits after the first build.
+Row top-ups in `build_rows` are code, not agent calls. Together with research and the fallback
+they stay within `FEED_MAX_QLOO_CALLS` (24) per feed; most are cache hits after the first build.
+Research and the fallback record what they spent in `qloo_calls`, and the rows get the rest (until
+25 Oct the rows were given 24 minus research's 12-call cap, so calls research didn't use were
+wasted and late rows such as `throwback` starved). The song catalogue isn't Qloo and doesn't count.
 
 What we learned from Phase 2 (still true):
 - The tools count Qloo calls themselves. When the budget is spent they refuse, telling the agent
@@ -170,9 +175,11 @@ Items the user already loves (their signals) are never recommended back.
 | 1b | `cross_culture` (right rail) | an artist, film or show signal | One `get_insights` per *other* type with the newest such signal (an artist → a film, a TV show, a book). Books can't cross types | 1 per type, plus 1 of its own type from the pool: 4 items labelled Watch, Read or Listen |
 | 2 | `because_<ref>` | ≥ 1 strong signal | One `get_insights` with the newest strong signal, type = its own type's best cross-domain pair (artist → artist, film → film) | 12 by affinity. Up to 2 such rows, for the two newest strong signals |
 | 3 | `music` | always | Top-up artist insights if the pool has < 12 artists | Artists |
+| 3b | `songs` | a song catalogue is set up | Not a `FeedRow`: the `add_songs` node (section 3, step 4b) adds it after `build_rows`, from the artists already chosen. No Qloo calls | 2 songs each from up to 6 artists, in turn |
 | 4 | `films` | always | Top-up | Films |
 | 5 | `tv` | always | Top-up | TV shows |
 | 6 | `books` | always | Top-up | Books |
+| 6b | `new` | always | Films and TV with `filter.release_year.min` = last year, the top signals; with no signals, popularity ≥ 0.7 and the country | Interleaved films and TV, 12 |
 | 7 | `popular_<country>` | country set | Films and TV with `filter.release_country`, popularity ≥ 0.8, the signals | 12 by popularity |
 | 8 | `journal` | ≥ 1 confirmed journal media link | `get_insights` with the confirmed journal items as signals | 12 by affinity |
 | 9 | `throwback` | birth year set | Films and TV in the era window (`birth_year + 13` to `+ 21`), plus era tags for artists | 12 by popularity |
@@ -244,6 +251,7 @@ journal text, lyrics or raw Qloo responses.
 | LLM, `explain` | Item titles, types and years, signal titles, first name |
 | Speech to text | The one recording being transcribed (Groq only); discarded afterwards |
 | YouTube (preview only) | Item title, type and year |
+| iTunes Search API (songs) | The name of an artist Qloo returned, and the store country. **Never** user text, song titles the user typed, lyrics or journal content |
 
 ## 13. Open questions
 

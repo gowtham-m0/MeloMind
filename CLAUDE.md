@@ -44,6 +44,7 @@ This is an entry for the Qloo Agentic Hackathon.
 
 ### Product
 1. **Never invent recommendations.** Every item must come from a Qloo result, a demo fixture or a verified favourite, and must record its `source` and `reason`.
+   - **Songs are a lookup, never a recommender.** A song card is a top track of an artist Qloo already picked, looked up in Apple's iTunes catalogue (`source: song_catalogue`). iTunes receives only the artist name Qloo returned: never user text, lyrics or journal content.
 2. **Every pick is explainable.** Each card has a reason and a `because_of` signal, and the agent log says how the feed was built.
 3. An item marked **not interested never appears again** for that profile, in any row, until the user undoes it in Settings.
 4. **Anything the AI infers is a proposal** the user confirms: a song from a lyric, a match from a description, an item mentioned in a journal entry. Only confirmed items become taste signals.
@@ -60,7 +61,7 @@ This is an entry for the Qloo Agentic Hackathon.
     - The AI sees an entry's text only while suggesting links for it, and only through Groq (never a free-tier Gemini key).
     - Voice recordings are transcribed and then discarded. Audio is never stored.
 12. **Never send lyrics or song titles to Qloo**, because Qloo has no songs. **Never store or display lyrics** (copyright). A typed lyric is only a search hint: keep just the song title and artist.
-13. **Images are URLs only.** We show Qloo's image URL or an Open Library cover URL. We never download, store or re-host images.
+13. **Images are URLs only.** We show Qloo's image URL, an Open Library cover URL or an iTunes artwork URL. We never download, store or re-host images or song previews.
 
 ### Code
 14. Respect the **layer rule** (see Architecture). Business logic never goes in route handlers or React components.
@@ -87,7 +88,8 @@ Read the "Decisions" section of `docs/PLAN.md` before proposing a change.
 | API types | Generated from FastAPI's OpenAPI schema with `openapi-typescript`. It needs TypeScript 5.x, so TypeScript stays pinned at 5.9 |
 | Images | Qloo `properties.image` URLs for artists, films and TV; Open Library covers by ISBN for books (`https://covers.openlibrary.org/b/isbn/<isbn13>-L.jpg`, no key); a gradient tile with a type icon as the fallback |
 | Platform links | Built in code from the title, type, year, country and any Qloo external ID (`domain/links.py`). No streaming-availability API |
-| Media preview (optional) | YouTube Data API v3 (`search`, `videos.list`) and the YouTube IFrame Player, **only on demand** from an item's detail view |
+| Songs | Apple's iTunes Search API (`/search`, no key) behind a `SongCatalog` port (`infrastructure/music/itunes.py`): top songs for artists Qloo picked, with artwork, a 30-second preview URL and the Apple Music store link. In-memory cache (6 hours) and about 18 calls a minute. `SONGS_ENABLED=false` turns it off |
+| Media preview (optional) | YouTube Data API v3 (`search`, `videos.list`) and the YouTube IFrame Player, **only on demand** from an item's detail view. Songs use their iTunes preview instead |
 | Testing | pytest (unit and API), `httpx.MockTransport` (Qloo contract tests), Playwright (one end-to-end judge path) |
 | Hosting | Vercel (frontend), AWS Lightsail container service (backend), Supabase (database and auth). One monorepo |
 
@@ -118,6 +120,7 @@ melomind/
 │   │   ├── infrastructure/
 │   │   │   ├── qloo/            live HTTP adapter, fixture adapter, fixtures/
 │   │   │   ├── media/           YouTube resolver (optional preview), demo resolver
+│   │   │   ├── music/           iTunes song catalogue (songs for Qloo-picked artists)
 │   │   │   ├── llm/             chat-model factory (Groq, Gemini), the LanguageModel adapter, Groq Whisper
 │   │   │   └── persistence/     SQLAlchemy models, Postgres and in-memory repositories
 │   │   └── api/
@@ -188,9 +191,11 @@ The home screen. It's a saved snapshot (`feeds` table), so it opens instantly. *
 | `cross_culture` | Cross-culture picks (right rail) | One insights call per other type with the newest strong signal: "Because you like The 1975" → a film, a show, a book, an artist |
 | `because_<ref>` | Because you liked X | One insights call with the top 1–2 liked or favourite items as the signal |
 | `music` | Music for you | Artists from the pool, topped up with an artist insights call |
+| `songs` | Songs for you | Not a row strategy: the `add_songs` node, after `build_rows`. Two top songs each from the first 6 artists in the feed, from the song catalogue. Sits right after `music`. No catalogue, a failure or fewer than 4 songs: no row |
 | `films` | Films for you | Films from the pool, topped up |
 | `tv` | TV shows for you | TV from the pool, topped up |
 | `books` | Books for you | Books from the pool, topped up |
+| `new` | New and notable | Films and TV from last year on (`filter.release_year.min`), steered by the signals; popular ones for the country when there are none |
 | `popular_<country>` | Popular in India | Films and TV with `filter.release_country` and a high popularity floor |
 | `journal` | From your journal | Signals from confirmed journal links (Phase 3) |
 | `throwback` | Throwback: your teens | Era window from birth year (only if set) |
@@ -205,8 +210,9 @@ The home screen. It's a saved snapshot (`feeds` table), so it opens instantly. *
 - big image, title, year, type, description (from Qloo properties when present), tags;
 - **Why you're seeing this:** the reason and the signal chain ("Because you liked The Strokes → Qloo affinity 0.82");
 - **Where to find it:** platform buttons (see below);
-- **More like this:** an insights call with this item as the signal;
-- an optional **Preview** button that looks up a YouTube video on demand.
+- **More like this:** an insights call with this item as the signal. For a song it's **"After this song"**: Qloo's artists for the song's artist, one top song each;
+- for an artist, **their top songs** from the song catalogue;
+- an optional **Preview** button: a song's iTunes preview, or for other items a YouTube video looked up on demand.
 
 ### Platform links (`domain/links.py`)
 
@@ -215,6 +221,7 @@ A pure function turns `(title, entity_type, year, country_code, external_ids, is
 | Type | Links, in order |
 |---|---|
 | Artist (and song favourites) | YouTube (top songs search), Spotify search, YouTube Music search, Apple Music search |
+| Song card | Apple Music (direct, the store link iTunes gave), YouTube search, Spotify search, YouTube Music search, each for "title + artists" |
 | Film | JustWatch search for the user's country (shows Netflix, Prime Video, JioHotstar and the rest), Netflix search, Prime Video search, YouTube trailer search |
 | TV show | Same as film |
 | Book | Google Books (ISBN when present), Goodreads search, Amazon search, Open Library |
@@ -226,6 +233,7 @@ A pure function turns `(title, entity_type, year, country_code, external_ids, is
 ### Thumbnails
 - Artists, films and TV: Qloo `properties.image.url` (the adapter must parse it; check the shape with `scripts/qloo_smoke.py`).
 - Books: Open Library cover from `isbn13`, otherwise the fallback.
+- Songs: the iTunes artwork URL (square).
 - Fallback: a gradient tile in the type's colour with its icon and the title.
 - Use `loading="lazy"`, fixed aspect ratios (posters 2:3, artists 1:1, books 2:3) and a blur-up placeholder, so rows never jump.
 
@@ -252,7 +260,7 @@ There is **one agent, built as a hybrid**:
 - `ToolRetryMiddleware` for temporary errors.
 - `ModelFallbackMiddleware`: switches to the Groq fallback model when a Gemini call fails or times out.
 - A 25-second overall timeout.
-- Row top-ups are code, not agent calls, and count toward a per-feed budget of `FEED_MAX_QLOO_CALLS` (24), most of them served from `qloo_cache`.
+- Row top-ups are code, not agent calls, and count toward a per-feed budget of `FEED_MAX_QLOO_CALLS` (24), most of them served from `qloo_cache`. The rows get whatever research and the fallback left unspent (`qloo_calls` in the state).
 
 When a limit is hit or the agent fails, the **rule-based fallback** takes over, so a feed is always produced.
 
@@ -264,6 +272,7 @@ When a limit is hit or the agent fails, the **rule-based fallback** takes over, 
 | 2 | `research`: the agent gets the brief (your signals, what you've been liking lately, country), asks Qloo for each type, then submits its 12 best "featured" picks. Every Qloo result joins the pool | **AI agent** |
 | 3 | `fallback`: runs only if research failed, hit a limit or returned too few. Fixed queries per type, relaxed up to 2 times (drop the popularity floor, widen to tags) | Code |
 | 4 | `build_rows`: pick the hero (the agent's best featured pick with an image), then each registered row takes from the pool or runs its fixed queries within the budget, ranked by Qloo affinity, then learned weight, then popularity | Code |
+| 4b | `add_songs`: the "Songs for you" row from the song catalogue, for the artists already in the feed | Code |
 | 5 | `guardrails`: remove excluded items, require a source on every item, dedupe across rows, drop short rows | **Code only** |
 | 6 | `decorate`: reasons (from the signal behind each pick), images, platform links, taste tags | Code |
 | 7 | `explain`: a "what changed since last time" summary (the first feed uses a template) | AI, with a template fallback |
@@ -339,6 +348,7 @@ Qloo needs no history. The first feed uses whatever you give:
 **Feedback into Qloo**
 - Items with a total weight ≥ 0.6 become Qloo signals next time, alongside verified favourites. The newest strong signals come first, so the feed follows your recent taste.
 - Excluded items go into `filter.exclude.entities`, and the guardrails remove them again.
+- **Songs:** Qloo has no songs, so liked, saved, opened and disliked on a song also count for its artist. "Not interested" in a song hides only that song; excluding an artist hides their songs too.
 
 **Ranking:** Qloo affinity first, then learned weight, then popularity.
 
@@ -435,7 +445,7 @@ The full notes are in `docs/QLOO_NOTES.md`.
 - **Never call `/recommendations` or `/recs`.**
 
 **Entity types we use:** `urn:entity:artist`, `movie`, `tv_show` and `book`.
-- Qloo has **no song type and no lyrics**. Music cards are artists; their link opens the artist's top songs. Never search Qloo for a song title or a lyric.
+- Qloo has **no song type and no lyrics**. Qloo's music picks are artists; their link opens the artist's top songs. Song cards come from the song catalogue for those artists (see "Songs" in the tech stack). Never search Qloo for a song title or a lyric.
 
 **Parameters we use**
 - `signal.interests.entities`
@@ -463,6 +473,11 @@ The full notes are in `docs/QLOO_NOTES.md`.
 - Before using a video, call `videos.list` to check that `status.embeddable` is true, and read `contentDetails.duration`. Skip Shorts (under 90 seconds or `#shorts` in the title).
 - If nothing fits, hide the Preview button for that item. **Never substitute an unrelated video.**
 - Without `YOUTUBE_API_KEY`, the Preview button is hidden.
+
+**Song previews (iTunes).** A song card's `preview_url` is Apple's 30-second preview. Apple's Search API terms shape how it's used:
+- it plays only on tap, streamed and never downloaded, saved or cached (we keep the URL, never the file);
+- it's shown next to the song's Apple Music link and credited "Previews courtesy of iTunes";
+- artwork and previews are only used to promote the song.
 
 ---
 
@@ -522,7 +537,7 @@ The full notes are in `docs/QLOO_NOTES.md`.
 
 **States and badges**
 - Always show loading (skeletons), empty and error states, each designed, not plain text.
-- Recommendations show a "Demo data" or "Live Qloo" badge.
+- Recommendations show a "Demo data" or "Live Qloo" badge, and song cards "Song via iTunes".
 
 ---
 
@@ -578,7 +593,7 @@ The full notes are in `docs/QLOO_NOTES.md`.
 
 **End-to-end (Phase 4):** Playwright runs the judge path (see `docs/PLAN.md`) against a local stack, and by hand after the Thursday-night deploy.
 
-**Never call live Qloo, YouTube or the LLM in CI.**
+**Never call live Qloo, YouTube, iTunes or the LLM in CI.** Songs use `FakeSongCatalog`.
 
 ---
 
@@ -618,6 +633,7 @@ cd e2e && npx playwright test
   - `QLOO_API_KEY` (empty means demo fixtures)
   - `QLOO_BASE_URL`
 - YouTube (optional preview): `YOUTUBE_API_KEY`
+- Songs (iTunes, no key): `SONGS_ENABLED=true`
 - LLM:
   - `LLM_PROVIDER`
   - `LLM_MODEL`

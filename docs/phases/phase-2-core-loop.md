@@ -61,9 +61,10 @@ A fixture-backed `build_feed` that returns a `Feed` in the real shape (hero plus
 
 ### Agent 5. Row strategies (`application/rows/`)
 - `FeedRow` (`applies`, `queries`, `select`) and `RowRegistry`, replacing `application/modes/`.
-- Rows: `for_you`, `cross_culture` (right rail, one per type: Watch, Read, Listen), `because_<ref>` (up to 2), `music`, `films`, `tv`, `books`, `popular_<country>`, `throwback`. (`journal` comes in Phase 3.)
+- Rows: `for_you`, `cross_culture` (right rail, one per type: Watch, Read, Listen), `because_<ref>` (up to 2), `music`, `films`, `tv`, `books`, `new` (New and notable), `popular_<country>`, `throwback`. (`journal` comes in Phase 3.)
+- **Added 25 Oct:** the `songs` row ("Songs for you") from the `add_songs` node, using the iTunes song catalogue for the artists Qloo picked (`PLAN.md`, decision 18b). Done.
 - Also compute `taste_tags` (up to 8 tag names from favourites and strong signals) for the sidebar chips.
-- The per-feed budget `FEED_MAX_QLOO_CALLS` (24) is shared and enforced in code.
+- The per-feed budget `FEED_MAX_QLOO_CALLS` (24) is shared and enforced in code: the rows get what research and the fallback left unspent.
 
 ### Agent 6. `explain` with templates
 - One LLM call writes reasons (≤ 12 words each) and the "what changed" summary from item titles, signal titles and the previous feed's tags.
@@ -78,6 +79,7 @@ A fixture-backed `build_feed` that returns a `Feed` in the real shape (hero plus
 Hand-written fixtures, all `"demo": true`:
 - **Aanya** (India): indie and alt rock, sci-fi films, a few likes, one not-interested item.
 - **Leo** (US): classic films and jazz, a couple of books.
+- Done in `fixtures/profiles.json` (`likes`, `not_interested`, by name; the seed resolves them by search). Aanya likes Tame Impala and Dune and isn't interested in Euphoria; Leo likes Ray Charles, Breakfast at Tiffany's and The Catcher in the Rye. Their related lists are in `insights.json`.
 
 ### Agent 9. Tests
 - Each node with a scripted fake model; research stops at its limits and the fallback still gives a feed.

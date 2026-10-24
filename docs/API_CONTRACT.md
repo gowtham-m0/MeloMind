@@ -176,16 +176,27 @@ else's profile, feed, run or item is a `404`.
   "source": "qloo_live",
   "links": [PlatformLink],
   "liked": false,
-  "saved": false
+  "saved": false,
+  "creator": null,
+  "preview_url": null
 }
 ```
 
-- `ref`: the Qloo entity ID, or `fav:<id>` for a favourite with none.
-- `entity_type`: `artist`, `movie`, `tv_show` or `book`. Music cards are artists.
-- `year`: release year for films and TV, publication year for books, `null` for artists.
-- `image_url`: Qloo's image, an Open Library cover for books, or `null` (show the fallback tile).
-  `image_aspect`: `square` (artists) or `poster` (films, TV, books).
-- `source`: `qloo_live`, `demo_fixture` or `favourite`. Show "Live Qloo" or "Demo data".
+- `ref`: the Qloo entity ID, `fav:<id>` for a favourite with none, or `song:<track id>` for a
+  song card.
+- `entity_type`: `artist`, `movie`, `tv_show`, `book` or `song`. Qloo's music picks are artists; a
+  `song` is a top track of an artist Qloo picked, looked up in Apple's iTunes catalogue.
+- `year`: release year for films, TV and songs, publication year for books, `null` for artists.
+- `image_url`: Qloo's image, an Open Library cover for books, the iTunes artwork for songs, or
+  `null` (show the fallback tile). `image_aspect`: `square` (artists, songs) or `poster` (films,
+  TV, books).
+- `source`: `qloo_live`, `demo_fixture`, `favourite` or `song_catalogue`. Show "Live Qloo", "Demo
+  data" or "Song via iTunes".
+- `creator`, `preview_url` (songs only, otherwise `null`): the credited artists, and Apple's
+  30-second preview to stream on tap only, next to the Apple Music link, credited "courtesy of
+  iTunes". Never download or cache it.
+- A song's `because_of` is the signal behind its artist, and its `reason` names the artist
+  ("A top song by Glass Animals, …").
 - `tags`: up to 4 tag names, genres first, for chips.
 - `because_of`: `{ ref, title }` of the signal behind the pick, or `null` (popular picks).
 - `liked`, `saved`: the user's current state, for the heart and the bookmark.
@@ -198,8 +209,9 @@ else's profile, feed, run or item is a `404`.
 
 - `platform`: `youtube`, `spotify`, `youtube_music`, `apple_music`, `justwatch`, `netflix`,
   `prime_video`, `google_books`, `goodreads`, `amazon`, `open_library`, `imdb`.
-- `kind`: `direct` (built from a Qloo external ID; label "Watch on" / "Listen on" / "Read on") or
-  `search` (label "Search on …"). The first link is the primary button.
+- `kind`: `direct` (built from a Qloo external ID, or a song's Apple Music store link; label
+  "Open on" / "Listen on") or `search` (label "Search on …"). The first link is the primary
+  button. A song card's first link is "Listen on Apple Music".
 
 `Feed`:
 
@@ -219,6 +231,10 @@ else's profile, feed, run or item is a `404`.
 ```
 
 - `placement`: `main` for the main column, `rail` for the right rail (`cross_culture`). The `cross_culture` row's title is "Cross-culture picks" and its subtitle "Because you like The 1975…".
+- Row `key`s, in order when present: `for_you`, `cross_culture`, `because_<ref>` (up to 2),
+  `music`, `songs` (song cards, right after `music`), `films`, `tv`, `books`, `new` ("New and
+  notable"), `popular_<country>`, `journal` (Phase 3), `throwback`. Rows under 4 items are left
+  out, so the frontend renders whatever arrives in order.
 - `taste_tags`: up to 8 tag names for the sidebar's "Your taste profile" chips.
 
 - `status`: `building`, `done` or `failed`.
@@ -240,9 +256,17 @@ else's profile, feed, run or item is a `404`.
 ```
 
 - `kind`: `feed`, `resolve` or `link`. `status`: `running`, `done`, `failed` or `needs_hint`.
+- Feed `node`s: `load_context`, `research`, `fallback`, `build_rows`, `add_songs`, `guardrails`,
+  `decorate`, `explain`, and `feed` for the final line.
 - `result` for `feed`: `{ "feed_id", "research_outcome", "fallback_attempts", "row_count", "item_count", "source" }`.
 
-`ItemDetail`: a `FeedItem` plus `{ "more_like_this": [FeedItem], "preview_available": true }`.
+`ItemDetail`: a `FeedItem` plus
+`{ "more_like_this": [FeedItem], "preview_available": true, "songs": [FeedItem] }`.
+
+- `songs`: an artist's own top songs from the song catalogue (empty for other types, or with no
+  catalogue).
+- `preview_available`: whether `POST …/preview` can look up a YouTube video. A song plays its
+  `preview_url` instead.
 
 ### `GET /api/v1/profiles/{id}/feed`
 
@@ -261,7 +285,8 @@ already running, returns that one. More than `FEED_RATE_LIMIT_PER_HOUR` builds i
 ### `GET /api/v1/profiles/{id}/items/{ref}`
 
 `200`: `ItemDetail`. `more_like_this` is up to 12 items from one insights call with this item as
-the signal, minus exclusions (cached). `404` for an excluded item.
+the signal, minus exclusions (cached). For a song it's "After this song": Qloo's artists for the
+song's artist, one top song each. `404` for an excluded item.
 
 ### `POST /api/v1/profiles/{id}/items/{ref}/preview`
 
@@ -281,6 +306,8 @@ Body: `{ "ref", "title", "entity_type"?, "signal", "platform"? }`, where `signal
 - `opened` counts once per item per day (`counted: false` after that); `platform` is the link used.
   It doesn't mark the feed stale.
 - `unliked` and `unsaved` undo their signal.
+- On a song, `liked`, `unliked`, `saved`, `unsaved`, `opened` and `disliked` also count for its
+  artist (Qloo has no songs to learn from). `not_interested` on a song hides only that song.
 
 ### `GET /api/v1/profiles/{id}/library`
 
