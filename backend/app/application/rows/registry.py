@@ -7,6 +7,7 @@ from app.application.rows.rows import (
     BecauseRow,
     CrossCultureRow,
     ForYouRow,
+    NewReleasesRow,
     PopularRow,
     ThrowbackRow,
     TypeRow,
@@ -45,6 +46,7 @@ def default_registry(row_size: int = 12) -> RowRegistry:
                 "tv", EntityType.TV_SHOW, "TV shows for you", "Series worth starting", row_size
             ),
             TypeRow("books", EntityType.BOOK, "Books for you", "Your next great read", row_size),
+            NewReleasesRow(),
             PopularRow(),
             ThrowbackRow(),
         ]

@@ -22,6 +22,7 @@ from app.application.ports import (
     LanguageModel,
     MediaResolver,
     ProfileRepository,
+    SongCatalog,
     TasteGraph,
 )
 from app.application.rows.registry import default_registry
@@ -48,6 +49,11 @@ from app.infrastructure.media.youtube import (
     YOUTUBE_BASE_URL,
     YOUTUBE_TIMEOUT_SECONDS,
     YouTubeMediaResolver,
+)
+from app.infrastructure.music.itunes import (
+    ITUNES_BASE_URL,
+    ITUNES_TIMEOUT_SECONDS,
+    ITunesSongCatalog,
 )
 from app.infrastructure.persistence.db import create_engine, create_sessionmaker
 from app.infrastructure.persistence.memory_caches import InMemoryMediaCache, InMemoryQlooCache
@@ -92,7 +98,8 @@ QlooModeDep = Annotated[QlooMode, Depends(get_qloo_mode)]
 
 @dataclass(frozen=True)
 class Adapters:
-    """The adapters chosen for the ports. The LLM ones and media are None when no key is set."""
+    """The adapters chosen for the ports. The LLM ones and media are None when no key is set,
+    and songs when the songs row is turned off."""
 
     taste_graph: TasteGraph
     profiles: ProfileRepository
@@ -104,9 +111,12 @@ class Adapters:
     media: MediaResolver | None = None
     language_model: LanguageModel | None = None
     chat_models: ChatModels | None = None
+    songs: SongCatalog | None = None
 
 
-def memory_adapters(taste_graph: TasteGraph, media: MediaResolver | None = None) -> Adapters:
+def memory_adapters(
+    taste_graph: TasteGraph, media: MediaResolver | None = None, songs: SongCatalog | None = None
+) -> Adapters:
     """In-memory storage around a taste graph: for tests and for local runs without a database."""
     return Adapters(
         taste_graph=taste_graph,
@@ -117,6 +127,7 @@ def memory_adapters(taste_graph: TasteGraph, media: MediaResolver | None = None)
         exclusions=InMemoryExclusionRepository(),
         runs=InMemoryAgentRunRepository(),
         media=media,
+        songs=songs,
     )
 
 
@@ -163,6 +174,7 @@ def wire(
         ),
         language_model=adapters.language_model,
         chat_models=adapters.chat_models,
+        songs=adapters.songs,
     )
     feeds = FeedService(
         profiles,
@@ -174,7 +186,9 @@ def wire(
         runner,
         SlidingWindowRateLimiter(settings.feed_rate_limit_per_hour),
     )
-    feedback = FeedbackService(profiles, adapters.feedback, adapters.exclusions, feeds)
+    feedback = FeedbackService(
+        profiles, adapters.feedback, adapters.exclusions, feeds, catalog=adapters.catalog
+    )
     return Container(
         taste=taste,
         profiles=profiles,
@@ -189,6 +203,7 @@ def wire(
             adapters.exclusions,
             adapters.taste_graph,
             adapters.media,
+            adapters.songs,
         ),
         library=LibraryService(
             profiles, adapters.feedback, adapters.catalog, ItemSource(adapters.taste_graph.source)
@@ -273,6 +288,17 @@ async def build_container(settings: Settings) -> AsyncIterator[Container]:
                 YouTubeMediaResolver(youtube_client, youtube_key), media_cache
             )
 
+        songs: SongCatalog | None = None
+        if settings.songs_enabled:
+            itunes_client = await stack.enter_async_context(
+                httpx.AsyncClient(
+                    base_url=ITUNES_BASE_URL,
+                    timeout=ITUNES_TIMEOUT_SECONDS,
+                    headers={"User-Agent": "MeloMind/0.1 (Qloo Agentic Hackathon)"},
+                )
+            )
+            songs = ITunesSongCatalog(itunes_client)
+
         chat_models, language_model = build_llm(settings)
         runner = AsyncioBackgroundRunner()
         stack.push_async_callback(runner.close)
@@ -292,6 +318,7 @@ async def build_container(settings: Settings) -> AsyncIterator[Container]:
             media=media,
             language_model=language_model,
             chat_models=chat_models,
+            songs=songs,
         )
         yield wire(adapters, verifier, load_demo_profiles(), settings, runner)
 

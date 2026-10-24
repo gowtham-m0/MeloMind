@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from app.application.agent.builder import AgentFeedBuilder, FeedRequest, FeedResult
 from app.application.agent.deps import AgentLimits
 from app.application.agent.prompts.explain import ExplainOutput
-from app.application.ports import ChatModels, LanguageModel
+from app.application.ports import ChatModels, LanguageModel, SongCatalog
 from app.application.rows.registry import default_registry
 from app.domain.feed import FeedItem
 from app.domain.feedback import Exclusion, Feedback, Signal
@@ -21,7 +21,7 @@ from app.infrastructure.persistence.memory_feedback import (
 )
 from app.infrastructure.persistence.memory_runs import InMemoryAgentRunRepository
 from app.infrastructure.qloo.fixture_taste_graph import FixtureTasteGraph
-from tests.fakes import FakeLanguageModel, ScriptedChatModel, tool_call, turn
+from tests.fakes import FakeLanguageModel, FakeSongCatalog, ScriptedChatModel, tool_call, turn
 
 pytestmark = pytest.mark.anyio
 
@@ -76,6 +76,7 @@ async def build(
     excluded: list[str] | None = None,
     feedback: list[Feedback] | None = None,
     previous_refs: frozenset[str] = frozenset(),
+    songs: SongCatalog | None = None,
 ) -> tuple[FeedResult, list[str]]:
     runs = InMemoryAgentRunRepository()
     exclusions = InMemoryExclusionRepository()
@@ -95,6 +96,7 @@ async def build(
         limits=limits or AgentLimits(),
         language_model=language_model,
         chat_models=ChatModels(primary=chat) if chat else None,
+        songs=songs,
     )
     result = await builder.build(FeedRequest(profile, run.id, previous_refs=previous_refs))
     stored = await runs.get(run.id)
@@ -128,7 +130,8 @@ async def test_without_a_model_the_rule_based_fallback_still_builds_a_feed() -> 
     assert result.run_summary["research_outcome"] == "skipped"
     assert len(result.rows) >= 4
     assert any("rule-based" in line for line in log)
-    assert {item.entity_type for item in every_item(result)} == set(EntityType)
+    # Every Qloo type; songs need a song catalogue, which this build doesn't have.
+    assert {item.entity_type for item in every_item(result)} == set(EntityType) - {EntityType.SONG}
 
 
 async def test_the_research_agent_stops_at_its_limit_and_the_fallback_fills_in() -> None:
@@ -226,3 +229,41 @@ async def test_an_llm_failure_falls_back_to_the_template_summary() -> None:
 
     assert result.summary
     assert "explain: The AI summary didn't come back; used a template." in log
+
+
+async def test_songs_follow_the_artists_qloo_picked_and_sit_after_the_music_rows() -> None:
+    catalog = FakeSongCatalog()
+
+    result, log = await build(leo(), songs=catalog)
+
+    songs = next(row for row in result.rows if row.key == "songs")
+    artists = {i.title for i in every_item(result) if i.entity_type is EntityType.ARTIST}
+    assert len(songs.items) >= 4
+    assert set(catalog.asked) <= artists
+    for item in songs.items:
+        assert item.entity_type is EntityType.SONG
+        assert item.source.value == "song_catalogue"
+        assert item.parent_ref and item.parent_title in artists
+        assert item.reason.startswith("A top song by")
+        assert item.links[0].label == "Listen on Apple Music"
+    assert result.hero is None or result.hero.entity_type is not EntityType.SONG
+    assert any("Apple's catalogue" in line for line in log)
+
+
+async def test_a_dismissed_artist_takes_its_songs_with_it() -> None:
+    first, _ = await build(leo(), songs=FakeSongCatalog())
+    song = next(row for row in first.rows if row.key == "songs").items[0]
+    assert song.parent_ref is not None
+
+    result, _ = await build(leo(), songs=FakeSongCatalog(), excluded=[song.parent_ref])
+
+    refs = {item.parent_ref for item in every_item(result)}
+    assert song.parent_ref not in refs
+
+
+async def test_a_failing_song_catalogue_leaves_the_rest_of_the_feed() -> None:
+    result, log = await build(leo(), songs=FakeSongCatalog(fail=True))
+
+    assert all(row.key != "songs" for row in result.rows)
+    assert len(result.rows) >= 4
+    assert any("Songs for you" in line for line in log)

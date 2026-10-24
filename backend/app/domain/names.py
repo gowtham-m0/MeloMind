@@ -13,3 +13,27 @@ def normalise_name(name: str) -> str:
 def names_match(a: str, b: str) -> bool:
     """True when two names are the same apart from case, punctuation and spacing around initials."""
     return normalise_name(a).replace(" ", "") == normalise_name(b).replace(" ", "")
+
+
+# Spellings that differ between transliterations of Indian names: "Arijith" for "Arijit",
+# "Raheem" for "Rahim", "Shaan"-style double vowels.
+_SPELLING_RULES = (
+    (re.compile(r"(?<=t)h\b", re.IGNORECASE), ""),
+    (re.compile(r"ee", re.IGNORECASE), "i"),
+    (re.compile(r"oo", re.IGNORECASE), "u"),
+    (re.compile(r"aa", re.IGNORECASE), "a"),
+)
+
+
+def spelling_variants(text: str) -> list[str]:
+    """Other likely spellings of a typed name, each rule on its own and then all together.
+    Never includes `text` itself. Used only when the name as typed finds nothing."""
+    variants: list[str] = []
+    everything = text
+    for pattern, replacement in _SPELLING_RULES:
+        changed = pattern.sub(replacement, text)
+        everything = pattern.sub(replacement, everything)
+        for candidate in (changed, everything):
+            if candidate != text and candidate not in variants:
+                variants.append(candidate)
+    return variants

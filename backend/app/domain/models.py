@@ -14,12 +14,14 @@ def birth_year_max() -> int:
 
 
 class EntityType(StrEnum):
-    """The kinds of thing Qloo knows about that we use. Qloo has no song type."""
+    """The kinds of card we show. All but `SONG` are Qloo types. Qloo has no songs: a song card
+    is a catalogue lookup for an artist Qloo picked, and never goes to Qloo."""
 
     ARTIST = "artist"
     MOVIE = "movie"
     TV_SHOW = "tv_show"
     BOOK = "book"
+    SONG = "song"
 
 
 class FavouriteKind(StrEnum):

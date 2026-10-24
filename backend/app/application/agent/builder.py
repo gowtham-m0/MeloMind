@@ -13,6 +13,7 @@ from app.application.ports import (
     ExclusionRepository,
     FeedbackRepository,
     LanguageModel,
+    SongCatalog,
     TasteGraph,
 )
 from app.application.rows.registry import RowRegistry
@@ -55,6 +56,7 @@ class AgentFeedBuilder:
         limits: AgentLimits,
         language_model: LanguageModel | None = None,
         chat_models: ChatModels | None = None,
+        songs: SongCatalog | None = None,
     ) -> None:
         self._feedback = feedback
         self._exclusions = exclusions
@@ -64,6 +66,7 @@ class AgentFeedBuilder:
         self._limits = limits
         self._language_model = language_model
         self._chat_models = chat_models
+        self._songs = songs
 
     async def build(self, request: FeedRequest) -> FeedResult:
         """Run build_feed to the end. A feed is always produced unless a port breaks."""
@@ -76,6 +79,7 @@ class AgentFeedBuilder:
             limits=self._limits,
             language_model=self._language_model,
             chat_models=self._chat_models,
+            songs=self._songs,
             previous_refs=request.previous_refs,
             previous_tags=request.previous_tags,
         )

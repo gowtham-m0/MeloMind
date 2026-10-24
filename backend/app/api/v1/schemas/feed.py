@@ -58,7 +58,11 @@ class BecauseOfOut(BaseModel):
 
 
 class FeedItemOut(BaseModel):
-    """One card. `liked` and `saved` show the user's current state for the heart and bookmark."""
+    """One card. `liked` and `saved` show the user's current state for the heart and bookmark.
+
+    Songs add `creator` (the credited artists) and `preview_url`: Apple's 30-second preview, to
+    stream only on tap, next to the Apple Music link, credited "courtesy of iTunes".
+    """
 
     ref: str
     title: str
@@ -76,6 +80,8 @@ class FeedItemOut(BaseModel):
     links: list[PlatformLinkOut]
     liked: bool
     saved: bool
+    creator: str | None = None
+    preview_url: str | None = None
 
     @classmethod
     def from_domain(cls, item: FeedItem, states: States) -> Self:
@@ -103,6 +109,8 @@ class FeedItemOut(BaseModel):
             links=[PlatformLinkOut.from_domain(link) for link in item.links],
             liked=Signal.LIKED in state,
             saved=Signal.SAVED in state,
+            creator=item.creator,
+            preview_url=item.preview_url,
         )
 
 
@@ -159,10 +167,12 @@ class FeedOut(BaseModel):
 
 
 class ItemDetailOut(FeedItemOut):
-    """A card plus more like it, and whether a preview can be looked up."""
+    """A card plus more like it ("After this song" for a song), an artist's top songs, and
+    whether a YouTube preview can be looked up."""
 
     more_like_this: list[FeedItemOut]
     preview_available: bool
+    songs: list[FeedItemOut]
 
     @classmethod
     def from_detail(cls, detail: ItemDetail, states: States) -> Self:
@@ -174,6 +184,7 @@ class ItemDetailOut(FeedItemOut):
                 FeedItemOut.from_domain(item, states) for item in detail.more_like_this
             ],
             preview_available=detail.preview_available,
+            songs=[FeedItemOut.from_domain(item, states) for item in detail.songs],
         )
 
 

@@ -11,6 +11,7 @@ from app.application.ports import (
     ExclusionRepository,
     FeedbackRepository,
     LanguageModel,
+    SongCatalog,
     TasteGraph,
 )
 from app.application.rows.registry import RowRegistry
@@ -31,7 +32,7 @@ class AgentLimits:
 @dataclass(frozen=True)
 class FeedDeps:
     """Everything one feed run's nodes need. `previous_refs` and `previous_tags` describe the
-    last feed, so the summary can say what changed."""
+    last feed, so the summary can say what changed. Without `songs` there's no songs row."""
 
     feedback: FeedbackRepository
     exclusions: ExclusionRepository
@@ -41,5 +42,6 @@ class FeedDeps:
     limits: AgentLimits
     language_model: LanguageModel | None = None
     chat_models: ChatModels | None = None
+    songs: SongCatalog | None = None
     previous_refs: frozenset[str] = frozenset()
     previous_tags: tuple[str, ...] = ()

@@ -17,14 +17,15 @@ SIGNAL_WEIGHTS: dict[Signal, float] = {
     Signal.SAVED: 0.6,
     Signal.UNSAVED: -0.6,
     Signal.OPENED: 0.3,
-    Signal.QUIZ_PICK: 0.5,
+    Signal.QUIZ_PICK: 0.6,
     Signal.JOURNAL_CONFIRMED: 1.0,
     Signal.DISLIKED: -0.5,
     Signal.NOT_INTERESTED: 0.0,
 }
 # Signals that count at most once per item per day, so repeated taps don't inflate a weight.
 ONCE_A_DAY = frozenset({Signal.OPENED})
-# Items whose total weight reaches this become Qloo signals in the next feed.
+# Items whose total weight reaches this become Qloo signals in the next feed. A single quiz pick
+# or save is enough; an open (0.3) needs a second one on another day.
 SIGNAL_THRESHOLD = 0.6
 # Affinities this close count as a tie, so learned weight can decide between them.
 AFFINITY_BAND = 0.1

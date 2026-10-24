@@ -13,14 +13,15 @@ interface FeedRowViewProps {
   onLike: (item: FeedItem) => void;
   onSave: (item: FeedItem) => void;
   onDismiss: (item: FeedItem) => void;
+  onOpened?: (item: FeedItem, platform: string) => void;
 }
 
 /** A titled row that scrolls sideways with snap: swipe on phones, arrow buttons on desktop. */
 export function FeedRowView({ row, seeAll, ...actions }: FeedRowViewProps) {
   const scroller = useRef<HTMLUListElement>(null);
   const types = new Set(row.items.map((item) => item.entity_type));
-  const aspect =
-    types.size === 1 && types.has("artist") ? "square" : types.size === 1 ? "poster" : "portrait";
+  const squares = [...types].every((type) => type === "artist" || type === "song");
+  const aspect = squares ? "square" : types.size === 1 ? "poster" : "portrait";
   const headingId = `row-${row.key}-title`;
 
   function scrollBy(direction: 1 | -1) {

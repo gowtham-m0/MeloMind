@@ -8,8 +8,8 @@ from collections import Counter
 from collections.abc import Sequence
 
 from app.application.agent.types import Candidate
-from app.application.ports import EntityMatch
-from app.domain.feed import FeedItem, ItemSource
+from app.application.ports import EntityMatch, Song
+from app.domain.feed import FeedItem, ItemSource, song_ref
 from app.domain.links import platform_links
 from app.domain.models import EntityType
 from app.domain.names import normalise_name
@@ -74,6 +74,35 @@ def candidate_from_match(
     )
 
 
+def candidate_from_song(
+    song: Song,
+    artist_ref: str,
+    artist_name: str,
+    signal: str,
+    because_ref: str | None = None,
+    because_name: str | None = None,
+) -> Candidate:
+    """A song card's candidate. The pick is Qloo's (the artist); the song is a catalogue lookup,
+    so `parent_ref` keeps the artist, and excluding the artist removes the song."""
+    return Candidate(
+        entity_id=song_ref(song.track_id),
+        name=song.title,
+        entity_type=EntityType.SONG,
+        source=ItemSource.SONG_CATALOGUE,
+        signal=signal,
+        because_ref=because_ref,
+        because_name=because_name,
+        release_year=song.year,
+        image_url=song.artwork_url,
+        description=song.album,
+        creator=song.artist_credit,
+        parent_ref=artist_ref,
+        parent_name=artist_name,
+        preview_url=song.preview_url,
+        store_url=song.store_url,
+    )
+
+
 def to_card(candidate: Candidate, country_code: str | None, reason: str | None = None) -> FeedItem:
     """A feed card for the candidate."""
     return FeedItem(
@@ -97,7 +126,13 @@ def to_card(candidate: Candidate, country_code: str | None, reason: str | None =
             year=candidate.release_year,
             external=dict(candidate.external),
             isbn13=candidate.isbn13,
+            creator=candidate.creator,
+            store_url=candidate.store_url,
         ),
+        creator=candidate.creator,
+        parent_ref=candidate.parent_ref,
+        parent_title=candidate.parent_name,
+        preview_url=candidate.preview_url,
     )
 
 

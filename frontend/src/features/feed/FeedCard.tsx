@@ -1,8 +1,9 @@
 import { cn } from "cn";
-import { Bookmark, Heart, X } from "lucide-react";
+import { ArrowUpRight, Bookmark, Heart, X } from "lucide-react";
 
 import type { FeedItem } from "@/shared/api/feed";
 import { TypeChip } from "@/shared/ui/chip";
+import { PreviewButton } from "@/shared/ui/preview-player";
 import { Thumb } from "@/shared/ui/thumb";
 import { TYPE_META, type ItemType } from "@/shared/ui/types";
 
@@ -13,6 +14,8 @@ interface FeedCardProps {
   onLike: (item: FeedItem) => void;
   onSave: (item: FeedItem) => void;
   onDismiss: (item: FeedItem) => void;
+  /** A platform link was used (counts as `opened`). */
+  onOpened?: (item: FeedItem, platform: string) => void;
   className?: string;
 }
 
@@ -21,8 +24,9 @@ const iconButton =
 
 /**
  * One recommendation: image, type, title, year, and the taste thread back to its source (or its
- * reason when it has none). Tapping opens the detail
- * sheet; the heart is always reachable, save and "not interested" appear on hover or focus.
+ * reason when it has none). Tapping opens the detail sheet; the heart is always reachable, save
+ * and "not interested" appear on hover or focus. A song adds its artists, a play button for
+ * Apple's 30-second preview, and the Apple Music link next to it (Apple's terms).
  */
 export function FeedCard({
   item,
@@ -31,9 +35,11 @@ export function FeedCard({
   onLike,
   onSave,
   onDismiss,
+  onOpened,
   className,
 }: FeedCardProps) {
   const type = item.entity_type as ItemType;
+  const store = type === "song" ? item.links.find((link) => link.platform === "apple_music") : null;
   return (
     <article className={cn("group/card relative flex flex-col gap-2.5", className)}>
       <div className="lift relative rounded-[10px]">
@@ -51,6 +57,14 @@ export function FeedCard({
             className={aspect === "portrait" ? "aspect-[3/4]" : undefined}
           />
         </button>
+        {item.preview_url && (
+          <PreviewButton
+            songRef={item.ref}
+            url={item.preview_url}
+            title={item.title}
+            className="absolute bottom-2 left-2"
+          />
+        )}
         <div className="absolute top-2 right-2 flex flex-col gap-1.5">
           <button
             type="button"
@@ -95,6 +109,7 @@ export function FeedCard({
         <h3 className="line-clamp-2 font-sans text-[15px] leading-snug font-semibold tracking-normal text-ink">
           {item.title}
         </h3>
+        {item.creator && <p className="truncate text-[13px] text-body">{item.creator}</p>}
         {item.because_of ? (
           <p className="flex min-w-0 items-center gap-1.5 text-[13px] leading-snug text-muted">
             <span
@@ -107,6 +122,18 @@ export function FeedCard({
           </p>
         ) : (
           <p className="line-clamp-2 text-[13px] leading-snug text-muted">{item.reason}</p>
+        )}
+        {store && (
+          <a
+            href={store.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => onOpened?.(item, store.platform)}
+            className="inline-flex min-h-8 items-center gap-1 self-start text-[13px] font-semibold text-primary-ink hover:underline"
+          >
+            {store.kind === "direct" ? "Apple Music" : "Find on Apple Music"}
+            <ArrowUpRight className="size-3.5" />
+          </a>
         )}
       </div>
     </article>

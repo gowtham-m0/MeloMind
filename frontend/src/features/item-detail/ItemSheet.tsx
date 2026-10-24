@@ -5,6 +5,7 @@ import { ArrowUpRight, Bookmark, Heart, Play, X } from "lucide-react";
 import { getItem, previewItem, type Feed, type FeedItem } from "@/shared/api/feed";
 import { Button } from "@/shared/ui/button";
 import { SourceBadge, TagChip, TypeChip } from "@/shared/ui/chip";
+import { PreviewButton, usePreviewPlayer } from "@/shared/ui/preview-player";
 import { Sheet } from "@/shared/ui/sheet";
 import { ErrorState, Skeleton } from "@/shared/ui/states";
 import { Thumb } from "@/shared/ui/thumb";
@@ -24,7 +25,8 @@ function findInFeed(feed: Feed | null | undefined, ref: string): FeedItem | unde
   );
 }
 
-/** The item behind `?item=`, in a sheet: why it's here, where to find it, and more like it. */
+/** The item behind `?item=`, in a sheet: why it's here, where to find it, and more like it. A
+ * song gets its preview next to the Apple Music link; an artist gets their top songs. */
 export function ItemSheet({ profileId }: { profileId: string }) {
   const { openRef, open, close } = useItemParam();
   return (
@@ -105,6 +107,7 @@ function ItemDetailBody({ profileId, itemRef, onOpen, onClose }: BodyProps) {
             <SourceBadge source={item.source} />
           </div>
           <h2 className="text-[30px] leading-[1.1] font-semibold">{item.title}</h2>
+          {item.creator && <p className="text-lg text-body">{item.creator}</p>}
           {item.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {item.tags.map((tag) => (
@@ -154,8 +157,9 @@ function ItemDetailBody({ profileId, itemRef, onOpen, onClose }: BodyProps) {
 
         <section aria-labelledby="where-title" className="flex flex-col gap-3">
           <h3 id="where-title" className="text-lg font-semibold">
-            Where to find it
+            {type === "song" ? "Listen" : "Where to find it"}
           </h3>
+          {item.preview_url && <SongPreview item={item} url={item.preview_url} />}
           {primary && (
             <Button asChild size="lg" className="w-full">
               <a
@@ -187,7 +191,7 @@ function ItemDetailBody({ profileId, itemRef, onOpen, onClose }: BodyProps) {
             </ul>
           )}
           <p className="text-[13px] text-muted">
-            “Search on” links search that service; “Open on” goes straight to the title.
+            “Search on” links search that service; “Open on” and “Listen on” go straight to it.
           </p>
         </section>
 
@@ -242,11 +246,28 @@ function ItemDetailBody({ profileId, itemRef, onOpen, onClose }: BodyProps) {
           </section>
         )}
 
+        {detail.data && detail.data.songs.length > 0 && (
+          <TopSongs
+            songs={detail.data.songs}
+            artist={item.title}
+            onOpen={onOpen}
+            onOpened={actions.opened}
+          />
+        )}
+
         {detail.data && detail.data.more_like_this.length > 0 && (
           <section aria-labelledby="more-title" className="flex flex-col gap-3">
-            <h3 id="more-title" className="text-lg font-semibold">
-              More like this
-            </h3>
+            <div>
+              <h3 id="more-title" className="text-lg font-semibold">
+                {type === "song" ? "After this song" : "More like this"}
+              </h3>
+              {type === "song" && (
+                <p className="text-sm text-muted">
+                  Songs by artists whose fans Qloo matches to{" "}
+                  {item.because_of?.title ?? item.creator ?? "this one"}.
+                </p>
+              )}
+            </div>
             <ul className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 md:-mx-7 md:px-7">
               {detail.data.more_like_this.map((more) => (
                 <li key={more.ref} className="w-28 shrink-0">
@@ -259,11 +280,18 @@ function ItemDetailBody({ profileId, itemRef, onOpen, onClose }: BodyProps) {
                       src={more.image_url}
                       title={more.title}
                       type={more.entity_type as ItemType}
-                      aspect={more.entity_type === "artist" ? "square" : "poster"}
+                      aspect={
+                        more.entity_type === "artist" || more.entity_type === "song"
+                          ? "square"
+                          : "poster"
+                      }
                     />
                     <span className="line-clamp-2 text-[13px] leading-snug font-semibold text-ink">
                       {more.title}
                     </span>
+                    {more.creator && (
+                      <span className="truncate text-xs text-muted">{more.creator}</span>
+                    )}
                   </button>
                 </li>
               ))}
@@ -273,5 +301,104 @@ function ItemDetailBody({ profileId, itemRef, onOpen, onClose }: BodyProps) {
         {detail.isPending && <Skeleton className="h-40 w-full" />}
       </div>
     </article>
+  );
+}
+
+/** A song's 30-second preview, right above its Apple Music link, credited to iTunes. */
+function SongPreview({ item, url }: { item: FeedItem; url: string }) {
+  const { playingRef, progress } = usePreviewPlayer();
+  const playing = playingRef === item.ref;
+  return (
+    <div className="flex items-center gap-3.5 rounded-xl bg-surface-2 p-3.5">
+      <PreviewButton songRef={item.ref} url={url} title={item.title} size="lg" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-semibold text-ink">
+          {playing ? "Playing a 30-second preview" : "Play a 30-second preview"}
+        </p>
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-line" aria-hidden>
+          <div
+            className="h-full origin-left rounded-full bg-primary transition-transform duration-200 ease-linear"
+            style={{ transform: `scaleX(${playing ? progress : 0})` }}
+          />
+        </div>
+        <p className="mt-1.5 text-xs text-muted">Preview provided courtesy of iTunes.</p>
+      </div>
+    </div>
+  );
+}
+
+interface TopSongsProps {
+  songs: FeedItem[];
+  artist: string;
+  onOpen: (ref: string) => void;
+  onOpened: (item: FeedItem, platform: string) => void;
+}
+
+/** An artist's best-known songs from Apple's catalogue, each with its preview and store link. */
+function TopSongs({ songs, artist, onOpen, onOpened }: TopSongsProps) {
+  return (
+    <section aria-labelledby="songs-title" className="flex flex-col gap-2">
+      <h3 id="songs-title" className="text-lg font-semibold">
+        Top songs by {artist}
+      </h3>
+      <ol className="flex flex-col">
+        {songs.map((song) => {
+          const store = song.links.find((link) => link.platform === "apple_music");
+          return (
+            <li
+              key={song.ref}
+              className="flex items-center gap-3 rounded-lg py-2 pr-1 transition-colors hover:bg-surface-2"
+            >
+              {song.preview_url ? (
+                <PreviewButton
+                  songRef={song.ref}
+                  url={song.preview_url}
+                  title={song.title}
+                  size="sm"
+                />
+              ) : (
+                <span className="size-9 shrink-0" />
+              )}
+              <button
+                type="button"
+                onClick={() => onOpen(song.ref)}
+                className="flex min-w-0 flex-1 items-center gap-3 text-left"
+              >
+                <Thumb
+                  src={song.image_url}
+                  title={song.title}
+                  type="song"
+                  aspect="square"
+                  className="size-11 shrink-0 rounded-md"
+                />
+                <span className="min-w-0">
+                  <span className="block truncate text-[15px] font-semibold text-ink">
+                    {song.title}
+                  </span>
+                  <span className="block truncate text-[13px] text-muted">
+                    {[song.description, song.year].filter(Boolean).join(" · ")}
+                  </span>
+                </span>
+              </button>
+              {store && (
+                <a
+                  href={store.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => onOpened(song, store.platform)}
+                  aria-label={`${store.label}: ${song.title}`}
+                  className="grid size-11 shrink-0 place-items-center rounded-lg text-primary-ink hover:bg-primary-tint"
+                >
+                  <ArrowUpRight className="size-[18px]" />
+                </a>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      <p className="text-xs text-muted">
+        Previews provided courtesy of iTunes. Songs open on Apple Music.
+      </p>
+    </section>
   );
 }

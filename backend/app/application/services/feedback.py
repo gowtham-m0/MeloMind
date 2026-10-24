@@ -9,10 +9,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-from app.application.ports import ExclusionRepository, FeedbackRepository
+from app.application.ports import CatalogRepository, ExclusionRepository, FeedbackRepository
 from app.application.services.feed import FeedService
 from app.application.services.profiles import ProfileService
 from app.core.errors import InvalidInputError
+from app.domain.feed import is_qloo_ref, is_song_ref
 from app.domain.feedback import Exclusion, Feedback, Signal
 from app.domain.models import EntityType, utc_now
 from app.domain.policies import counted_today, item_states
@@ -32,6 +33,19 @@ STALE_SIGNALS = frozenset(
         Signal.UNSAVED,
         Signal.DISLIKED,
         Signal.NOT_INTERESTED,
+    }
+)
+
+# Signals on a song that also count for its artist, the Qloo entity that can steer the feed.
+# "Not interested" in a song is about the song only.
+ARTIST_ECHO = frozenset(
+    {
+        Signal.LIKED,
+        Signal.UNLIKED,
+        Signal.SAVED,
+        Signal.UNSAVED,
+        Signal.OPENED,
+        Signal.DISLIKED,
     }
 )
 
@@ -75,12 +89,14 @@ class FeedbackService:
         exclusions: ExclusionRepository,
         feeds: FeedService,
         clock: Callable[[], datetime] = utc_now,
+        catalog: CatalogRepository | None = None,
     ) -> None:
         self._profiles = profiles
         self._feedback = feedback
         self._exclusions = exclusions
         self._feeds = feeds
         self._clock = clock
+        self._catalog = catalog
 
     async def record(
         self,
@@ -90,7 +106,8 @@ class FeedbackService:
         signal: Signal,
         platform: str | None = None,
     ) -> FeedbackEffect:
-        """A signal the user gave. The quiz and journal signals can't be sent this way."""
+        """A signal the user gave. The quiz and journal signals can't be sent this way. A signal on
+        a song also counts for its artist, since Qloo has no songs to learn from."""
         if signal in INTERNAL_SIGNALS:
             raise InvalidInputError("That signal is recorded by the app itself.")
         profile = await self._profiles.get(owner_id, profile_id)
@@ -99,7 +116,10 @@ class FeedbackService:
             title=_clean(item.title, TITLE_MAX, "The title"),
             entity_type=item.entity_type,
         )
-        return await self.record_for(profile.id, clean, signal, _clean_platform(platform))
+        effect = await self.record_for(profile.id, clean, signal, _clean_platform(platform))
+        if effect.counted and signal in ARTIST_ECHO and is_song_ref(clean.ref):
+            await self._echo_to_artist(profile.id, clean.ref, signal)
+        return effect
 
     async def record_for(
         self, profile_id: UUID, item: ItemRef, signal: Signal, platform: str | None = None
@@ -127,6 +147,19 @@ class FeedbackService:
         if stale:
             stale = await self._feeds.mark_stale(profile_id)
         return FeedbackEffect(True, _EFFECTS.get(signal, "Noted."), stale)
+
+    async def _echo_to_artist(self, profile_id: UUID, song_ref: str, signal: Signal) -> None:
+        if self._catalog is None:
+            return
+        song = (await self._catalog.get_many([song_ref])).get(song_ref)
+        if song is None or not song.parent_ref or not is_qloo_ref(song.parent_ref):
+            return
+        artist = ItemRef(
+            ref=song.parent_ref,
+            title=song.parent_title or song.creator or song.title,
+            entity_type=EntityType.ARTIST,
+        )
+        await self.record_for(profile_id, artist, signal)
 
     async def states(self, profile_id: UUID) -> dict[str, frozenset[Signal]]:
         """Which items are liked or saved, for the cards' heart and bookmark."""

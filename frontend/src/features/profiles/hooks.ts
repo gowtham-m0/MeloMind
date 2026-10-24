@@ -1,12 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import type { Feed } from "@/shared/api/feed";
 import {
   addFavourite,
   createProfile,
+  deleteProfile,
   getProfile,
   listProfiles,
+  updateProfile,
   type FavouriteCreate,
   type ProfileCreate,
+  type ProfileUpdate,
 } from "@/shared/api/profiles";
 
 /** The signed-in user's profiles. */
@@ -48,4 +52,32 @@ export function avatarColour(profileId: string): string {
     hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   }
   return AVATAR_COLOURS[hash % AVATAR_COLOURS.length];
+}
+
+/** Saves profile fields. Country and birth year change rows, so the feed is marked stale. */
+export function useUpdateProfile(profileId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ProfileUpdate) => updateProfile(profileId, body),
+    onSuccess: async (profile) => {
+      queryClient.setQueryData(["profile", profileId], profile);
+      queryClient.setQueryData<Feed | null>(["feed", profileId], (feed) =>
+        feed ? { ...feed, stale: true } : feed,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["profiles"] });
+    },
+  });
+}
+
+/** Deletes a profile and everything it owns, then forgets its cached data. */
+export function useDeleteProfile(profileId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => deleteProfile(profileId),
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: ["profile", profileId] });
+      queryClient.removeQueries({ queryKey: ["feed", profileId] });
+      await queryClient.invalidateQueries({ queryKey: ["profiles"] });
+    },
+  });
 }

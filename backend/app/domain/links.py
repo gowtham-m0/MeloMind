@@ -14,6 +14,7 @@ _DIGITS = re.compile(r"^\d{1,12}$")
 _IMDB_TITLE = re.compile(r"^tt\d{5,10}$")
 _GOODREADS_ID = re.compile(r"^\d{1,12}(?:[.-][\w-]{0,80})?$")
 _ISBN13 = re.compile(r"^\d{13}$")
+_APPLE_MUSIC_URL = re.compile(r"^https://music\.apple\.com/[\w/.%?=&-]{1,300}$")
 
 # JustWatch uses its own path for a few countries; the rest use the lower-case ISO code.
 _JUSTWATCH_PATHS = {"GB": "uk"}
@@ -61,6 +62,25 @@ def _music_links(query: str, external: Mapping[str, str]) -> list[PlatformLink]:
         _search("youtube_music", "YouTube Music", f"https://music.youtube.com/search?q={q}")
     )
     links.append(_search("apple_music", "Apple Music", f"https://music.apple.com/search?term={q}"))
+    return links
+
+
+def _song_links(title: str, creator: str | None, store_url: str | None) -> list[PlatformLink]:
+    """Apple Music first: the catalogue that gave us the song, a direct link (rule 5)."""
+    query = f"{title} {creator}" if creator else title
+    q = quote_plus(query)
+    links: list[PlatformLink] = []
+    if store_url and _APPLE_MUSIC_URL.match(store_url):
+        links.append(_direct("apple_music", "Listen on Apple Music", store_url))
+    else:
+        links.append(
+            _search("apple_music", "Apple Music", f"https://music.apple.com/search?term={q}")
+        )
+    links.append(_search("youtube", "YouTube", f"https://www.youtube.com/results?search_query={q}"))
+    links.append(_search("spotify", "Spotify", f"https://open.spotify.com/search/{quote(query)}"))
+    links.append(
+        _search("youtube_music", "YouTube Music", f"https://music.youtube.com/search?q={q}")
+    )
     return links
 
 
@@ -141,11 +161,15 @@ def platform_links(
     external: Mapping[str, str] | None = None,
     isbn13: str | None = None,
     song_title: str | None = None,
+    creator: str | None = None,
+    store_url: str | None = None,
 ) -> tuple[PlatformLink, ...]:
     """The links for an item, best first: the first one is the card's main button.
 
     For a song favourite, `title` is the singer and `song_title` the song, so music links search
-    for both. External IDs are used only when they look valid, so nothing odd reaches a URL.
+    for both. For a song card, `title` is the song, `creator` its artists and `store_url` its
+    Apple Music page. External IDs and URLs are used only when they look valid, so nothing odd
+    reaches a link.
     """
     name = " ".join(title.split())
     ids = external or {}
@@ -162,3 +186,5 @@ def platform_links(
             return tuple(_screen_links(name, year, country, ids))
         case EntityType.BOOK:
             return tuple(_book_links(name, country, ids, isbn13))
+        case EntityType.SONG:
+            return tuple(_song_links(name, creator, store_url))

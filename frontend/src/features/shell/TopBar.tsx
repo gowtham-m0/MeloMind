@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { ChevronDown, LogOut, Search, Users } from "lucide-react";
+import { ChevronDown, LogOut, Search, Settings, Users } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useState, type RefObject } from "react";
 import { useNavigate } from "react-router";
@@ -66,6 +66,12 @@ export function TopBar({ profileId, searchRef }: TopBarProps) {
               sideOffset={8}
               className="rise-in z-50 min-w-52 rounded-xl border border-hairline bg-surface p-1.5 shadow-lift"
             >
+              <DropdownMenu.Item
+                onSelect={() => void navigate(`/p/${profileId}/settings`)}
+                className="flex h-11 cursor-pointer items-center gap-3 rounded-lg px-3 text-[15px] text-ink outline-none data-highlighted:bg-surface-2"
+              >
+                <Settings className="size-4 text-muted" /> Settings
+              </DropdownMenu.Item>
               <DropdownMenu.Item
                 onSelect={() => void navigate("/profiles")}
                 className="flex h-11 cursor-pointer items-center gap-3 rounded-lg px-3 text-[15px] text-ink outline-none data-highlighted:bg-surface-2"

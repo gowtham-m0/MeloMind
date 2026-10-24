@@ -270,3 +270,35 @@ def test_refresh_is_rate_limited(verifier: SupabaseTokenVerifier, auth: AuthHead
 
     assert statuses[:20] == [202] * 20
     assert statuses[20] == 429
+
+
+def test_the_quiz_follows_the_profiles_favourites(
+    client: TestClient, auth: AuthHeaders, user_id: UUID
+) -> None:
+    headers = auth(user_id)
+    profile_id = leo(client, headers)
+    profile = client.get(f"{API}/profiles/{profile_id}", headers=headers).json()
+    loved = {favourite["name"] for favourite in profile["favourites"]}
+
+    pair = client.post(
+        f"{API}/profiles/{profile_id}/quiz/next", json={"shown_refs": []}, headers=headers
+    ).json()["pair"]
+
+    assert all(item["reason"].startswith("Because you like") for item in pair)
+    assert not {item["title"] for item in pair} & loved
+
+
+def test_the_quiz_for_a_new_profile_uses_popular_titles(
+    client: TestClient, auth: AuthHeaders, user_id: UUID
+) -> None:
+    headers = auth(user_id)
+    created = client.post(
+        f"{API}/profiles", json={"display_name": "New", "country_code": "IN"}, headers=headers
+    ).json()
+
+    pair = client.post(
+        f"{API}/profiles/{created['id']}/quiz/next", json={"shown_refs": []}, headers=headers
+    ).json()["pair"]
+
+    assert pair is not None
+    assert all(item["reason"] == "Popular right now." for item in pair)

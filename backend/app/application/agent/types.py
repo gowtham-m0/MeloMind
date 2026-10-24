@@ -65,7 +65,8 @@ class Candidate:
 
     `signal` is that basis in words ("similar to The Strokes, which you love"), and
     `because_ref`/`because_name` the item behind it, when there is one. `featured` marks the
-    research agent's own best picks, which lead the "Recommended for you" row.
+    research agent's own best picks, which lead the "Recommended for you" row. Songs also carry
+    their credited artists, the Qloo artist they were looked up for, and catalogue URLs.
     """
 
     entity_id: str
@@ -85,6 +86,11 @@ class Candidate:
     tags: tuple[str, ...] = ()
     external: tuple[tuple[str, str], ...] = ()
     featured: bool = False
+    creator: str | None = None
+    parent_ref: str | None = None
+    parent_name: str | None = None
+    preview_url: str | None = None
+    store_url: str | None = None
 
 
 @dataclass(frozen=True)

@@ -124,6 +124,37 @@ class MediaResolver(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class Song:
+    """One song from the song catalogue. Qloo has no songs, so these are looked up for artists
+    Qloo picked; the catalogue never decides what to recommend.
+
+    `artist_credit` is everyone credited ("Arijit Singh & Shreya Ghoshal"). The URLs point at
+    the catalogue: artwork and a 30-second preview to stream on tap, never stored (rule 13), and
+    the song's store page, which the terms ask us to show next to the preview.
+    """
+
+    track_id: str
+    title: str
+    artist_credit: str
+    album: str | None = None
+    year: int | None = None
+    artwork_url: str | None = None
+    preview_url: str | None = None
+    store_url: str | None = None
+
+
+class SongCatalog(Protocol):
+    """A song catalogue for artists Qloo picked (Apple's iTunes Search API, or a fake)."""
+
+    async def top_songs(
+        self, artist: str, country_code: str | None = None, take: int = 5
+    ) -> list[Song]:
+        """The artist's best-known songs, credited to them, best first. Empty when the
+        catalogue has none. Raises `UpstreamError` when the catalogue fails."""
+        ...
+
+
 class LanguageModel(Protocol):
     """The one door to the LLM for structured answers (explain, interpret, extract)."""
 

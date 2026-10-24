@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from app.domain.feed import is_favourite_ref
+from app.domain.feed import is_favourite_ref, is_qloo_ref
 from app.domain.models import EntityType, utc_now
 from app.domain.names import normalise_name
 
@@ -79,5 +79,6 @@ class Blocklist:
 
     @property
     def qloo_ids(self) -> tuple[str, ...]:
-        """The excluded refs Qloo knows, for `filter.exclude.entities`."""
-        return tuple(sorted(ref for ref in self.refs if not is_favourite_ref(ref)))
+        """The excluded refs Qloo knows, for `filter.exclude.entities` (not favourites typed as
+        text, not songs)."""
+        return tuple(sorted(ref for ref in self.refs if is_qloo_ref(ref)))

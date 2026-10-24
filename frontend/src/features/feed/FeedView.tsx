@@ -57,6 +57,7 @@ export function FeedView({ profileId }: { profileId: string }) {
     onLike: (item: FeedItem) => void actions.toggleLike(item),
     onSave: (item: FeedItem) => void actions.toggleSave(item),
     onDismiss: (item: FeedItem) => void actions.notInterested(item),
+    onOpened: actions.opened,
   };
   const jump = (key: string) =>
     document.getElementById(`row-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });

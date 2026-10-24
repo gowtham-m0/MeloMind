@@ -17,6 +17,7 @@ const VERB_PHRASE: Record<ItemType, string> = {
   movie: "Watch",
   tv_show: "Binge",
   book: "Read",
+  song: "Play",
 };
 
 /** The top pick, big: its image, a bold line with the verb in amber, why it's here, and where to

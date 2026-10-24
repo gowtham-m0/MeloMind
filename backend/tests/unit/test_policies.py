@@ -32,7 +32,7 @@ def test_weights_add_up_per_item() -> None:
         signal("d", Signal.JOURNAL_CONFIRMED),
     ]
 
-    assert learned_weights(feedback) == {"a": 1.6, "b": 0.5, "c": -0.5, "d": 1.0}
+    assert learned_weights(feedback) == {"a": 1.6, "b": 0.6, "c": -0.5, "d": 1.0}
 
 
 def test_undo_signals_cancel_their_weight() -> None:
@@ -61,6 +61,10 @@ def test_strong_signals_come_newest_first() -> None:
     ]
 
     assert signal_refs(feedback) == ["new", "old"]
+
+
+def test_a_single_quiz_pick_is_a_strong_signal() -> None:
+    assert signal_refs([signal("picked", Signal.QUIZ_PICK)]) == ["picked"]
 
 
 def test_states_follow_the_latest_like_and_save() -> None:

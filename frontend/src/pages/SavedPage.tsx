@@ -1,33 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { RotateCcw } from "lucide-react";
-import { useParams } from "react-router";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useParams } from "react-router";
 
 import { CardGrid } from "@/features/feed/CardGrid";
-import { feedKey } from "@/features/feed/hooks";
-import { getLibrary, listExclusions, removeExclusion } from "@/shared/api/feed";
-import { Button } from "@/shared/ui/button";
-import { TypeChip } from "@/shared/ui/chip";
+import { getLibrary } from "@/shared/api/feed";
 import { EmptyState, ErrorState, Skeleton } from "@/shared/ui/states";
-import type { ItemType } from "@/shared/ui/types";
 
-/** Saved and liked items, and the not-interested list with undo. */
+/** Saved and liked items. The not-interested list lives in Settings. */
 export function SavedPage() {
   const { profileId = "" } = useParams();
-  const queryClient = useQueryClient();
   const library = useQuery({
     queryKey: ["library", profileId],
     queryFn: () => getLibrary(profileId),
-  });
-  const exclusions = useQuery({
-    queryKey: ["exclusions", profileId],
-    queryFn: () => listExclusions(profileId),
-  });
-  const undo = useMutation({
-    mutationFn: (exclusionId: string) => removeExclusion(profileId, exclusionId),
-    onSuccess: async (remaining) => {
-      queryClient.setQueryData(["exclusions", profileId], remaining);
-      await queryClient.invalidateQueries({ queryKey: feedKey(profileId) });
-    },
   });
 
   if (library.isPending) {
@@ -70,36 +53,16 @@ export function SavedPage() {
         )}
       </section>
 
-      <section aria-labelledby="hidden-title" className="flex flex-col gap-3">
-        <h2 id="hidden-title" className="text-[22px] font-semibold">
-          Not interested
-        </h2>
-        <p className="text-body">
-          These never show up in your feed. Changed your mind? Bring one back.
-        </p>
-        {exclusions.data && exclusions.data.length > 0 ? (
-          <ul className="flex flex-col divide-y divide-line rounded-xl border border-line">
-            {exclusions.data.map((entry) => (
-              <li key={entry.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate font-semibold text-ink">{entry.title}</span>
-                  {entry.entity_type && <TypeChip type={entry.entity_type as ItemType} />}
-                </span>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => undo.mutate(entry.id)}
-                  disabled={undo.isPending}
-                >
-                  <RotateCcw /> Bring back
-                </Button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted">Nothing hidden.</p>
-        )}
-      </section>
+      <p className="text-sm text-muted">
+        Looking for things you marked “Not interested”? They're in{" "}
+        <Link
+          to={`/p/${profileId}/settings`}
+          className="font-semibold text-primary-ink hover:underline"
+        >
+          Settings
+        </Link>
+        .
+      </p>
     </div>
   );
 }

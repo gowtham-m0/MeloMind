@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 from app.domain.models import EntityType, Favourite, FavouriteKind, utc_now
 
 FAVOURITE_REF_PREFIX = "fav:"
+SONG_REF_PREFIX = "song:"
 
 LinkKind = Literal["direct", "search"]
 RowPlacement = Literal["main", "rail"]
@@ -21,6 +22,8 @@ class ItemSource(StrEnum):
     QLOO_LIVE = "qloo_live"
     DEMO_FIXTURE = "demo_fixture"
     FAVOURITE = "favourite"
+    # A song of a Qloo-picked artist, looked up in Apple's catalogue (the pick is Qloo's).
+    SONG_CATALOGUE = "song_catalogue"
 
 
 def favourite_ref(favourite: Favourite) -> str:
@@ -33,14 +36,29 @@ def is_favourite_ref(ref: str) -> bool:
     return ref.startswith(FAVOURITE_REF_PREFIX)
 
 
+def song_ref(track_id: str) -> str:
+    """The ref of a song card: `song:<catalogue track ID>`."""
+    return f"{SONG_REF_PREFIX}{track_id}"
+
+
+def is_song_ref(ref: str) -> bool:
+    """True for a song card, which Qloo doesn't know."""
+    return ref.startswith(SONG_REF_PREFIX)
+
+
+def is_qloo_ref(ref: str) -> bool:
+    """True when the ref is a Qloo entity ID that may be sent to Qloo."""
+    return not is_favourite_ref(ref) and not is_song_ref(ref)
+
+
 def entity_type_of(kind: FavouriteKind) -> EntityType:
     """The card type of a favourite. A song shows as its singer, an artist card."""
     return EntityType.ARTIST if kind is FavouriteKind.SONG else EntityType(kind.value)
 
 
 def image_aspect(entity_type: EntityType) -> ImageAspect:
-    """Artists are square; films, TV and books are posters."""
-    return "square" if entity_type is EntityType.ARTIST else "poster"
+    """Artists and songs are square; films, TV and books are posters."""
+    return "square" if entity_type in (EntityType.ARTIST, EntityType.SONG) else "poster"
 
 
 @dataclass(frozen=True)
@@ -55,7 +73,13 @@ class PlatformLink:
 
 @dataclass(frozen=True)
 class FeedItem:
-    """One card. `because_of_ref` and `because_of_title` name the signal behind it (rule 2)."""
+    """One card. `because_of_ref` and `because_of_title` name the signal behind it (rule 2).
+
+    Songs also carry `creator` (the credited artists), `parent_ref` and `parent_title` (the Qloo
+    artist the song was looked up for: excluding the artist removes its songs, and liking the
+    song also steers by the artist) and `preview_url` (Apple's 30-second preview, streamed only
+    when the user taps play).
+    """
 
     ref: str
     title: str
@@ -71,6 +95,10 @@ class FeedItem:
     tags: tuple[str, ...] = ()
     description: str | None = None
     links: tuple[PlatformLink, ...] = ()
+    creator: str | None = None
+    parent_ref: str | None = None
+    parent_title: str | None = None
+    preview_url: str | None = None
 
     @property
     def image_aspect(self) -> ImageAspect:

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from app.application.agent.deps import FeedDeps
 from app.application.agent.state import FeedState
 from app.application.agent.types import FeedContext, SignalRef
-from app.domain.feed import entity_type_of, favourite_ref, is_favourite_ref
+from app.domain.feed import entity_type_of, favourite_ref, is_qloo_ref
 from app.domain.feedback import Blocklist, Exclusion, Feedback, Signal
 from app.domain.models import Favourite
 from app.domain.policies import learned_weights, signal_refs
@@ -92,7 +92,8 @@ def _learned_signals(
     signals: list[SignalRef] = []
     for ref in signal_refs(feedback):
         entry = latest[ref]
-        if is_favourite_ref(ref) or ref in taken or entry.entity_type is None:
+        # Songs aren't Qloo entities; a song's signal reaches the feed through its artist.
+        if not is_qloo_ref(ref) or ref in taken or entry.entity_type is None:
             continue
         if blocklist.blocks(ref, entry.title):
             continue

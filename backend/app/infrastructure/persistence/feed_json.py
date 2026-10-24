@@ -26,6 +26,10 @@ def item_to_json(item: FeedItem) -> dict[str, Any]:
             {"platform": link.platform, "label": link.label, "url": link.url, "kind": link.kind}
             for link in item.links
         ],
+        "creator": item.creator,
+        "parent_ref": item.parent_ref,
+        "parent_title": item.parent_title,
+        "preview_url": item.preview_url,
     }
 
 
@@ -51,6 +55,10 @@ def item_from_json(data: dict[str, Any]) -> FeedItem:
             )
             for link in data.get("links") or ()
         ),
+        creator=data.get("creator"),
+        parent_ref=data.get("parent_ref"),
+        parent_title=data.get("parent_title"),
+        preview_url=data.get("preview_url"),
     )
 
 

@@ -5,7 +5,7 @@ import pytest
 from app.application.services.taste import TasteService
 from app.core.errors import InvalidInputError
 from app.domain.models import EntityType, FavouriteKind
-from app.domain.names import names_match
+from app.domain.names import names_match, spelling_variants
 from app.infrastructure.qloo.fixture_taste_graph import FixtureTasteGraph
 
 pytestmark = pytest.mark.anyio
@@ -41,3 +41,43 @@ def test_names_match_ignores_case_punctuation_and_initial_spacing() -> None:
     assert names_match("T.M. Soundararajan", "t. m. soundararajan")
     assert names_match("P.Susheela", "P. Susheela")
     assert not names_match("Supremes", "The Supremes")
+
+
+class AcceptsOneSpelling(FixtureTasteGraph):
+    """Finds something only for one exact spelling, and records every query it was asked."""
+
+    def __init__(self, accepted: str) -> None:
+        super().__init__()
+        self.accepted = accepted
+        self.queries: list[str] = []
+
+    async def search(self, query, types, take):  # type: ignore[no-untyped-def]
+        self.queries.append(query)
+        if query != self.accepted:
+            return []
+        return await super().search("The Temptations", types, take)
+
+
+async def test_search_tries_other_spellings_when_nothing_is_found() -> None:
+    graph = AcceptsOneSpelling("arijit singh")
+
+    matches = await TasteService(graph).search("arijith singh")
+
+    assert matches
+    assert graph.queries[0] == "arijith singh"
+    assert graph.queries[-1] == "arijit singh"
+
+
+async def test_search_does_not_try_spellings_when_the_name_matches(taste: TasteService) -> None:
+    graph = AcceptsOneSpelling("The Temptations")
+
+    await TasteService(graph).search("The Temptations")
+
+    assert graph.queries == ["The Temptations"]
+
+
+def test_spelling_variants_cover_common_transliterations() -> None:
+    assert "arijit singh" in spelling_variants("arijith singh")
+    assert "rahim" in spelling_variants("raheem")
+    assert "singh" not in spelling_variants("singh")
+    assert spelling_variants("Dune") == []

@@ -15,11 +15,12 @@ from app.application.ports import (
 from app.core.errors import InvalidInputError, UpstreamError
 from app.domain.feed import is_favourite_ref
 from app.domain.models import EntityType, FavouriteKind, search_type_for
-from app.domain.names import names_match
+from app.domain.names import names_match, spelling_variants
 
 logger = logging.getLogger(__name__)
 
 SEARCH_TAKE = 8
+SPELLING_TRIES = 3
 QUERY_MAX_LENGTH = 100
 
 
@@ -35,14 +36,23 @@ class TasteService:
         return self._taste_graph.source
 
     async def search(self, query: str, kind: FavouriteKind | None = None) -> list[EntityMatch]:
-        """Matches for a name the user typed, of the type the favourite's kind needs."""
+        """Matches for a name the user typed, of the type the favourite's kind needs. When the name
+        as typed finds nothing, a few other spellings are tried ("Arijith" for "Arijit")."""
         text = " ".join(query.split())
         if not text:
             raise InvalidInputError("Type a name to search for.")
         if len(text) > QUERY_MAX_LENGTH:
             raise InvalidInputError(f"Keep the search under {QUERY_MAX_LENGTH} characters.")
         types: tuple[EntityType, ...] = (search_type_for(kind),) if kind else ()
-        return await self._taste_graph.search(text, types, SEARCH_TAKE)
+        matches = await self._taste_graph.search(text, types, SEARCH_TAKE)
+        if matches:
+            return matches
+        for variant in spelling_variants(text)[:SPELLING_TRIES]:
+            matches = await self._taste_graph.search(variant, types, SEARCH_TAKE)
+            if matches:
+                logger.info("Search found nothing for %r; the spelling %r did", text, variant)
+                return matches
+        return []
 
     async def find_by_name(self, name: str, kind: FavouriteKind) -> EntityMatch | None:
         """The match whose name is the same as `name` and whose type fits the kind, if any."""

@@ -8,6 +8,7 @@ import { NewProfilePage } from "@/pages/NewProfilePage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProfilesPage } from "@/pages/ProfilesPage";
 import { SavedPage } from "@/pages/SavedPage";
+import { SettingsPage } from "@/pages/SettingsPage";
 
 /** Every route. A profile's screens share the app shell under `/p/:profileId`. */
 export const router = createBrowserRouter([
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
       { path: "discover", element: <DiscoverPage /> },
       { path: "discover/:type", element: <DiscoverPage /> },
       { path: "saved", element: <SavedPage /> },
+      { path: "settings", element: <SettingsPage /> },
     ],
   },
   { path: "*", element: <NotFoundPage /> },

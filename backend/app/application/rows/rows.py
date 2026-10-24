@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date
 
 from app.application.agent.types import ALL_TYPES, Candidate, FeedContext
 from app.application.rows.base import (
@@ -22,6 +23,8 @@ CROSS_TAKE = 6
 POPULAR_FLOOR = 0.8
 COLD_POPULAR_FLOOR = 0.7
 THROWBACK_FLOOR = 0.6
+RECENT_YEARS = 1
+RECENT_POPULAR_FLOOR = 0.7
 
 
 @dataclass(frozen=True)
@@ -204,6 +207,42 @@ class PopularRow:
                 mixed=True,
                 order="popularity",
                 reason=f"Popular in {place} right now.",
+            )
+        ]
+
+
+@dataclass(frozen=True)
+class NewReleasesRow:
+    """Films and TV from the last couple of years, steered by taste."""
+
+    name: str = "new"
+
+    def applies(self, context: FeedContext) -> bool:
+        """Always."""
+        return True
+
+    def specs(self, context: FeedContext, pool: Sequence[Candidate]) -> list[RowSpec]:
+        """Recent films and TV; popular ones when there's no taste to follow yet."""
+        since = date.today().year - RECENT_YEARS
+        signals = top_signal_ids(context)
+        return [
+            RowSpec(
+                key="new",
+                title="New and notable",
+                subtitle=f"Films and shows from {since} on, matched to your taste",
+                queries=tuple(
+                    RowQuery(
+                        entity_type=entity_type,
+                        signal_ids=signals,
+                        popularity_min=None if signals else RECENT_POPULAR_FLOOR,
+                        country_code=None if signals else context.country_code,
+                        year_min=since,
+                        take=TOPUP_TAKE,
+                    )
+                    for entity_type in (EntityType.MOVIE, EntityType.TV_SHOW)
+                ),
+                mixed=True,
+                reason="Recent and close to your taste." if signals else "A recent hit.",
             )
         ]
 

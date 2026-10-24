@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
+import { PreviewPlayerProvider } from "@/shared/ui/preview-player";
 import { ToastProvider } from "@/shared/ui/toast";
 
 const queryClient = new QueryClient({
@@ -13,7 +14,9 @@ const queryClient = new QueryClient({
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <ToastProvider>{children}</ToastProvider>
+      <ToastProvider>
+        <PreviewPlayerProvider>{children}</PreviewPlayerProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

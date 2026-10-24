@@ -14,7 +14,14 @@ from pydantic import BaseModel, PrivateAttr
 
 from app.application.agent.log import RunLog
 from app.application.agent.types import FeedContext, SignalRef
-from app.application.ports import EntityMatch, InsightsQuery, PlayableMedia, TagMatch, TasteSource
+from app.application.ports import (
+    EntityMatch,
+    InsightsQuery,
+    PlayableMedia,
+    Song,
+    TagMatch,
+    TasteSource,
+)
 from app.application.services.background import Job
 from app.core.errors import UpstreamError
 from app.domain.feedback import Blocklist, Exclusion
@@ -222,3 +229,39 @@ TEMPTATIONS = SignalRef("demo-artist-the-temptations", "The Temptations", Entity
 SOUND_OF_MUSIC = SignalRef("demo-movie-the-sound-of-music", "The Sound of Music", EntityType.MOVIE)
 MOCKINGBIRD = SignalRef("demo-book-to-kill-a-mockingbird", "To Kill a Mockingbird", EntityType.BOOK)
 LEO_FAVOURITES = (SUPREMES, TEMPTATIONS, SOUND_OF_MUSIC, MOCKINGBIRD)
+
+
+class FakeSongCatalog:
+    """Invented songs for any artist, so song rows work without Apple. Records who was asked."""
+
+    def __init__(
+        self, per_artist: int = 3, fail: bool = False, empty: frozenset[str] = frozenset()
+    ) -> None:
+        self.per_artist = per_artist
+        self.fail = fail
+        self.empty = empty
+        self.asked: list[str] = []
+
+    async def top_songs(
+        self, artist: str, country_code: str | None = None, take: int = 5
+    ) -> list[Song]:
+        self.asked.append(artist)
+        if self.fail:
+            raise UpstreamError("The song catalogue is down.")
+        if artist in self.empty:
+            return []
+        slug = artist.lower().replace(" ", "-")
+        songs = [
+            Song(
+                track_id=f"{slug}-{n}",
+                title=f"{artist} Song {n}",
+                artist_credit=artist,
+                album=f"{artist} Album",
+                year=2010 + n,
+                artwork_url=f"https://art.test/{slug}-{n}.jpg",
+                preview_url=f"https://audio.test/{slug}-{n}.m4a",
+                store_url=f"https://music.apple.com/us/album/{slug}/{n}",
+            )
+            for n in range(1, self.per_artist + 1)
+        ]
+        return songs[:take]

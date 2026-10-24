@@ -1,7 +1,8 @@
-import { BookOpen, Clapperboard, Music2, Tv, type LucideIcon } from "lucide-react";
+import { AudioLines, BookOpen, Clapperboard, Music2, Tv, type LucideIcon } from "lucide-react";
 
-/** The four kinds of item MeloMind recommends. Qloo has no songs: music cards are artists. */
-export type ItemType = "artist" | "movie" | "tv_show" | "book";
+/** The kinds of card. Qloo picks artists, films, TV and books; a song is a top track of an
+ * artist Qloo picked, looked up in Apple's catalogue. */
+export type ItemType = "artist" | "movie" | "tv_show" | "book" | "song";
 
 interface TypeMeta {
   /** Singular label for chips. */
@@ -51,6 +52,16 @@ export const TYPE_META: Record<ItemType, TypeMeta> = {
     tint: "bg-tv/12",
     color: "var(--tv)",
   },
+  song: {
+    label: "Song",
+    plural: "Songs",
+    verb: "Listen",
+    icon: AudioLines,
+    dot: "bg-music",
+    text: "text-music-ink",
+    tint: "bg-music/15",
+    color: "var(--music)",
+  },
   book: {
     label: "Book",
     plural: "Books",
@@ -63,5 +74,5 @@ export const TYPE_META: Record<ItemType, TypeMeta> = {
   },
 };
 
-/** Type order used for tabs, tiles and the thread. */
+/** The four types Qloo recommends, in the order used for tabs, tiles and the thread. */
 export const ITEM_TYPES: ItemType[] = ["artist", "movie", "tv_show", "book"];

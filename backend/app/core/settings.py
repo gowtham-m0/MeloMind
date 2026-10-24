@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     # YouTube (optional preview)
     youtube_api_key: SecretStr = SecretStr("")
 
+    # Songs: Apple's iTunes Search API (no key). False turns the songs row off at once.
+    songs_enabled: bool = True
+
     # LLM
     llm_provider: str = ""
     llm_model: str = ""

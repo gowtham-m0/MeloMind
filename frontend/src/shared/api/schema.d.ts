@@ -430,10 +430,11 @@ export interface components {
         };
         /**
          * EntityType
-         * @description The kinds of thing Qloo knows about that we use. Qloo has no song type.
+         * @description The kinds of card we show. All but `SONG` are Qloo types. Qloo has no songs: a song card
+         *     is a catalogue lookup for an artist Qloo picked, and never goes to Qloo.
          * @enum {string}
          */
-        EntityType: "artist" | "movie" | "tv_show" | "book";
+        EntityType: "artist" | "movie" | "tv_show" | "book" | "song";
         /**
          * ExclusionOut
          * @description An item the user is not interested in. Deleting it undoes that.
@@ -502,6 +503,9 @@ export interface components {
         /**
          * FeedItemOut
          * @description One card. `liked` and `saved` show the user's current state for the heart and bookmark.
+         *
+         *     Songs add `creator` (the credited artists) and `preview_url`: Apple's 30-second preview, to
+         *     stream only on tap, next to the Apple Music link, credited "courtesy of iTunes".
          */
         FeedItemOut: {
             /** Ref */
@@ -536,6 +540,10 @@ export interface components {
             liked: boolean;
             /** Saved */
             saved: boolean;
+            /** Creator */
+            creator?: string | null;
+            /** Preview Url */
+            preview_url?: string | null;
         };
         /**
          * FeedOut
@@ -660,7 +668,8 @@ export interface components {
         };
         /**
          * ItemDetailOut
-         * @description A card plus more like it, and whether a preview can be looked up.
+         * @description A card plus more like it ("After this song" for a song), an artist's top songs, and
+         *     whether a YouTube preview can be looked up.
          */
         ItemDetailOut: {
             /** Ref */
@@ -695,17 +704,23 @@ export interface components {
             liked: boolean;
             /** Saved */
             saved: boolean;
+            /** Creator */
+            creator?: string | null;
+            /** Preview Url */
+            preview_url?: string | null;
             /** More Like This */
             more_like_this: components["schemas"]["FeedItemOut"][];
             /** Preview Available */
             preview_available: boolean;
+            /** Songs */
+            songs: components["schemas"]["FeedItemOut"][];
         };
         /**
          * ItemSource
          * @description Where an item came from (rule 1: never invent a recommendation).
          * @enum {string}
          */
-        ItemSource: "qloo_live" | "demo_fixture" | "favourite";
+        ItemSource: "qloo_live" | "demo_fixture" | "favourite" | "song_catalogue";
         /**
          * LibraryOut
          * @description Liked and saved items, newest first.

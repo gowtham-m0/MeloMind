@@ -53,8 +53,17 @@ export function ToggleChip({ selected, className, ...props }: ToggleChipProps) {
   );
 }
 
-/** "Live Qloo" or "Demo data", so nobody mistakes fixtures for real recommendations. */
+/** "Live Qloo", "Demo data" or, for a song (a catalogue lookup for a Qloo-picked artist),
+ * "Song via iTunes", so nobody mistakes where an item came from. */
 export function SourceBadge({ source }: { source: string }) {
+  if (source === "song_catalogue") {
+    return (
+      <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-music/15 px-2.5 text-xs font-semibold whitespace-nowrap text-music-ink">
+        <span aria-hidden className="size-1.5 rounded-full bg-music" />
+        Song via iTunes
+      </span>
+    );
+  }
   const demo = source === "demo_fixture";
   return (
     <span

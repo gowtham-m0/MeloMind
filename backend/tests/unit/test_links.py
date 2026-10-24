@@ -89,3 +89,26 @@ def test_a_song_favourite_searches_the_song_and_singer() -> None:
 
     assert all(link.kind == "search" for link in links)
     assert "Heat+Waves+Glass+Animals" in links[0].url
+
+
+def test_a_song_listens_on_apple_music_first_then_searches_by_title_and_artist() -> None:
+    links = platform_links(
+        "Paper Moons",
+        EntityType.SONG,
+        creator="The Lanterns",
+        store_url="https://music.apple.com/us/album/first-light/1?i=2",
+    )
+
+    assert links[0].label == "Listen on Apple Music"
+    assert links[0].kind == "direct"
+    assert all(link.label.startswith("Search on") for link in links[1:])
+    assert "Paper+Moons+The+Lanterns" in links[1].url
+
+
+def test_a_song_store_url_off_apple_music_becomes_a_search() -> None:
+    links = platform_links(
+        "Paper Moons", EntityType.SONG, creator="The Lanterns", store_url="https://evil.test/x"
+    )
+
+    assert links[0].label == "Search on Apple Music"
+    assert all("evil.test" not in link.url for link in links)
