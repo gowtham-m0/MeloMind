@@ -1,4 +1,12 @@
-import { BookOpen, Clapperboard, Music2, RefreshCw, Sparkles, type LucideIcon } from "lucide-react";
+import {
+  BookOpen,
+  Clapperboard,
+  Music2,
+  NotebookPen,
+  RefreshCw,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/shared/ui/button";
@@ -43,18 +51,21 @@ interface QuickAction {
   onSelect: () => void;
 }
 
-/** Shortcuts down the feed, and a fresh build. */
+/** Shortcuts down the feed, the journal composer, and a fresh build. */
 export function QuickActions({
   onJump,
   onRefresh,
+  onJournal,
 }: {
   onJump: (rowKey: string) => void;
   onRefresh: () => void;
+  onJournal: () => void;
 }) {
   const actions: QuickAction[] = [
     { label: "Watch something new", icon: Clapperboard, onSelect: () => onJump("films") },
     { label: "Find a book to read", icon: BookOpen, onSelect: () => onJump("books") },
     { label: "Play new music", icon: Music2, onSelect: () => onJump("music") },
+    { label: "Write in your journal", icon: NotebookPen, onSelect: onJournal },
     { label: "Shake up my feed", icon: RefreshCw, onSelect: onRefresh },
   ];
   return (

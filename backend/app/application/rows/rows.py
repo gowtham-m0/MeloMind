@@ -282,3 +282,47 @@ class ThrowbackRow:
                 reason="A favourite from your teens.",
             )
         ]
+
+
+JOURNAL_TYPES_MAX = 2
+_CROSS_TYPE = {
+    EntityType.ARTIST: EntityType.MOVIE,
+    EntityType.MOVIE: EntityType.ARTIST,
+    EntityType.TV_SHOW: EntityType.MOVIE,
+}
+
+
+@dataclass(frozen=True)
+class JournalRow:
+    """Picks steered by the items in confirmed journal links. Suggested links never count."""
+
+    name: str = "journal"
+
+    def applies(self, context: FeedContext) -> bool:
+        """When at least one confirmed journal item is known to Qloo."""
+        return bool(context.journal_signals)
+
+    def specs(self, context: FeedContext, pool: Sequence[Candidate]) -> list[RowSpec]:
+        """One insights call per type (at most two), with the journal items as the signals."""
+        signals = context.journal_signals
+        types: list[EntityType] = []
+        for signal in signals:
+            if signal.entity_type and signal.entity_type not in types:
+                types.append(signal.entity_type)
+        if len(types) == 1 and types[0] in _CROSS_TYPE:
+            types.append(_CROSS_TYPE[types[0]])
+        ids = tuple(signal.ref for signal in signals)
+        names = [signal.name for signal in signals[:2]]
+        about = " and ".join(names)
+        return [
+            RowSpec(
+                key="journal",
+                title="From your journal",
+                subtitle=f"Because you wrote about {about}",
+                queries=tuple(
+                    RowQuery(entity_type=entity_type, signal_ids=ids, take=TOPUP_TAKE)
+                    for entity_type in types[:JOURNAL_TYPES_MAX]
+                ),
+                mixed=True,
+            )
+        ]

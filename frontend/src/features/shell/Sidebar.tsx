@@ -33,8 +33,8 @@ function navItems(base: string): NavItem[] {
     { label: "Movies & TV", icon: Clapperboard, to: `${base}/discover/movie` },
     { label: "Books", icon: BookOpen, to: `${base}/discover/book` },
     { label: "Saved", icon: Bookmark, to: `${base}/saved` },
-    { label: "Journal", icon: NotebookPen },
-    { label: "Taste", icon: Sparkles },
+    { label: "Journal", icon: NotebookPen, to: `${base}/journal` },
+    { label: "Taste", icon: Sparkles, to: `${base}/taste` },
     { label: "Settings", icon: Settings, to: `${base}/settings` },
   ];
 }

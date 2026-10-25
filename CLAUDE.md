@@ -3,7 +3,7 @@
 This file tells Claude Code how to work in this repo. Read it at the start of every session.
 The plan, decisions, roles and risks are in `docs/PLAN.md`. Each phase's tasks are in their own file in `docs/phases/`.
 
-**Current phase: 2, Feed and the new frontend** (`docs/phases/phase-2-core-loop.md`). Update this line when a phase ends.
+**Current phase: 3, Journal and taste page** (`docs/phases/phase-3-memory-graph.md`). Update this line when a phase ends.
 
 > **Pivot, 24 Oct 2026.** MeloMind was a dementia music-session tool. It is now a **personal taste dashboard**. Code from Phases 0–1 and parts of the old Phase 2 are reused (see the phase file). Anything in the code about caregivers, sessions, Person mode or the warm-up shelf is being removed.
 
@@ -190,6 +190,7 @@ The home screen. It's a saved snapshot (`feeds` table), so it opens instantly. *
 | `for_you` | Recommended for you | The research agent's mixed candidates, all types |
 | `cross_culture` | Cross-culture picks (right rail) | One insights call per other type with the newest strong signal: "Because you like The 1975" → a film, a show, a book, an artist |
 | `because_<ref>` | Because you liked X | One insights call with the top 1–2 liked or favourite items as the signal |
+| `journal` | From your journal | Signals from confirmed journal links: one insights call per type (at most two) |
 | `music` | Music for you | Artists from the pool, topped up with an artist insights call |
 | `songs` | Songs for you | Not a row strategy: the `add_songs` node, after `build_rows`. Two top songs each from the first 6 artists in the feed, from the song catalogue. Sits right after `music`. No catalogue, a failure or fewer than 4 songs: no row |
 | `films` | Films for you | Films from the pool, topped up |
@@ -197,7 +198,6 @@ The home screen. It's a saved snapshot (`feeds` table), so it opens instantly. *
 | `books` | Books for you | Books from the pool, topped up |
 | `new` | New and notable | Films and TV from last year on (`filter.release_year.min`), steered by the signals; popular ones for the country when there are none |
 | `popular_<country>` | Popular in India | Films and TV with `filter.release_country` and a high popularity floor |
-| `journal` | From your journal | Signals from confirmed journal links (Phase 3) |
 | `throwback` | Throwback: your teens | Era window from birth year (only if set) |
 
 - Each row holds `FEED_ROW_SIZE` (12) items. **An item appears in at most one row**, and the hero isn't repeated.
@@ -357,7 +357,7 @@ These are simple heuristics. Describe them as that.
 ### Journal
 
 **Entries**
-- An entry has a date, text and optional mood. Write it, or tap the mic and **speak**: the browser records, `POST /journal/transcribe` returns text through Groq Whisper, and the user edits it before saving. Audio is discarded.
+- An entry has a date, text and optional mood. Write it, or tap the mic and **speak**: the browser records, `POST /journal/transcribe` (the raw recording as the body) returns text through Groq Whisper, and the user edits it before saving. Audio is discarded.
 - The editor reminds the user that entries are private and never shared.
 
 **Links**

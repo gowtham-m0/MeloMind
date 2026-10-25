@@ -92,6 +92,24 @@ class DemoFavouriteSpec:
 
 
 @dataclass(frozen=True)
+class DemoLinkSpec:
+    """A sample journal link by name: an item (resolved through taste search) or a place."""
+
+    name: str
+    kind: str
+
+
+@dataclass(frozen=True)
+class DemoJournalSpec:
+    """A sample journal entry, dated `days_ago` before the seed, with its confirmed links."""
+
+    days_ago: int
+    text: str
+    mood: str | None
+    links: tuple[DemoLinkSpec, ...]
+
+
+@dataclass(frozen=True)
 class DemoProfileSpec:
     """A sample profile the demo seed creates for each new user, with a few things it already
     liked and one it isn't interested in, so the demo starts with learned taste."""
@@ -105,3 +123,4 @@ class DemoProfileSpec:
     favourites: tuple[DemoFavouriteSpec, ...]
     likes: tuple[DemoFavouriteSpec, ...] = ()
     not_interested: tuple[DemoFavouriteSpec, ...] = ()
+    journal: tuple[DemoJournalSpec, ...] = ()

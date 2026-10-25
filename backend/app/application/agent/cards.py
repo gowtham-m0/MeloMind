@@ -23,7 +23,16 @@ TAG_SYNONYMS = {
     "rom com": "romantic comedy",
 }
 GENERIC_TAGS = frozenset(
-    {"fiction", "contemporary", "non fiction", "nonfiction", "fiction books", "audiobook"}
+    {
+        "fiction",
+        "contemporary",
+        "non fiction",
+        "nonfiction",
+        "fiction books",
+        "audiobook",
+        "adult",
+        "adult fiction",
+    }
 )
 
 
@@ -136,7 +145,8 @@ def to_card(candidate: Candidate, country_code: str | None, reason: str | None =
     )
 
 
-def _tag_key(tag: str) -> str:
+def tag_key(tag: str) -> str:
+    """A tag's comparison key: normalised, with synonyms merged ("Sci fi" is "science fiction")."""
     key = normalise_name(tag)
     return TAG_SYNONYMS.get(key, key)
 
@@ -149,7 +159,7 @@ def taste_tags(candidates: Sequence[Candidate]) -> tuple[str, ...]:
     for candidate in candidates:
         weight = candidate.affinity if candidate.affinity is not None else 0.5
         for tag in candidate.tags:
-            key = _tag_key(tag)
+            key = tag_key(tag)
             if key in GENERIC_TAGS:
                 continue
             shown.setdefault(key, tag)

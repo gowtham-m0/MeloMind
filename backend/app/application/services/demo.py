@@ -4,19 +4,37 @@ open it."""
 
 import logging
 from collections.abc import Sequence
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from app.application.ports import (
     EntityMatch,
     ExclusionRepository,
     FeedbackRepository,
+    JournalRepository,
     ProfileRepository,
 )
 from app.application.services.feed import FeedService
 from app.application.services.taste import TasteService
 from app.core.errors import UpstreamError
 from app.domain.feedback import Exclusion, Feedback, Signal
-from app.domain.models import DemoFavouriteSpec, DemoProfileSpec, Favourite, Profile
+from app.domain.journal import (
+    JournalLink,
+    JournalNode,
+    LinkSource,
+    LinkStatus,
+    NodeKind,
+    signal_type,
+)
+from app.domain.models import (
+    DemoFavouriteSpec,
+    DemoJournalSpec,
+    DemoProfileSpec,
+    Favourite,
+    FavouriteKind,
+    Profile,
+    utc_now,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +54,7 @@ class DemoSeedService:
         feedback: FeedbackRepository,
         exclusions: ExclusionRepository,
         feeds: FeedService | None = None,
+        journal: JournalRepository | None = None,
     ) -> None:
         self._profiles = profiles
         self._taste = taste
@@ -43,6 +62,7 @@ class DemoSeedService:
         self._feedback = feedback
         self._exclusions = exclusions
         self._feeds = feeds
+        self._journal = journal
 
     async def seed(self, owner_id: UUID) -> list[UUID]:
         """The IDs of the user's demo profiles, creating them the first time only."""
@@ -71,7 +91,80 @@ class DemoSeedService:
             profile.favourites.append(await self._resolve(profile.id, favourite))
         await self._profiles.add(profile)
         await self._add_signals(profile.id, spec)
+        for entry in spec.journal:
+            await self._add_entry(profile.id, entry)
         return profile.id
+
+    async def _add_entry(self, profile_id: UUID, spec: DemoJournalSpec) -> None:
+        """A sample entry with its links already confirmed, as if the user had said yes. Each
+        confirmed item Qloo knows gets its `journal_confirmed` signal, once."""
+        if self._journal is None:
+            return
+        now = utc_now()
+        day = (now - timedelta(days=spec.days_ago)).date()
+        entry = JournalNode(
+            profile_id=profile_id,
+            kind=NodeKind.ENTRY,
+            title=day.isoformat(),
+            body=spec.text,
+            date=day,
+            mood=spec.mood,
+            created_at=now - timedelta(days=spec.days_ago),
+        )
+        await self._journal.add_node(entry)
+        existing = await self._journal.list_nodes(profile_id)
+        for link in spec.links:
+            kind = NodeKind(link.kind)
+            node = next((n for n in existing if n.same_item(kind, link.name, None)), None)
+            if node is None:
+                node = await self._demo_node(profile_id, kind, link.name)
+                if node is None:
+                    continue
+                await self._journal.add_node(node)
+                existing.append(node)
+                await self._confirm_signal(profile_id, node, entry.created_at)
+            await self._journal.add_link(
+                JournalLink(
+                    profile_id=profile_id,
+                    from_id=entry.id,
+                    to_id=node.id,
+                    source=LinkSource.AGENT,
+                    status=LinkStatus.CONFIRMED,
+                    reason="You mentioned it.",
+                    created_at=entry.created_at,
+                )
+            )
+
+    async def _demo_node(self, profile_id: UUID, kind: NodeKind, name: str) -> JournalNode | None:
+        if kind is NodeKind.PLACE:
+            return JournalNode(profile_id=profile_id, kind=kind, title=name)
+        match = await self._find(DemoFavouriteSpec(name=name, kind=FavouriteKind(kind.value)))
+        if match is None:
+            return None
+        return JournalNode(
+            profile_id=profile_id,
+            kind=kind,
+            title=match.name,
+            year=match.release_year,
+            qloo_id=match.entity_id,
+            image_url=match.image_url,
+        )
+
+    async def _confirm_signal(self, profile_id: UUID, node: JournalNode, at: datetime) -> None:
+        """The signal is dated with its entry, so the sample likes stay the newest taste."""
+        entity_type = signal_type(node.kind)
+        if node.qloo_id is None or entity_type is None:
+            return
+        await self._feedback.add(
+            Feedback(
+                profile_id,
+                node.qloo_id,
+                node.title,
+                Signal.JOURNAL_CONFIRMED,
+                entity_type,
+                created_at=at,
+            )
+        )
 
     async def _add_signals(self, profile_id: UUID, spec: DemoProfileSpec) -> None:
         for item in spec.likes:

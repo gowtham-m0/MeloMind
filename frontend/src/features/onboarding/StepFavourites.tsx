@@ -11,6 +11,7 @@ import { TypeChip } from "@/shared/ui/chip";
 import { Thumb } from "@/shared/ui/thumb";
 import { ITEM_TYPES, TYPE_META, type ItemType } from "@/shared/ui/types";
 
+import { RememberBox } from "../favourites/RememberBox";
 import { useAddFavourite } from "../profiles/hooks";
 
 const GOAL = 3;
@@ -220,6 +221,8 @@ export function StepFavourites({ profileId, name, onNext }: StepFavouritesProps)
           That didn't save. Tap it again.
         </p>
       )}
+
+      <RememberBox profileId={profileId} />
 
       <div className="sticky bottom-0 -mx-5 flex flex-wrap items-center gap-4 border-t border-hairline bg-surface/90 px-5 py-4 backdrop-blur-md md:-mx-8 md:px-8">
         <div className="flex min-w-0 flex-1 items-center gap-3">

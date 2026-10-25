@@ -18,11 +18,13 @@ class RunKind(StrEnum):
 
 
 class RunStatus(StrEnum):
-    """Whether the run is still going."""
+    """Whether the run is still going. `needs_hint`: the resolver stopped to ask the user for a
+    hint (singer, film or year)."""
 
     RUNNING = "running"
     DONE = "done"
     FAILED = "failed"
+    NEEDS_HINT = "needs_hint"
 
 
 class StepLevel(StrEnum):

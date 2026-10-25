@@ -1,5 +1,5 @@
 import { cn } from "cn";
-import { Bookmark, Compass, Home, Users, type LucideIcon } from "lucide-react";
+import { Bookmark, Compass, Home, NotebookPen, Sparkles, type LucideIcon } from "lucide-react";
 import { useRef } from "react";
 import { NavLink, Outlet, useParams } from "react-router";
 
@@ -25,8 +25,9 @@ export function AppShell() {
   const tabs: Tab[] = [
     { label: "Home", icon: Home, to: base, end: true },
     { label: "Discover", icon: Compass, to: `${base}/discover` },
+    { label: "Journal", icon: NotebookPen, to: `${base}/journal` },
     { label: "Saved", icon: Bookmark, to: `${base}/saved` },
-    { label: "Profiles", icon: Users, to: "/profiles" },
+    { label: "Taste", icon: Sparkles, to: `${base}/taste` },
   ];
 
   return (
@@ -44,7 +45,7 @@ export function AppShell() {
         aria-label="Main"
         className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg lg:hidden"
       >
-        <ul className="grid grid-cols-4">
+        <ul className="grid grid-cols-5">
           {tabs.map((tab) => (
             <li key={tab.label}>
               <NavLink

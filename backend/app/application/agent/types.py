@@ -33,7 +33,8 @@ class SignalRef:
 
 @dataclass(frozen=True)
 class FeedContext:
-    """What `load_context` gathered. Only what the feed needs: no journal text, no keys."""
+    """What `load_context` gathered. Only what the feed needs: no journal text, no keys.
+    `journal_signals` are the items from confirmed journal links, newest first."""
 
     profile_id: UUID
     first_name: str
@@ -47,6 +48,7 @@ class FeedContext:
     learned_weights: Mapping[str, float] = field(default_factory=dict)
     previous_refs: frozenset[str] = frozenset()
     previous_tags: tuple[str, ...] = ()
+    journal_signals: tuple[SignalRef, ...] = ()
 
     @property
     def era(self) -> tuple[int, int] | None:
@@ -55,8 +57,10 @@ class FeedContext:
 
     @property
     def signals(self) -> tuple[SignalRef, ...]:
-        """Learned items first (the newest taste), then favourites."""
-        return self.learned_signals + self.favourite_signals
+        """Learned items first (the newest taste), then journal items, then favourites."""
+        taken = {signal.ref for signal in self.learned_signals + self.favourite_signals}
+        journal = tuple(signal for signal in self.journal_signals if signal.ref not in taken)
+        return self.learned_signals + journal + self.favourite_signals
 
 
 @dataclass(frozen=True)

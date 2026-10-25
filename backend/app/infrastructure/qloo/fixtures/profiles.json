@@ -19,7 +19,49 @@
         { "name": "Tame Impala", "kind": "artist" },
         { "name": "Dune", "kind": "movie" }
       ],
-      "not_interested": [{ "name": "Euphoria", "kind": "tv_show" }]
+      "not_interested": [{ "name": "Euphoria", "kind": "tv_show" }],
+      "journal": [
+        {
+          "demo": true,
+          "days_ago": 2,
+          "text": "Rainy evening in Bangalore. Put on Prateek Kuhad and finally started Past Lives. Cried a little at the end, the good kind.",
+          "mood": "nostalgic",
+          "links": [
+            { "name": "Prateek Kuhad", "kind": "artist" },
+            { "name": "Past Lives", "kind": "movie" },
+            { "name": "Bangalore", "kind": "place" }
+          ]
+        },
+        {
+          "demo": true,
+          "days_ago": 5,
+          "text": "Binged three episodes of The Bear after work. All that yelling in the kitchen is weirdly calming.",
+          "mood": "energetic",
+          "links": [
+            { "name": "The Bear", "kind": "tv_show" }
+          ]
+        },
+        {
+          "demo": true,
+          "days_ago": 9,
+          "text": "Train to Mysore with Project Hail Mary. Best book I've read all year, and it made the trip fly by.",
+          "mood": "happy",
+          "links": [
+            { "name": "Project Hail Mary", "kind": "book" },
+            { "name": "Mysore", "kind": "place" }
+          ]
+        },
+        {
+          "demo": true,
+          "days_ago": 14,
+          "text": "Phoebe Bridgers on repeat while cleaning my room, then a late Lady Bird rewatch.",
+          "mood": "melancholy",
+          "links": [
+            { "name": "Phoebe Bridgers", "kind": "artist" },
+            { "name": "Lady Bird", "kind": "movie" }
+          ]
+        }
+      ]
     },
     {
       "key": "leo",
@@ -38,6 +80,38 @@
         { "name": "Ray Charles", "kind": "artist" },
         { "name": "Breakfast at Tiffany's", "kind": "movie" },
         { "name": "The Catcher in the Rye", "kind": "book" }
+      ],
+      "journal": [
+        {
+          "demo": true,
+          "days_ago": 3,
+          "text": "Sunday coffee with Marvin Gaye on the record player. Watched The Graduate again in the afternoon; it still holds up.",
+          "mood": "chill",
+          "links": [
+            { "name": "Marvin Gaye", "kind": "artist" },
+            { "name": "The Graduate", "kind": "movie" }
+          ]
+        },
+        {
+          "demo": true,
+          "days_ago": 7,
+          "text": "Took Catch-22 back off the shelf. Reading it slower this time.",
+          "mood": "focused",
+          "links": [
+            { "name": "Catch-22", "kind": "book" }
+          ]
+        },
+        {
+          "demo": true,
+          "days_ago": 12,
+          "text": "Old Star Trek reruns tonight, then some Aretha Franklin before bed. Chicago is cold already.",
+          "mood": "happy",
+          "links": [
+            { "name": "Star Trek", "kind": "tv_show" },
+            { "name": "Aretha Franklin", "kind": "artist" },
+            { "name": "Chicago", "kind": "place" }
+          ]
+        }
       ]
     }
   ]

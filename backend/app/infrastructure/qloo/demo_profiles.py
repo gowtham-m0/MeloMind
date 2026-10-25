@@ -4,13 +4,28 @@ import json
 from pathlib import Path
 from typing import Any
 
-from app.domain.models import DemoFavouriteSpec, DemoProfileSpec, FavouriteKind
+from app.domain.models import (
+    DemoFavouriteSpec,
+    DemoJournalSpec,
+    DemoLinkSpec,
+    DemoProfileSpec,
+    FavouriteKind,
+)
 from app.infrastructure.qloo.fixture_taste_graph import FIXTURES_DIR
 
 
 def _parse_favourite(raw: dict[str, Any]) -> DemoFavouriteSpec:
     return DemoFavouriteSpec(
         name=raw["name"], kind=FavouriteKind(raw["kind"]), song_title=raw.get("song_title")
+    )
+
+
+def _parse_entry(raw: dict[str, Any]) -> DemoJournalSpec:
+    return DemoJournalSpec(
+        days_ago=raw["days_ago"],
+        text=raw["text"],
+        mood=raw.get("mood"),
+        links=tuple(DemoLinkSpec(name=link["name"], kind=link["kind"]) for link in raw["links"]),
     )
 
 
@@ -25,6 +40,7 @@ def _parse_profile(raw: dict[str, Any]) -> DemoProfileSpec:
         favourites=tuple(_parse_favourite(item) for item in raw["favourites"]),
         likes=tuple(_parse_favourite(item) for item in raw.get("likes", [])),
         not_interested=tuple(_parse_favourite(item) for item in raw.get("not_interested", [])),
+        journal=tuple(_parse_entry(entry) for entry in raw.get("journal", [])),
     )
 
 

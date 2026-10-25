@@ -356,6 +356,200 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profiles/{profile_id}/journal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Entries
+         * @description Entries newest first (by default the last 60 days).
+         */
+        get: operations["list_entries_api_v1_profiles__profile_id__journal_get"];
+        put?: never;
+        /**
+         * Create Entry
+         * @description Save an entry. The agent starts suggesting links: poll `link_run_id`.
+         */
+        post: operations["create_entry_api_v1_profiles__profile_id__journal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/journal/transcribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transcribe
+         * @description Turn a voice note (the raw webm, ogg, mp4 or wav body) into text. The audio is
+         *     discarded once transcribed.
+         */
+        post: operations["transcribe_api_v1_profiles__profile_id__journal_transcribe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/journal/links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Decide Link
+         * @description Confirm or reject one suggestion. A 409 when it's already decided.
+         */
+        patch: operations["decide_link_api_v1_profiles__profile_id__journal_links__link_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/journal/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Entry
+         * @description One entry with its links and suggestions.
+         */
+        get: operations["get_entry_api_v1_profiles__profile_id__journal__entry_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Entry
+         * @description Delete an entry, its links and the signals that came only from them.
+         */
+        delete: operations["delete_entry_api_v1_profiles__profile_id__journal__entry_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Entry
+         * @description Change an entry. New text starts a new link run; confirmed links stay.
+         */
+        patch: operations["update_entry_api_v1_profiles__profile_id__journal__entry_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/journal/{entry_id}/links/confirm-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm All
+         * @description Confirm every open suggestion on the entry.
+         */
+        post: operations["confirm_all_api_v1_profiles__profile_id__journal__entry_id__links_confirm_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/journal/{entry_id}/links/suggest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suggest Links
+         * @description Ask the agent for suggestions again, such as after a failed run.
+         */
+        post: operations["suggest_links_api_v1_profiles__profile_id__journal__entry_id__links_suggest_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/taste": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Taste
+         * @description Your taste in a sentence, top tags, counts by type, favourites and recent likes.
+         */
+        get: operations["get_taste_api_v1_profiles__profile_id__taste_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/taste/map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Taste Map
+         * @description The taste map: confirmed links only, capped, most connected first.
+         */
+        get: operations["get_taste_map_api_v1_profiles__profile_id__taste_map_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/favourites/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resolve Favourite
+         * @description Start looking up what the user typed. Poll the run for up to 3 proposals, or a
+         *     `needs_hint` question. The text is never stored.
+         */
+        post: operations["resolve_favourite_api_v1_profiles__profile_id__favourites_resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -722,6 +916,106 @@ export interface components {
          */
         ItemSource: "qloo_live" | "demo_fixture" | "favourite" | "song_catalogue";
         /**
+         * JournalEntryCreate
+         * @description A new entry. The date defaults to today.
+         */
+        JournalEntryCreate: {
+            /** Text */
+            text: string;
+            /** Date */
+            date?: string | null;
+            /** Mood */
+            mood?: string | null;
+        };
+        /**
+         * JournalEntryOut
+         * @description An entry with its confirmed links and open suggestions. `link_run_id` is set when the
+         *     agent has just started suggesting links: poll it, then get the entry again.
+         */
+        JournalEntryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Text */
+            text: string;
+            /** Mood */
+            mood: string | null;
+            /** Links */
+            links: components["schemas"]["JournalLinkOut"][];
+            /** Suggestions */
+            suggestions: components["schemas"]["JournalLinkOut"][];
+            /** Link Run Id */
+            link_run_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * JournalEntryUpdate
+         * @description Fields to change. New text starts a new link run; `mood: null` clears the mood.
+         */
+        JournalEntryUpdate: {
+            /** Text */
+            text?: string | null;
+            /** Date */
+            date?: string | null;
+            /** Mood */
+            mood?: string | null;
+        };
+        /**
+         * JournalLinkOut
+         * @description A link from an entry to an item or place.
+         */
+        JournalLinkOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            target: components["schemas"]["JournalTargetOut"];
+            kind: components["schemas"]["LinkKind"];
+            source: components["schemas"]["LinkSource"];
+            status: components["schemas"]["LinkStatus"];
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * JournalTargetOut
+         * @description The item or place a link points to. A song's `creator` is its artist.
+         */
+        JournalTargetOut: {
+            /**
+             * Node Id
+             * Format: uuid
+             */
+            node_id: string;
+            kind: components["schemas"]["NodeKind"];
+            /** Title */
+            title: string;
+            /** Year */
+            year: number | null;
+            /** Qloo Id */
+            qloo_id: string | null;
+            /** Creator */
+            creator: string | null;
+            /** Image Url */
+            image_url: string | null;
+        };
+        /**
          * LibraryOut
          * @description Liked and saved items, newest first.
          */
@@ -731,6 +1025,69 @@ export interface components {
             /** Saved */
             saved: components["schemas"]["FeedItemOut"][];
         };
+        /**
+         * LinkDecision
+         * @description Confirm or reject a suggestion.
+         */
+        LinkDecision: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "confirmed" | "rejected";
+        };
+        /**
+         * LinkKind
+         * @description How two nodes are related.
+         * @enum {string}
+         */
+        LinkKind: "mentions" | "because_of" | "liked" | "related";
+        /**
+         * LinkSource
+         * @description Who made the link.
+         * @enum {string}
+         */
+        LinkSource: "user" | "agent" | "qloo" | "feed";
+        /**
+         * LinkStatus
+         * @description Whether the user has decided on the link yet.
+         * @enum {string}
+         */
+        LinkStatus: "suggested" | "confirmed" | "rejected";
+        /**
+         * MapLinkOut
+         * @description An edge on the taste map: `because_of` or `mentions`.
+         */
+        MapLinkOut: {
+            /** From */
+            from: string;
+            /** To */
+            to: string;
+            /** Kind */
+            kind: string;
+        };
+        /**
+         * MapNodeOut
+         * @description A node on the taste map. `kind` is a type, `place` or `entry`.
+         */
+        MapNodeOut: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Title */
+            title: string;
+            /** Image Url */
+            image_url: string | null;
+            /** Weight */
+            weight: number;
+        };
+        /**
+         * NodeKind
+         * @description What a journal node is.
+         * @enum {string}
+         */
+        NodeKind: "entry" | "artist" | "song" | "movie" | "tv_show" | "book" | "place";
         /**
          * PlatformLinkOut
          * @description Where to find an item. `search` links are labelled "Search on …".
@@ -848,6 +1205,29 @@ export interface components {
             done: boolean;
         };
         /**
+         * ResolveIn
+         * @description What the user typed for a favourite: a name, a song, a lyric or a description. It's used
+         *     for this lookup only and never stored.
+         */
+        ResolveIn: {
+            /** Text */
+            text: string;
+            kind?: components["schemas"]["FavouriteKind"] | null;
+            /** Hint */
+            hint?: string | null;
+        };
+        /**
+         * ResolveOut
+         * @description The resolve run to poll.
+         */
+        ResolveOut: {
+            /**
+             * Agent Run Id
+             * Format: uuid
+             */
+            agent_run_id: string;
+        };
+        /**
          * RunKind
          * @description Which workflow the run belongs to.
          * @enum {string}
@@ -855,16 +1235,63 @@ export interface components {
         RunKind: "feed" | "resolve" | "link";
         /**
          * RunStatus
-         * @description Whether the run is still going.
+         * @description Whether the run is still going. `needs_hint`: the resolver stopped to ask the user for a
+         *     hint (singer, film or year).
          * @enum {string}
          */
-        RunStatus: "running" | "done" | "failed";
+        RunStatus: "running" | "done" | "failed" | "needs_hint";
         /**
          * StepLevel
          * @description How a log step should look: a normal step, or something that went wrong.
          * @enum {string}
          */
         StepLevel: "info" | "warning";
+        /**
+         * TagOut
+         * @description A top tag and its weight (0–1).
+         */
+        TagOut: {
+            /** Name */
+            name: string;
+            /** Weight */
+            weight: number;
+        };
+        /**
+         * TasteMapOut
+         * @description The taste map, capped and with confirmed links only.
+         */
+        TasteMapOut: {
+            /** Nodes */
+            nodes: components["schemas"]["MapNodeOut"][];
+            /** Links */
+            links: components["schemas"]["MapLinkOut"][];
+        };
+        /**
+         * TasteOut
+         * @description The taste page.
+         */
+        TasteOut: {
+            /** Sentence */
+            sentence: string;
+            /** Top Tags */
+            top_tags: components["schemas"]["TagOut"][];
+            /** By Type */
+            by_type: {
+                [key: string]: number;
+            };
+            /** Favourites */
+            favourites: components["schemas"]["FavouriteOut"][];
+            /** Recent Likes */
+            recent_likes: components["schemas"]["FeedItemOut"][];
+        };
+        /**
+         * TranscriptOut
+         * @description The words in a voice note, for the user to edit before saving.
+         */
+        TranscriptOut: {
+            /** Text */
+            text: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1480,6 +1907,403 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExclusionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_entries_api_v1_profiles__profile_id__journal_get: {
+        parameters: {
+            query?: {
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_entry_api_v1_profiles__profile_id__journal_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JournalEntryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transcribe_api_v1_profiles__profile_id__journal_transcribe_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "content-type"?: string;
+            };
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_link_api_v1_profiles__profile_id__journal_links__link_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_entry_api_v1_profiles__profile_id__journal__entry_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_entry_api_v1_profiles__profile_id__journal__entry_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_entry_api_v1_profiles__profile_id__journal__entry_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JournalEntryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_all_api_v1_profiles__profile_id__journal__entry_id__links_confirm_all_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_links_api_v1_profiles__profile_id__journal__entry_id__links_suggest_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JournalEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_taste_api_v1_profiles__profile_id__taste_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TasteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_taste_map_api_v1_profiles__profile_id__taste_map_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TasteMapOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_favourite_api_v1_profiles__profile_id__favourites_resolve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResolveOut"];
                 };
             };
             /** @description Validation Error */

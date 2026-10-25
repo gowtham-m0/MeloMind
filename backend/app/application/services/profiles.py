@@ -3,7 +3,7 @@
 from typing import TypedDict
 from uuid import UUID
 
-from app.application.ports import ProfileRepository
+from app.application.ports import JournalRepository, ProfileRepository
 from app.core.errors import InvalidInputError, NotFoundError
 from app.domain.models import (
     BIRTH_YEAR_MIN,
@@ -34,8 +34,11 @@ class ProfileChanges(TypedDict, total=False):
 class ProfileService:
     """Create, read, change and delete profiles and favourites, for their owner only."""
 
-    def __init__(self, profiles: ProfileRepository) -> None:
+    def __init__(
+        self, profiles: ProfileRepository, journal: JournalRepository | None = None
+    ) -> None:
         self._profiles = profiles
+        self._journal = journal
 
     async def list(self, owner_id: UUID) -> list[Profile]:
         """Every profile this user owns."""
@@ -66,6 +69,8 @@ class ProfileService:
     async def delete(self, owner_id: UUID, profile_id: UUID) -> None:
         """Delete a profile and everything that belongs to it."""
         await self.get(owner_id, profile_id)
+        if self._journal is not None:
+            await self._journal.delete_for_profile(profile_id)
         await self._profiles.delete(profile_id)
 
     async def add_favourite(

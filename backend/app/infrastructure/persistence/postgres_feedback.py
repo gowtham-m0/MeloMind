@@ -66,6 +66,18 @@ class PostgresFeedbackRepository:
             )
             return [_feedback_to_domain(row) for row in rows]
 
+    async def delete_signals(self, profile_id: UUID, item_ref: str, kind: Signal) -> int:
+        """Delete every signal of this kind for the item."""
+        async with self._sessions() as db, db.begin():
+            result = await db.execute(
+                delete(FeedbackRow).where(
+                    FeedbackRow.profile_id == profile_id,
+                    FeedbackRow.item_ref == item_ref,
+                    FeedbackRow.kind == kind.value,
+                )
+            )
+            return result.rowcount
+
 
 class PostgresExclusionRepository:
     """Exclusions in Postgres, one per item ref per profile."""

@@ -10,6 +10,7 @@ from app.application.ports import (
     ChatModels,
     ExclusionRepository,
     FeedbackRepository,
+    JournalRepository,
     LanguageModel,
     SongCatalog,
     TasteGraph,
@@ -32,7 +33,8 @@ class AgentLimits:
 @dataclass(frozen=True)
 class FeedDeps:
     """Everything one feed run's nodes need. `previous_refs` and `previous_tags` describe the
-    last feed, so the summary can say what changed. Without `songs` there's no songs row."""
+    last feed, so the summary can say what changed. Without `songs` there's no songs row, and
+    without `journal` no journal row."""
 
     feedback: FeedbackRepository
     exclusions: ExclusionRepository
@@ -45,3 +47,4 @@ class FeedDeps:
     songs: SongCatalog | None = None
     previous_refs: frozenset[str] = frozenset()
     previous_tags: tuple[str, ...] = ()
+    journal: JournalRepository | None = None

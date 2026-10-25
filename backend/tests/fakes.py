@@ -21,6 +21,7 @@ from app.application.ports import (
     Song,
     TagMatch,
     TasteSource,
+    Transcript,
 )
 from app.application.services.background import Job
 from app.core.errors import UpstreamError
@@ -265,3 +266,21 @@ class FakeSongCatalog:
             for n in range(1, self.per_artist + 1)
         ]
         return songs[:take]
+
+
+class FakeSpeech:
+    """Speech to text that returns fixed words, or fails. Records how many bytes it got."""
+
+    def __init__(
+        self, text: str = "Rewatched Interstellar.", fail: bool = False, duration_s: float = 8.0
+    ) -> None:
+        self.text = text
+        self.fail = fail
+        self.duration_s = duration_s
+        self.received: list[int] = []
+
+    async def transcribe(self, audio: bytes, filename: str, content_type: str) -> Transcript:
+        self.received.append(len(audio))
+        if self.fail:
+            raise UpstreamError("Couldn't transcribe the recording.")
+        return Transcript(text=self.text, duration_s=self.duration_s)

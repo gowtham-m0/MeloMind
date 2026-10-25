@@ -174,6 +174,7 @@ Items the user already loves (their signals) are never recommended back.
 | 1 | `for_you` | always | none | Top 12 of the pool across all types, at least 2 of each type when available |
 | 1b | `cross_culture` (right rail) | an artist, film or show signal | One `get_insights` per *other* type with the newest such signal (an artist → a film, a TV show, a book). Books can't cross types | 1 per type, plus 1 of its own type from the pool: 4 items labelled Watch, Read or Listen |
 | 2 | `because_<ref>` | ≥ 1 strong signal | One `get_insights` with the newest strong signal, type = its own type's best cross-domain pair (artist → artist, film → film) | 12 by affinity. Up to 2 such rows, for the two newest strong signals |
+| 2b | `journal` | ≥ 1 confirmed journal media link that Qloo knows | `get_insights` per type (the newest item's type, plus one other: an artist → films, a film or show → artists; at most two), with the confirmed journal items as signals | 12, interleaved, by affinity |
 | 3 | `music` | always | Top-up artist insights if the pool has < 12 artists | Artists |
 | 3b | `songs` | a song catalogue is set up | Not a `FeedRow`: the `add_songs` node (section 3, step 4b) adds it after `build_rows`, from the artists already chosen. No Qloo calls | 2 songs each from up to 6 artists, in turn |
 | 4 | `films` | always | Top-up | Films |
@@ -181,7 +182,6 @@ Items the user already loves (their signals) are never recommended back.
 | 6 | `books` | always | Top-up | Books |
 | 6b | `new` | always | Films and TV with `filter.release_year.min` = last year, the top signals; with no signals, popularity ≥ 0.7 and the country | Interleaved films and TV, 12 |
 | 7 | `popular_<country>` | country set | Films and TV with `filter.release_country`, popularity ≥ 0.8, the signals | 12 by popularity |
-| 8 | `journal` | ≥ 1 confirmed journal media link | `get_insights` with the confirmed journal items as signals | 12 by affinity |
 | 9 | `throwback` | birth year set | Films and TV in the era window (`birth_year + 13` to `+ 21`), plus era tags for artists | 12 by popularity |
 
 **Cold start** (chosen in the brief):

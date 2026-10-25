@@ -16,6 +16,7 @@ from app.application.ports import (
     ExclusionRepository,
     FeedRepository,
     InsightsQuery,
+    JournalRepository,
     MediaResolver,
     PlayableMedia,
     Song,
@@ -24,9 +25,11 @@ from app.application.ports import (
 )
 from app.application.services.profiles import ProfileService
 from app.core.errors import NotFoundError, UpstreamError
-from app.domain.feed import FeedItem, is_qloo_ref
+from app.domain.feed import FeedItem, ItemSource, entity_type_of, is_qloo_ref
 from app.domain.feedback import Blocklist
-from app.domain.models import EntityType
+from app.domain.journal import NodeKind, confirmed_media
+from app.domain.links import platform_links
+from app.domain.models import EntityType, Profile
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +64,10 @@ class ItemService:
         taste: TasteGraph,
         media: MediaResolver | None = None,
         songs: SongCatalog | None = None,
+        journal: JournalRepository | None = None,
     ) -> None:
         self._profiles = profiles
+        self._journal = journal
         self._feeds = feeds
         self._catalog = catalog
         self._exclusions = exclusions
@@ -74,7 +79,7 @@ class ItemService:
         """The item, and more like it."""
         profile = await self._profiles.get(owner_id, profile_id)
         blocklist = Blocklist.from_exclusions(await self._exclusions.list_for_profile(profile.id))
-        item = await self._find(profile.id, ref)
+        item = await self._find(profile, ref)
         if item is None or blocklist.blocks(item.ref, item.title):
             raise NotFoundError("Item not found.")
         country = profile.country_code
@@ -98,7 +103,7 @@ class ItemService:
         """A YouTube video for the item, looked up only now (rule 6). Not found when there's
         no playable one: the button hides, never an unrelated video."""
         profile = await self._profiles.get(owner_id, profile_id)
-        item = await self._find(profile.id, ref)
+        item = await self._find(profile, ref)
         if self._media is None or item is None or item.entity_type is EntityType.BOOK:
             raise NotFoundError("No preview for this item.")
         try:
@@ -110,12 +115,54 @@ class ItemService:
             raise NotFoundError("No playable preview found.")
         return media
 
-    async def _find(self, profile_id: UUID, ref: str) -> FeedItem | None:
-        feed = await self._feeds.latest(profile_id, done_only=True)
+    async def _find(self, profile: Profile, ref: str) -> FeedItem | None:
+        feed = await self._feeds.latest(profile.id, done_only=True)
         item = feed.find(ref) if feed else None
         if item is not None:
             return item
-        return (await self._catalog.get_many([ref])).get(ref)
+        known = (await self._catalog.get_many([ref])).get(ref)
+        return known or await self._own_item(profile, ref)
+
+    async def _own_item(self, profile: Profile, ref: str) -> FeedItem | None:
+        """A verified favourite or a confirmed journal item, opened from the taste page or the
+        journal: a plain card built from what the profile already holds."""
+        if not is_qloo_ref(ref):
+            return None
+        source = ItemSource(self._taste.source)
+        country = profile.country_code
+        for favourite in profile.favourites:
+            if favourite.qloo_id == ref:
+                entity_type = entity_type_of(favourite.kind)
+                return FeedItem(
+                    ref=ref,
+                    title=favourite.name,
+                    entity_type=entity_type,
+                    source=source,
+                    reason="One of your favourites.",
+                    image_url=favourite.image_url,
+                    links=platform_links(favourite.name, entity_type, country_code=country),
+                )
+        if self._journal is None:
+            return None
+        nodes = await self._journal.list_nodes(profile.id)
+        links = await self._journal.list_links(profile.id)
+        for node, _link in confirmed_media(nodes, links):
+            if node.qloo_id != ref:
+                continue
+            is_song = node.kind is NodeKind.SONG
+            title = node.creator if is_song and node.creator else node.title
+            entity_type = EntityType.ARTIST if is_song else EntityType(node.kind.value)
+            return FeedItem(
+                ref=ref,
+                title=title,
+                entity_type=entity_type,
+                source=source,
+                reason="From your journal.",
+                year=None if is_song else node.year,
+                image_url=None if is_song else node.image_url,
+                links=platform_links(title, entity_type, country_code=country, year=node.year),
+            )
+        return None
 
     async def _more_like_this(
         self, item: FeedItem, blocklist: Blocklist, country_code: str | None

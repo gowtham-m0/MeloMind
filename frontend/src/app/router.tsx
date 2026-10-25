@@ -39,6 +39,14 @@ export const router = createBrowserRouter([
             lazy: async () => ({ Component: (await import("@/pages/DiscoverPage")).DiscoverPage }),
           },
           {
+            path: "journal",
+            lazy: async () => ({ Component: (await import("@/pages/JournalPage")).JournalPage }),
+          },
+          {
+            path: "taste",
+            lazy: async () => ({ Component: (await import("@/pages/TastePage")).TastePage }),
+          },
+          {
             path: "saved",
             lazy: async () => ({ Component: (await import("@/pages/SavedPage")).SavedPage }),
           },

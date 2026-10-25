@@ -7,6 +7,7 @@ from app.application.rows.rows import (
     BecauseRow,
     CrossCultureRow,
     ForYouRow,
+    JournalRow,
     NewReleasesRow,
     PopularRow,
     ThrowbackRow,
@@ -28,12 +29,14 @@ class RowRegistry:
 
 
 def default_registry(row_size: int = 12) -> RowRegistry:
-    """The rows available now. The journal row arrives in Phase 3."""
+    """The rows in display order. The journal row sits right after "Because you liked", so it
+    gets first pick of what the journal steers towards."""
     return RowRegistry(
         [
             ForYouRow(row_size=row_size),
             CrossCultureRow(),
             BecauseRow(),
+            JournalRow(),
             TypeRow(
                 "music",
                 EntityType.ARTIST,

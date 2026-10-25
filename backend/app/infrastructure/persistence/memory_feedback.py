@@ -3,7 +3,7 @@
 from copy import deepcopy
 from uuid import UUID
 
-from app.domain.feedback import Exclusion, Feedback
+from app.domain.feedback import Exclusion, Feedback, Signal
 
 
 class InMemoryFeedbackRepository:
@@ -19,6 +19,19 @@ class InMemoryFeedbackRepository:
     async def list_for_profile(self, profile_id: UUID) -> list[Feedback]:
         """Every signal for the profile, oldest first."""
         return [deepcopy(entry) for entry in self._feedback if entry.profile_id == profile_id]
+
+    async def delete_signals(self, profile_id: UUID, item_ref: str, kind: Signal) -> int:
+        """Delete every signal of this kind for the item."""
+        kept = [
+            entry
+            for entry in self._feedback
+            if not (
+                entry.profile_id == profile_id and entry.item_ref == item_ref and entry.kind is kind
+            )
+        ]
+        removed = len(self._feedback) - len(kept)
+        self._feedback = kept
+        return removed
 
 
 class InMemoryExclusionRepository:

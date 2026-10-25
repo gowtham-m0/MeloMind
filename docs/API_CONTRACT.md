@@ -233,7 +233,8 @@ else's profile, feed, run or item is a `404`.
 - `placement`: `main` for the main column, `rail` for the right rail (`cross_culture`). The `cross_culture` row's title is "Cross-culture picks" and its subtitle "Because you like The 1975…".
 - Row `key`s, in order when present: `for_you`, `cross_culture`, `because_<ref>` (up to 2),
   `music`, `songs` (song cards, right after `music`), `films`, `tv`, `books`, `new` ("New and
-  notable"), `popular_<country>`, `journal` (Phase 3), `throwback`. Rows under 4 items are left
+  notable"), `popular_<country>`, `throwback`. `journal` ("From your journal") comes right
+  after the `because_` rows. Rows under 4 items are left
   out, so the frontend renders whatever arrives in order.
 - `taste_tags`: up to 8 tag names for the sidebar's "Your taste profile" chips.
 
@@ -353,7 +354,7 @@ or `{ "pair": null, "done": true }`.
 ```json
 {
   "id": "uuid",
-  "target": { "node_id": "uuid", "kind": "movie", "title": "Interstellar", "year": 2014, "qloo_id": "string or null", "image_url": "string or null" },
+  "target": { "node_id": "uuid", "kind": "movie", "title": "Interstellar", "year": 2014, "qloo_id": "string or null", "creator": "string or null", "image_url": "string or null" },
   "kind": "mentions",
   "source": "agent",
   "status": "suggested",
@@ -362,7 +363,12 @@ or `{ "pair": null, "done": true }`.
 ```
 
 - `links`: confirmed only. `suggestions`: `suggested` only. Rejected links are never returned.
-- `target.kind`: `artist`, `song`, `movie`, `tv_show`, `book` or `place`.
+- `target.kind`: `artist`, `song`, `movie`, `tv_show`, `book` or `place`. A song's `creator` is
+  its artist, and its `qloo_id` is that artist's (Qloo has no songs).
+- `link_run_id` is set only on the response that started a link run (create, a text change,
+  suggest). Poll `GET /agent-runs/{id}` (kind `link`), then `GET` the entry. The run's `result`:
+  `{ "entry_id", "suggested", "ai_read" }`; `ai_read: false` means the AI reader was off or
+  failed, and only things you already love were spotted.
 
 ### `GET /api/v1/profiles/{id}/journal?from=&to=`
 
@@ -380,11 +386,18 @@ Body: `{ "date"?, "text", "mood"? }`. `text`: 1–5,000 characters. `201`: `Jour
   links stay. `200`: `JournalEntry`.
 - `DELETE`: `204`. Its links go too, and signals from them are removed.
 
+### `POST /api/v1/profiles/{id}/journal/{entry_id}/links/suggest`
+
+No body. `202`: `JournalEntry` with a new `link_run_id`: the agent suggests links again (after a
+failed run, say). Earlier decisions stand: a rejected item is never suggested again.
+
 ### `POST /api/v1/profiles/{id}/journal/transcribe`
 
-`multipart/form-data` with `audio` (webm, ogg, mp4 or wav, up to 2 minutes or 10 MB).
-`200`: `{ "text": "…" }`. The audio is discarded. `422` for an unsupported or too-long file;
-`502` if transcription fails (the UI says "Couldn't hear that. Try again or type it").
+The raw recording as the body, with its `Content-Type`: `audio/webm`, `audio/ogg`, `audio/mp4`
+or `audio/wav` (codec parameters such as `;codecs=opus` are fine), up to 2 minutes or 10 MB. Not
+multipart, so the backend needs no form parser. `200`: `{ "text": "…" }`. The audio is
+discarded. `422` for an unsupported, empty or too-long file; `502` if transcription fails or
+isn't set up (no Groq key). The UI says "Couldn't hear that. Try again or type it".
 
 ### `PATCH /api/v1/profiles/{id}/journal/links/{link_id}`
 
@@ -416,9 +429,18 @@ Confirmed links only, at most `TASTE_MAP_MAX_NODES` nodes, most connected first.
 
 ### `POST /api/v1/profiles/{id}/favourites/resolve`
 
-Body: `{ "text", "kind"? }`. `202`: `{ "agent_run_id" }`. The run's `result` holds up to 3
-proposals `{ entity_id, name, type, year, image_url, why }`, or `status: "needs_hint"` with
-`result.question`. Confirm one by posting it to `/favourites` with its `entity_id`.
+Body: `{ "text", "kind"?, "hint"? }`: `text` up to 300 characters (a name, a song, a lyric or a
+description); `hint` up to 100 (singer, film or year) when re-running after a question. `202`:
+`{ "agent_run_id" }`. The text is used for this run only and never stored or logged.
+
+The run's `result`:
+- `status: "done"`: `{ "proposals": [{ entity_id, name, type, kind, year, image_url, song_title, rung, why }] }`,
+  up to 3. A song comes back as its singer with `kind: "song"` and the `song_title` (never a
+  lyric). Confirm one by posting it to `/favourites` with `name`, `kind`, `entity_id`,
+  `image_url` and `song_title`.
+- `status: "needs_hint"`: `{ "proposals": [], "question": "Who sings it, or which film is it from?", "text_favourite": { name, kind, song_title } | null }`.
+  Ask the question and re-run with `hint`, or save `text_favourite` as a text favourite (not a
+  Qloo signal). `text_favourite` holds only names worked out, never what was typed.
 
 ## Phase 4: polish
 

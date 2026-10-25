@@ -37,3 +37,34 @@ def spelling_variants(text: str) -> list[str]:
             if candidate != text and candidate not in variants:
                 variants.append(candidate)
     return variants
+
+
+_LEADING_ARTICLE = re.compile(r"^(the|a|an) ")
+
+
+def _initials(name: str) -> str:
+    return "".join(word[0] for word in normalise_name(name).split())
+
+
+def name_fits(found: str, wanted: str) -> bool:
+    """True when a search result's name is the name the user meant: the same apart from case,
+    punctuation, spacing and a leading "The"; the initials of it ("TMS" for "T. M.
+    Soundararajan"); or another spelling of it ("Arijith" for "Arijit")."""
+    if names_match(found, wanted):
+        return True
+    bare_found = _LEADING_ARTICLE.sub("", normalise_name(found))
+    bare_wanted = _LEADING_ARTICLE.sub("", normalise_name(wanted))
+    if bare_found and names_match(bare_found, bare_wanted):
+        return True
+    compact = normalise_name(wanted).replace(" ", "")
+    if len(compact) >= 2 and " " not in normalise_name(wanted) and _initials(found) == compact:
+        return True
+    return any(names_match(found, variant) for variant in spelling_variants(wanted)) or any(
+        names_match(variant, wanted) for variant in spelling_variants(found)
+    )
+
+
+def mentioned_in(name: str, text: str) -> bool:
+    """True when the name appears in the text as whole words, ignoring case and punctuation."""
+    needle = normalise_name(name)
+    return bool(needle) and f" {needle} " in f" {normalise_name(text)} "

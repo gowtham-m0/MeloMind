@@ -60,6 +60,34 @@ export async function apiRequest<T>(method: Method, path: string, body?: unknown
   return (await response.json()) as T;
 }
 
+/**
+ * POSTs a file as the raw request body (a voice note), with its own Content-Type. Throws ApiError
+ * like `apiRequest`.
+ */
+export async function apiUpload<T>(path: string, file: Blob): Promise<T> {
+  if (!baseUrl) {
+    throw new ApiError("VITE_API_BASE_URL is not set. Copy .env.example to .env.local.", null);
+  }
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Content-Type": file.type || "application/octet-stream",
+  };
+  const token = await getAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, { method: "POST", headers, body: file });
+  } catch {
+    throw new ApiError("Could not reach the backend.", null);
+  }
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  return (await response.json()) as T;
+}
+
 /** GETs JSON from the backend. */
 export function apiGet<T>(path: string): Promise<T> {
   return apiRequest<T>("GET", path);

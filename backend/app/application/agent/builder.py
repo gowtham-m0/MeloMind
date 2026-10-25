@@ -12,6 +12,7 @@ from app.application.ports import (
     ChatModels,
     ExclusionRepository,
     FeedbackRepository,
+    JournalRepository,
     LanguageModel,
     SongCatalog,
     TasteGraph,
@@ -57,6 +58,7 @@ class AgentFeedBuilder:
         language_model: LanguageModel | None = None,
         chat_models: ChatModels | None = None,
         songs: SongCatalog | None = None,
+        journal: JournalRepository | None = None,
     ) -> None:
         self._feedback = feedback
         self._exclusions = exclusions
@@ -67,6 +69,7 @@ class AgentFeedBuilder:
         self._language_model = language_model
         self._chat_models = chat_models
         self._songs = songs
+        self._journal = journal
 
     async def build(self, request: FeedRequest) -> FeedResult:
         """Run build_feed to the end. A feed is always produced unless a port breaks."""
@@ -82,6 +85,7 @@ class AgentFeedBuilder:
             songs=self._songs,
             previous_refs=request.previous_refs,
             previous_tags=request.previous_tags,
+            journal=self._journal,
         )
         final = await build_feed_graph(deps).ainvoke({"profile": request.profile})
         rows: list[FeedRow] = final.get("rows", [])

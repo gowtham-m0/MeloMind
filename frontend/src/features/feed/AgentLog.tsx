@@ -13,18 +13,29 @@ const NODE_LABELS: Record<string, string> = {
   decorate: "Adding images and links",
   explain: "Summing up",
   feed: "Done",
+  extract: "Reading your entry",
+  resolve: "Finding it in Qloo",
+  match: "Checking your journal",
+  save: "Saving suggestions",
+  link: "Linking",
+  interpret: "Working out what you meant",
+  ladder: "Searching Qloo",
 };
 
 /** The agent's plain-English log, step by step, announced as it grows. */
-export function AgentLog({ run, compact = false }: { run: AgentRun | null; compact?: boolean }) {
+export function AgentLog({
+  run,
+  compact = false,
+  label = "How the agent built this feed",
+}: {
+  run: AgentRun | null;
+  compact?: boolean;
+  label?: string;
+}) {
   const steps = run?.steps ?? [];
   const shown = compact ? steps.slice(-6) : steps;
   return (
-    <ol
-      aria-live="polite"
-      aria-label="How the agent built this feed"
-      className="flex flex-col gap-2.5"
-    >
+    <ol aria-live="polite" aria-label={label} className="flex flex-col gap-2.5">
       {shown.length === 0 && <li className="text-sm text-muted">Starting the agent…</li>}
       {shown.map((step, index) => (
         <li key={`${step.at}-${index}`} className="rise-in flex gap-3 text-sm">

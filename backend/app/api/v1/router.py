@@ -9,8 +9,10 @@ from app.api.v1.routes import (
     favourites,
     feed,
     health,
+    journal,
     profiles,
     taste,
+    taste_profile,
 )
 
 api_router = APIRouter(prefix="/api/v1")
@@ -22,3 +24,5 @@ api_router.include_router(taste.router)
 api_router.include_router(feed.router)
 api_router.include_router(agent_runs.router)
 api_router.include_router(exclusions.router)
+api_router.include_router(journal.router)
+api_router.include_router(taste_profile.router)

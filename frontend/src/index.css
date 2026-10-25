@@ -262,6 +262,18 @@
   animation: rise-in 300ms var(--ease-out) backwards;
 }
 
+/* A confirmed journal link settles into its entry. */
+@keyframes settle-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateY(-6px);
+  }
+}
+
+.settle-in {
+  animation: settle-in 260ms var(--ease-out) backwards;
+}
+
 /* Opacity only, so it needs no reduced-motion override. */
 .fade-in {
   animation: fade-in 180ms var(--ease-out) backwards;
@@ -297,7 +309,8 @@
     transform: none;
   }
 
-  .rise-in {
+  .rise-in,
+  .settle-in {
     animation-name: fade-in;
   }
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
 
 import type { FeedItem, FeedRow } from "@/shared/api/feed";
 import { ErrorState } from "@/shared/ui/states";
@@ -28,6 +29,7 @@ const SEE_ALL: Record<string, string> = {
 export function FeedView({ profileId }: { profileId: string }) {
   const { feed, run, building, buildFailed, buildError, refresh } = useFeed(profileId);
   const actions = useItemActions(profileId);
+  const navigate = useNavigate();
   const { open } = useItemParam();
   const profile = useProfile(profileId);
   const [logOpen, setLogOpen] = useState(false);
@@ -109,7 +111,11 @@ export function FeedView({ profileId }: { profileId: string }) {
             <TasteThread row={rail} onOpen={openItem} />
           </div>
         )}
-        <QuickActions onJump={jump} onRefresh={refresh} />
+        <QuickActions
+          onJump={jump}
+          onRefresh={refresh}
+          onJournal={() => void navigate(`/p/${profileId}/journal?compose`)}
+        />
         <VibePanel />
       </aside>
 

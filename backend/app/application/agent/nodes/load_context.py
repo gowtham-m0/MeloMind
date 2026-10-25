@@ -2,17 +2,20 @@
 weights. It also says in the log what the user's recent activity changes in this feed."""
 
 from collections.abc import Sequence
+from uuid import UUID
 
 from app.application.agent.deps import FeedDeps
 from app.application.agent.state import FeedState
 from app.application.agent.types import FeedContext, SignalRef
 from app.domain.feed import entity_type_of, favourite_ref, is_qloo_ref
 from app.domain.feedback import Blocklist, Exclusion, Feedback, Signal
+from app.domain.journal import confirmed_media, signal_type
 from app.domain.models import Favourite
 from app.domain.policies import learned_weights, signal_refs
 
 NODE = "load_context"
 LEARNED_SIGNALS_MAX = 5
+JOURNAL_SIGNALS_MAX = 5
 EXPLAINED_MAX = 4
 
 _WORDS: dict[Signal, str] = {
@@ -33,6 +36,7 @@ async def load_context(state: FeedState, deps: FeedDeps) -> FeedState:
     blocklist = Blocklist.from_exclusions(exclusions)
     favourite_signals = _favourite_signals(profile.favourites, blocklist)
     learned = _learned_signals(feedback, blocklist, favourite_signals)
+    journal = await _journal_signals(deps, profile.id, blocklist)
     context = FeedContext(
         profile_id=profile.id,
         first_name=profile.display_name.split()[0],
@@ -46,6 +50,7 @@ async def load_context(state: FeedState, deps: FeedDeps) -> FeedState:
         learned_weights=learned_weights(feedback),
         previous_refs=deps.previous_refs,
         previous_tags=deps.previous_tags,
+        journal_signals=journal,
     )
     verified = sum(1 for favourite in profile.favourites if favourite.verified)
     where = f", {profile.country_code}" if profile.country_code else ""
@@ -56,7 +61,33 @@ async def load_context(state: FeedState, deps: FeedDeps) -> FeedState:
     )
     for message in _learning_messages(feedback, learned, exclusions):
         await deps.log.info(NODE, message)
+    if journal:
+        names = ", ".join(signal.name for signal in journal[:EXPLAINED_MAX])
+        await deps.log.info(NODE, f"From your journal: {names}.")
     return {"context": context}
+
+
+async def _journal_signals(
+    deps: FeedDeps, profile_id: UUID, blocklist: Blocklist
+) -> tuple[SignalRef, ...]:
+    """Items from confirmed journal links that Qloo knows, newest first. Suggested links never
+    count (rule 4). A song counts as its artist."""
+    if deps.journal is None:
+        return ()
+    nodes = await deps.journal.list_nodes(profile_id)
+    links = await deps.journal.list_links(profile_id)
+    signals: dict[str, SignalRef] = {}
+    for node, _link in confirmed_media(nodes, links):
+        entity_type = signal_type(node.kind)
+        if node.qloo_id is None or entity_type is None or node.qloo_id in signals:
+            continue
+        name = node.creator if node.creator else node.title
+        if blocklist.blocks(node.qloo_id, name):
+            continue
+        signals[node.qloo_id] = SignalRef(
+            ref=node.qloo_id, name=name, entity_type=entity_type, learned=True
+        )
+    return tuple(signals.values())[:JOURNAL_SIGNALS_MAX]
 
 
 def _favourite_signals(

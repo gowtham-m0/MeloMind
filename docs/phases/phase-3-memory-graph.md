@@ -23,12 +23,12 @@ The full shapes are in `docs/API_CONTRACT.md`, "Phase 3: journal and taste page"
 | `GET /api/v1/profiles/{id}/journal?from=&to=` | query string | `JournalEntry[]` |
 | `POST /api/v1/profiles/{id}/journal` | `{ date?, text, mood? }` | `JournalEntry` with `link_run_id` |
 | `GET` / `PATCH` / `DELETE /api/v1/profiles/{id}/journal/{entry_id}` | — | `JournalEntry` / `204` |
-| `POST /api/v1/profiles/{id}/journal/transcribe` | `multipart: audio` | `{ text }` |
+| `POST /api/v1/profiles/{id}/journal/transcribe` | the raw recording (`Content-Type: audio/webm`…) | `{ text }` |
 | `PATCH /api/v1/profiles/{id}/journal/links/{link_id}` | `{ status: confirmed \| rejected }` | `JournalLink` |
 | `POST /api/v1/profiles/{id}/journal/{entry_id}/links/confirm-all` | nothing | `JournalEntry` |
 | `GET /api/v1/profiles/{id}/taste` | nothing | `{ sentence, top_tags, by_type, favourites, recent_likes }` |
 | `GET /api/v1/profiles/{id}/taste/map` | nothing | `{ nodes, links }` |
-| `POST /api/v1/profiles/{id}/favourites/resolve` | `{ text, kind? }` | `{ agent_run_id }` |
+| `POST /api/v1/profiles/{id}/favourites/resolve` | `{ text, kind?, hint? }` | `{ agent_run_id }` |
 
 ---
 

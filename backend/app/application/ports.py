@@ -4,7 +4,7 @@ Adapters in `infrastructure/` implement these. The application never imports an 
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal, Protocol
 from uuid import UUID
 
@@ -12,7 +12,8 @@ from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel
 
 from app.domain.feed import Feed, FeedItem
-from app.domain.feedback import Exclusion, Feedback
+from app.domain.feedback import Exclusion, Feedback, Signal
+from app.domain.journal import JournalLink, JournalNode, NodeKind
 from app.domain.models import EntityType, Favourite, Profile
 from app.domain.runs import AgentRun, AgentStep, RunStatus
 
@@ -155,6 +156,22 @@ class SongCatalog(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class Transcript:
+    """What a recording said, and how long it was when the service knows."""
+
+    text: str
+    duration_s: float | None = None
+
+
+class SpeechToText(Protocol):
+    """Speech to text for journal entries (Groq Whisper, or a fake). Audio is never stored."""
+
+    async def transcribe(self, audio: bytes, filename: str, content_type: str) -> Transcript:
+        """The words in one recording. Raises `UpstreamError` when transcription fails."""
+        ...
+
+
 class LanguageModel(Protocol):
     """The one door to the LLM for structured answers (explain, interpret, extract)."""
 
@@ -250,6 +267,11 @@ class FeedbackRepository(Protocol):
         """Every signal for the profile, oldest first."""
         ...
 
+    async def delete_signals(self, profile_id: UUID, item_ref: str, kind: Signal) -> int:
+        """Delete every signal of this kind for the item (a journal link that went away). The
+        number deleted."""
+        ...
+
 
 class ExclusionRepository(Protocol):
     """Items marked "not interested". At most one per item ref per profile."""
@@ -324,4 +346,57 @@ class QlooCacheRepository(Protocol):
 
     async def put(self, cache_key: str, rows: list[dict[str, Any]]) -> None:
         """Remember the results for the request."""
+        ...
+
+
+class JournalRepository(Protocol):
+    """Journal nodes and links, always scoped to one profile. Deleting a node deletes its links,
+    and deleting a profile deletes its journal."""
+
+    async def add_node(self, node: JournalNode) -> None:
+        """Store a new node."""
+        ...
+
+    async def update_node(self, node: JournalNode) -> None:
+        """Save a node's fields."""
+        ...
+
+    async def get_node(self, profile_id: UUID, node_id: UUID) -> JournalNode | None:
+        """One node of this profile, or None."""
+        ...
+
+    async def list_nodes(
+        self, profile_id: UUID, kinds: frozenset[NodeKind] | None = None
+    ) -> list[JournalNode]:
+        """The profile's nodes, oldest first, optionally of some kinds only."""
+        ...
+
+    async def list_entries(
+        self, profile_id: UUID, date_from: date | None = None, date_to: date | None = None
+    ) -> list[JournalNode]:
+        """The profile's entries between two dates (inclusive), newest first."""
+        ...
+
+    async def delete_node(self, profile_id: UUID, node_id: UUID) -> bool:
+        """Delete a node and every link to or from it. False when there was none."""
+        ...
+
+    async def add_link(self, link: JournalLink) -> None:
+        """Store a new link. There is at most one link per `(from_id, to_id, kind)`."""
+        ...
+
+    async def update_link(self, link: JournalLink) -> None:
+        """Save a link's status and reason."""
+        ...
+
+    async def get_link(self, profile_id: UUID, link_id: UUID) -> JournalLink | None:
+        """One link of this profile, or None."""
+        ...
+
+    async def list_links(self, profile_id: UUID) -> list[JournalLink]:
+        """Every link of the profile, oldest first, whatever its status."""
+        ...
+
+    async def delete_for_profile(self, profile_id: UUID) -> None:
+        """Delete the profile's whole journal."""
         ...

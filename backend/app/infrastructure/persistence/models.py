@@ -1,12 +1,13 @@
 """SQLAlchemy tables. The Alembic migrations in `backend/alembic/` create them."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -183,3 +184,64 @@ class QlooCacheRow(Base):
     cache_key: Mapped[str] = mapped_column(String(64), primary_key=True)
     rows: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
     cached_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class JournalNodeRow(Base):
+    """A journal node: an entry (with its text), a media item or a place. Private to its
+    profile, and deleted with it."""
+
+    __tablename__ = "journal_nodes"
+    __table_args__ = (
+        CheckConstraint(
+            "kind in ('entry', 'artist', 'song', 'movie', 'tv_show', 'book', 'place')",
+            name="journal_nodes_kind",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    profile_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("profiles.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(16))
+    title: Mapped[str] = mapped_column(String(200))
+    body: Mapped[str | None] = mapped_column(Text)
+    entry_date: Mapped[date | None] = mapped_column("date", Date)
+    mood: Mapped[str | None] = mapped_column(String(30))
+    year: Mapped[int | None] = mapped_column(SmallInteger)
+    qloo_id: Mapped[str | None] = mapped_column(String(100))
+    creator: Mapped[str | None] = mapped_column(String(200))
+    image_url: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class JournalLinkRow(Base):
+    """A link between two journal nodes. Deleted with either node."""
+
+    __tablename__ = "journal_links"
+    __table_args__ = (
+        UniqueConstraint("from_id", "to_id", "kind", name="journal_links_from_to_kind"),
+        CheckConstraint(
+            "kind in ('mentions', 'because_of', 'liked', 'related')", name="journal_links_kind"
+        ),
+        CheckConstraint("source in ('user', 'agent', 'qloo', 'feed')", name="journal_links_source"),
+        CheckConstraint(
+            "status in ('suggested', 'confirmed', 'rejected')", name="journal_links_status"
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    profile_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("profiles.id", ondelete="CASCADE"), index=True
+    )
+    from_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("journal_nodes.id", ondelete="CASCADE"), index=True
+    )
+    to_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("journal_nodes.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(16))
+    source: Mapped[str] = mapped_column(String(16))
+    status: Mapped[str] = mapped_column(String(16))
+    reason: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
