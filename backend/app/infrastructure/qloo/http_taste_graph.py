@@ -7,7 +7,13 @@ from typing import Any
 
 import httpx
 
-from app.application.ports import EntityMatch, InsightsQuery, TagMatch, TasteSource
+from app.application.ports import (
+    EntityMatch,
+    InsightsQuery,
+    TagComparison,
+    TagMatch,
+    TasteSource,
+)
 from app.core.errors import UpstreamError
 from app.domain.countries import country_name
 from app.domain.models import EntityType
@@ -166,6 +172,21 @@ def parse_tag(raw: Any) -> TagMatch | None:
     return TagMatch(tag_id=tag_id, name=name)
 
 
+def parse_compare_tags(rows: Any) -> tuple[TagMatch, ...]:
+    """The tags in one list of a compare result. Entries are `{tag_id, name, …}` (the group
+    lists) or `{id, name}` (like `/v2/tags`); anything without both is skipped."""
+    if not isinstance(rows, list):
+        return ()
+    tags: dict[str, TagMatch] = {}
+    for raw in rows:
+        if not isinstance(raw, Mapping):
+            continue
+        tag_id, name = raw.get("tag_id") or raw.get("id"), raw.get("name")
+        if isinstance(tag_id, str) and isinstance(name, str):
+            tags.setdefault(tag_id, TagMatch(tag_id=tag_id, name=name))
+    return tuple(tags.values())
+
+
 def _entity_type(raw: Mapping[str, Any]) -> EntityType | None:
     # Insights put the real type in `subtype`; search lists it in `types`.
     urns = [raw.get("subtype"), raw.get("type")]
@@ -241,6 +262,24 @@ class QlooHttpTasteGraph:
         rows = results.get("tags") if isinstance(results, Mapping) else None
         tags = [parse_tag(row) for row in (rows if isinstance(rows, list) else [])]
         return [tag for tag in tags if tag is not None]
+
+    async def compare(
+        self, group_a: tuple[str, ...], group_b: tuple[str, ...], take: int = 15
+    ) -> TagComparison:
+        """`GET /v2/insights/compare`: the tags for each group and the tags they share."""
+        params = {
+            "a.signal.interests.entities": ",".join(group_a),
+            "b.signal.interests.entities": ",".join(group_b),
+            "take": str(take),
+        }
+        body = await self._get("/v2/insights/compare", params)
+        results = body.get("results")
+        results = results if isinstance(results, Mapping) else {}
+        return TagComparison(
+            a_tags=parse_compare_tags(results.get("a")),
+            b_tags=parse_compare_tags(results.get("b")),
+            shared=parse_compare_tags(results.get("tags")),
+        )
 
     @staticmethod
     def _parse_all(rows: list[Any]) -> list[EntityMatch]:

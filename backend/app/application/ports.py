@@ -80,6 +80,16 @@ class TagMatch:
     name: str
 
 
+@dataclass(frozen=True)
+class TagComparison:
+    """Qloo's compare of two groups of entities: the tags describing each group, and the tags
+    they share. Compare returns tags, never recommendations."""
+
+    a_tags: tuple[TagMatch, ...] = ()
+    b_tags: tuple[TagMatch, ...] = ()
+    shared: tuple[TagMatch, ...] = ()
+
+
 class TasteGraph(Protocol):
     """Qloo's taste graph, live or from the demo fixtures."""
 
@@ -100,6 +110,12 @@ class TasteGraph(Protocol):
 
     async def tags(self, query: str, take: int = 5) -> list[TagMatch]:
         """Tags whose name matches the query, such as a genre or a region."""
+        ...
+
+    async def compare(
+        self, group_a: tuple[str, ...], group_b: tuple[str, ...], take: int = 15
+    ) -> TagComparison:
+        """The tags describing each group of entity IDs and the tags both share."""
         ...
 
 

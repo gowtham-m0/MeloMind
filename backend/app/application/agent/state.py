@@ -24,7 +24,8 @@ class FeedState(TypedDict, total=False):
     `research_outcome` (research, fallback), `fallback_attempts` (fallback), `qloo_calls`
     (research, fallback: what they spent of the feed's Qloo budget), `drafts` (build_rows,
     rank, guardrails), `hero` (rank, guardrails), `rows`, `hero_item`, `taste_tags` (decorate),
-    `summary` (explain)."""
+    `summary` (explain). `single_row` (ask_row) marks an ask run, whose one row stays a row: no
+    hero is promoted from it."""
 
     profile: Profile
     context: FeedContext
@@ -39,3 +40,4 @@ class FeedState(TypedDict, total=False):
     hero_item: FeedItem | None
     taste_tags: tuple[str, ...]
     summary: str
+    single_row: bool

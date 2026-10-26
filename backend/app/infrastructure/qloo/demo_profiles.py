@@ -1,4 +1,4 @@
-"""Reads the sample profiles that `POST /demo/seed` creates, from `fixtures/profiles.json`."""
+"""Reads the sample profiles that `POST /demo/seed` creates, from `demo_profiles.json`."""
 
 import json
 from pathlib import Path
@@ -11,7 +11,8 @@ from app.domain.models import (
     DemoProfileSpec,
     FavouriteKind,
 )
-from app.infrastructure.qloo.fixture_taste_graph import FIXTURES_DIR
+
+PROFILES_PATH = Path(__file__).with_name("demo_profiles.json")
 
 
 def _parse_favourite(raw: dict[str, Any]) -> DemoFavouriteSpec:
@@ -44,7 +45,7 @@ def _parse_profile(raw: dict[str, Any]) -> DemoProfileSpec:
     )
 
 
-def load_demo_profiles(fixtures_dir: Path = FIXTURES_DIR) -> list[DemoProfileSpec]:
+def load_demo_profiles(path: Path = PROFILES_PATH) -> list[DemoProfileSpec]:
     """The sample profiles, with favourites by name only. The seed resolves the names."""
-    raw = json.loads((fixtures_dir / "profiles.json").read_text(encoding="utf-8"))
+    raw = json.loads(path.read_text(encoding="utf-8"))
     return [_parse_profile(profile) for profile in raw["profiles"]]

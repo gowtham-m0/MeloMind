@@ -52,14 +52,15 @@ async def guardrails(state: FeedState, deps: FeedDeps) -> FeedState:
             dropped.append(draft["title"])
             continue
         kept_rows.append(RowDraft(**{**draft, "candidates": kept}))
-    if hero is None:
+    single_row = state.get("single_row", False)
+    if hero is None and not single_row:
         hero = _promote(kept_rows)
     if removed:
         await deps.log.info(NODE, f"Removed {removed} items you're not interested in.")
     for title in dropped:
         await deps.log.info(NODE, f"Dropped “{title}”: too few picks left.")
     main_rows = sum(1 for draft in kept_rows if draft["placement"] == "main")
-    if main_rows < FEW_ROWS:
+    if main_rows < FEW_ROWS and not single_row:
         await deps.log.warn(NODE, f"Only {main_rows} rows today; add a few favourites for more.")
     total = sum(len(draft["candidates"]) for draft in kept_rows) + (1 if hero else 0)
     await deps.log.info(NODE, f"Checked the feed: {total} picks in {len(kept_rows)} rows.")

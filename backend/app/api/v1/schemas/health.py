@@ -4,13 +4,10 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.api.deps import QlooMode
-
 
 class HealthResponse(BaseModel):
-    """The API is up, which environment it runs in, and where recommendations come from."""
+    """The API is up, and which environment it runs in."""
 
     status: Literal["ok"]
     app_name: str
     env: str
-    qloo_mode: QlooMode

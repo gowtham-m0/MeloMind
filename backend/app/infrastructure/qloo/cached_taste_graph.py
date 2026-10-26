@@ -10,6 +10,7 @@ from app.application.ports import (
     EntityMatch,
     InsightsQuery,
     QlooCacheRepository,
+    TagComparison,
     TagMatch,
     TasteGraph,
     TasteSource,
@@ -85,6 +86,35 @@ class CachedTasteGraph:
         tags = await self._inner.tags(query, take)
         await self._cache.put(key, [asdict(tag) for tag in tags])
         return tags
+
+    async def compare(
+        self, group_a: tuple[str, ...], group_b: tuple[str, ...], take: int = 15
+    ) -> TagComparison:
+        """Cached `compare`. The cache holds each tag with the list it belongs to."""
+        key = cache_key("compare", sorted(group_a), sorted(group_b), take)
+        rows = await self._cached(key)
+        if rows is None:
+            comparison = await self._inner.compare(group_a, group_b, take)
+            rows = [
+                {"list": name, **asdict(tag)}
+                for name, tags in (
+                    ("a", comparison.a_tags),
+                    ("b", comparison.b_tags),
+                    ("shared", comparison.shared),
+                )
+                for tag in tags
+            ]
+            await self._cache.put(key, rows)
+            return comparison
+
+        def tags_of(name: str) -> tuple[TagMatch, ...]:
+            return tuple(
+                TagMatch(tag_id=row["tag_id"], name=row["name"])
+                for row in rows
+                if row["list"] == name
+            )
+
+        return TagComparison(a_tags=tags_of("a"), b_tags=tags_of("b"), shared=tags_of("shared"))
 
     async def _cached(self, key: str) -> list[dict[str, Any]] | None:
         entry = await self._cache.get(key)

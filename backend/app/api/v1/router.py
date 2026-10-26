@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from app.api.v1.routes import (
     agent_runs,
+    ask,
     demo,
     exclusions,
     favourites,
@@ -26,3 +27,4 @@ api_router.include_router(agent_runs.router)
 api_router.include_router(exclusions.router)
 api_router.include_router(journal.router)
 api_router.include_router(taste_profile.router)
+api_router.include_router(ask.router)

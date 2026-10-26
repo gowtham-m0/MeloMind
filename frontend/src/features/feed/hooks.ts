@@ -16,6 +16,10 @@ import { useToast } from "@/shared/ui/toast";
 
 const RUN_POLL_MS = 1000;
 
+/** Profiles whose feed was already rebuilt since this page loaded, so a reload refreshes the
+ * recommendations once and moving around the app doesn't rebuild them again. */
+const rebuiltThisLoad = new Set<string>();
+
 export const feedKey = (profileId: string) => ["feed", profileId] as const;
 
 /** The newest finished feed, or null while there is none yet. */
@@ -58,12 +62,23 @@ export function useFeed(profileId: string) {
   });
 
   const noFeedYet = feed.data === null;
+  const hasFeed = feed.data != null;
   const { mutate: startBuild, isPending: starting, isError: startFailed } = refresh;
   useEffect(() => {
     if (noFeedYet && runId === null && !starting && !startFailed) {
+      rebuiltThisLoad.add(profileId);
       startBuild();
     }
-  }, [noFeedYet, runId, starting, startFailed, startBuild]);
+  }, [noFeedYet, profileId, runId, starting, startFailed, startBuild]);
+
+  // The saved feed opens instantly; a reload then rebuilds it in the background (a failure, such
+  // as the hourly limit, just leaves the saved feed in place).
+  useEffect(() => {
+    if (hasFeed && runId === null && !starting && !rebuiltThisLoad.has(profileId)) {
+      rebuiltThisLoad.add(profileId);
+      startBuild();
+    }
+  }, [hasFeed, profileId, runId, starting, startBuild]);
 
   const runStatus = run.data?.status;
   useEffect(() => {

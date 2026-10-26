@@ -550,13 +550,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profiles/{profile_id}/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask
+         * @description Start building one extra row: for a mood, a surprise or the user's words. Poll the run:
+         *     its `result` is the row. Counts toward the same hourly limit as feed builds.
+         */
+        post: operations["ask_api_v1_profiles__profile_id__ask_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profiles/{profile_id}/taste-match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Taste Match
+         * @description Compare this taste with another of your profiles, or with a friend's favourites.
+         */
+        post: operations["taste_match_api_v1_profiles__profile_id__taste_match_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
          * AgentRunOut
-         * @description A run and its log. `result` is a small summary once the run is done or failed.
+         * @description A run and its log. `result` is a small summary once the run is done or failed. For a
+         *     finished ask run it is the row, shaped like a feed row.
          */
         AgentRunOut: {
             /**
@@ -588,6 +630,30 @@ export interface components {
              * Format: date-time
              */
             at: string;
+        };
+        /**
+         * AskIn
+         * @description What to ask for: words, a mood or a surprise (at least one). A surprise wins over a mood,
+         *     and a mood over words. The words are used for this run only.
+         */
+        AskIn: {
+            /** Text */
+            text?: string | null;
+            /** Mood */
+            mood?: ("chill" | "happy" | "focused" | "melancholy" | "energetic") | null;
+            /** Kind */
+            kind?: "surprise" | null;
+        };
+        /**
+         * AskOut
+         * @description The run to poll. When it's done, its `result` is the row.
+         */
+        AskOut: {
+            /**
+             * Agent Run Id
+             * Format: uuid
+             */
+            agent_run_id: string;
         };
         /**
          * BecauseOfOut
@@ -854,11 +920,6 @@ export interface components {
             app_name: string;
             /** Env */
             env: string;
-            /**
-             * Qloo Mode
-             * @enum {string}
-             */
-            qloo_mode: "live" | "demo_fixtures";
         };
         /**
          * ItemDetailOut
@@ -1232,7 +1293,7 @@ export interface components {
          * @description Which workflow the run belongs to.
          * @enum {string}
          */
-        RunKind: "feed" | "resolve" | "link";
+        RunKind: "feed" | "resolve" | "link" | "ask" | "match";
         /**
          * RunStatus
          * @description Whether the run is still going. `needs_hint`: the resolver stopped to ask the user for a
@@ -1265,6 +1326,27 @@ export interface components {
             nodes: components["schemas"]["MapNodeOut"][];
             /** Links */
             links: components["schemas"]["MapLinkOut"][];
+        };
+        /**
+         * TasteMatchIn
+         * @description Another of your profiles, or a friend's favourites (Qloo entity IDs from search).
+         */
+        TasteMatchIn: {
+            /** Other Profile Id */
+            other_profile_id?: string | null;
+            /** Favourites */
+            favourites?: string[] | null;
+        };
+        /**
+         * TasteMatchOut
+         * @description What two tastes share, a 0 to 1 score and the "For you both" row.
+         */
+        TasteMatchOut: {
+            /** Shared Tags */
+            shared_tags: string[];
+            /** Score */
+            score: number;
+            row: components["schemas"]["FeedRowOut"];
         };
         /**
          * TasteOut
@@ -2304,6 +2386,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResolveOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ask_api_v1_profiles__profile_id__ask_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    taste_match_api_v1_profiles__profile_id__taste_match_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TasteMatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TasteMatchOut"];
                 };
             };
             /** @description Validation Error */

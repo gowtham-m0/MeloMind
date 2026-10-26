@@ -112,6 +112,16 @@ class ResearchBrief:
 
 
 @dataclass(frozen=True)
+class AskIntent:
+    """What an ask run is for: a mood from "Your vibe today", a surprise, or the user's own words
+    (`text`). The words guide this run only and are never logged or stored."""
+
+    text: str | None = None
+    mood: str | None = None
+    surprise: bool = False
+
+
+@dataclass(frozen=True)
 class FallbackQuery:
     """One rule-based insights query. `signal_from` uses earlier results of that type as signals,
     so cold-start artists can follow popular films."""

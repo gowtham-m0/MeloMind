@@ -3,7 +3,7 @@
 from collections.abc import AsyncIterator, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
-from typing import Annotated, Literal
+from typing import Annotated
 
 import httpx
 from fastapi import Depends, Request
@@ -29,6 +29,7 @@ from app.application.ports import (
     TasteGraph,
 )
 from app.application.rows.registry import default_registry
+from app.application.services.ask import AskService
 from app.application.services.background import AsyncioBackgroundRunner, BackgroundRunner
 from app.application.services.demo import DemoSeedService
 from app.application.services.exclusions import ExclusionService
@@ -43,6 +44,7 @@ from app.application.services.rate_limit import SlidingWindowRateLimiter
 from app.application.services.resolve import ResolveService
 from app.application.services.runs import AgentRunService
 from app.application.services.taste import TasteService
+from app.application.services.taste_match import TasteMatchService
 from app.application.services.taste_profile import TasteProfileService
 from app.core.errors import UnauthorizedError
 from app.core.settings import Settings, get_settings
@@ -93,20 +95,9 @@ from app.infrastructure.persistence.postgres_profiles import PostgresProfileRepo
 from app.infrastructure.persistence.postgres_runs import PostgresAgentRunRepository
 from app.infrastructure.qloo.cached_taste_graph import CachedTasteGraph
 from app.infrastructure.qloo.demo_profiles import load_demo_profiles
-from app.infrastructure.qloo.fixture_taste_graph import FixtureTasteGraph
 from app.infrastructure.qloo.http_taste_graph import QLOO_TIMEOUT_SECONDS, QlooHttpTasteGraph
 
-QlooMode = Literal["live", "demo_fixtures"]
-
 SettingsDep = Annotated[Settings, Depends(get_settings)]
-
-
-def get_qloo_mode(settings: SettingsDep) -> QlooMode:
-    """Use live Qloo when an API key is set, and the hand-written demo fixtures otherwise."""
-    return "live" if settings.qloo_api_key.get_secret_value().strip() else "demo_fixtures"
-
-
-QlooModeDep = Annotated[QlooMode, Depends(get_qloo_mode)]
 
 
 @dataclass(frozen=True)
@@ -172,6 +163,8 @@ class Container:
     journal: JournalService
     resolve: ResolveService
     taste_profile: TasteProfileService
+    ask: AskService
+    taste_match: TasteMatchService
     token_verifier: SupabaseTokenVerifier | None
 
 
@@ -204,6 +197,7 @@ def wire(
         songs=adapters.songs,
         journal=adapters.journal,
     )
+    rate_limiter = SlidingWindowRateLimiter(settings.feed_rate_limit_per_hour)
     feeds = FeedService(
         profiles,
         adapters.feeds,
@@ -212,7 +206,7 @@ def wire(
         adapters.catalog,
         builder,
         runner,
-        SlidingWindowRateLimiter(settings.feed_rate_limit_per_hour),
+        rate_limiter,
     )
     feedback = FeedbackService(
         profiles, adapters.feedback, adapters.exclusions, feeds, catalog=adapters.catalog
@@ -296,6 +290,17 @@ def wire(
             settings.taste_map_max_nodes,
             adapters.language_model,
         ),
+        ask=AskService(
+            profiles,
+            adapters.feeds,
+            adapters.runs,
+            adapters.exclusions,
+            adapters.catalog,
+            builder,
+            runner,
+            rate_limiter,
+        ),
+        taste_match=TasteMatchService(profiles, adapters.runs, adapters.catalog, builder),
         token_verifier=token_verifier,
     )
 
@@ -353,6 +358,8 @@ async def build_container(settings: Settings) -> AsyncIterator[Container]:
     """Choose adapters from the settings, and close their connections on shutdown."""
     async with AsyncExitStack() as stack:
         qloo_key = settings.qloo_api_key.get_secret_value().strip()
+        if not qloo_key:
+            raise RuntimeError("QLOO_API_KEY is not set. MeloMind needs a Qloo key to run.")
         database_url = settings.database_url.get_secret_value().strip()
         if database_url:
             engine = create_engine(database_url)
@@ -378,14 +385,12 @@ async def build_container(settings: Settings) -> AsyncIterator[Container]:
             media_cache = InMemoryMediaCache()
             qloo_cache = InMemoryQlooCache()
 
-        taste_graph: TasteGraph
-        if qloo_key:
-            qloo_client = await stack.enter_async_context(
-                httpx.AsyncClient(base_url=settings.qloo_base_url, timeout=QLOO_TIMEOUT_SECONDS)
-            )
-            taste_graph = CachedTasteGraph(QlooHttpTasteGraph(qloo_client, qloo_key), qloo_cache)
-        else:
-            taste_graph = FixtureTasteGraph()
+        qloo_client = await stack.enter_async_context(
+            httpx.AsyncClient(base_url=settings.qloo_base_url, timeout=QLOO_TIMEOUT_SECONDS)
+        )
+        taste_graph: TasteGraph = CachedTasteGraph(
+            QlooHttpTasteGraph(qloo_client, qloo_key), qloo_cache
+        )
 
         youtube_key = settings.youtube_api_key.get_secret_value().strip()
         media: MediaResolver | None = None
@@ -533,6 +538,16 @@ def get_taste_profile_service(container: ContainerDep) -> TasteProfileService:
     return container.taste_profile
 
 
+def get_ask_service(container: ContainerDep) -> AskService:
+    """Asking the agent for an extra row."""
+    return container.ask
+
+
+def get_taste_match_service(container: ContainerDep) -> TasteMatchService:
+    """Taste match."""
+    return container.taste_match
+
+
 TasteServiceDep = Annotated[TasteService, Depends(get_taste_service)]
 ProfileServiceDep = Annotated[ProfileService, Depends(get_profile_service)]
 DemoServiceDep = Annotated[DemoSeedService, Depends(get_demo_service)]
@@ -546,3 +561,5 @@ ExclusionServiceDep = Annotated[ExclusionService, Depends(get_exclusion_service)
 JournalServiceDep = Annotated[JournalService, Depends(get_journal_service)]
 ResolveServiceDep = Annotated[ResolveService, Depends(get_resolve_service)]
 TasteProfileServiceDep = Annotated[TasteProfileService, Depends(get_taste_profile_service)]
+AskServiceDep = Annotated[AskService, Depends(get_ask_service)]
+TasteMatchServiceDep = Annotated[TasteMatchService, Depends(get_taste_match_service)]

@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.api.v1.schemas.feed import FeedRowOut
+from app.domain.feed_json import row_from_json
 from app.domain.runs import AgentRun, AgentStep, RunKind, RunStatus, StepLevel
 
 
@@ -24,7 +26,8 @@ class AgentStepOut(BaseModel):
 
 
 class AgentRunOut(BaseModel):
-    """A run and its log. `result` is a small summary once the run is done or failed."""
+    """A run and its log. `result` is a small summary once the run is done or failed. For a
+    finished ask run it is the row, shaped like a feed row."""
 
     id: UUID
     kind: RunKind
@@ -40,5 +43,12 @@ class AgentRunOut(BaseModel):
             kind=run.kind,
             status=run.status,
             steps=[AgentStepOut.from_domain(step) for step in run.steps],
-            result=run.result,
+            result=_result(run),
         )
+
+
+def _result(run: AgentRun) -> dict[str, Any] | None:
+    """The run's result. An ask run stores its row as domain JSON; clients get a feed row."""
+    if run.kind is RunKind.ASK and run.status is RunStatus.DONE and run.result:
+        return FeedRowOut.from_domain(row_from_json(run.result), {}).model_dump(mode="json")
+    return run.result

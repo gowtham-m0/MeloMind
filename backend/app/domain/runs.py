@@ -15,6 +15,8 @@ class RunKind(StrEnum):
     FEED = "feed"
     RESOLVE = "resolve"
     LINK = "link"
+    ASK = "ask"
+    MATCH = "match"
 
 
 class RunStatus(StrEnum):

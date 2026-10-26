@@ -7,13 +7,13 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.domain.feed import Feed, FeedItem, FeedStatus
-from app.domain.models import utc_now
-from app.infrastructure.persistence.feed_json import (
+from app.domain.feed_json import (
     item_from_json,
     item_to_json,
     row_from_json,
     row_to_json,
 )
+from app.domain.models import utc_now
 from app.infrastructure.persistence.models import CatalogItemRow, FeedRowRecord
 
 

@@ -1,4 +1,5 @@
-"""Feed items and rows to and from JSON, for the `feeds` and `catalog_items` JSONB columns."""
+"""Feed items and rows to and from JSON, for the `feeds` and `catalog_items` JSONB columns and
+for an ask run's result."""
 
 from typing import Any
 
