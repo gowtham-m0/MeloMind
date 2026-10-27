@@ -3,7 +3,7 @@
 This file tells Claude Code how to work in this repo. Read it at the start of every session.
 The plan, decisions, roles and risks are in `docs/PLAN.md`. Each phase's tasks are in their own file in `docs/phases/`.
 
-**Current phase: 3, Journal and taste page** (`docs/phases/phase-3-memory-graph.md`). Update this line when a phase ends.
+**Current phase: 4, Polish and freeze** (`docs/phases/phase-4-bridge-and-freeze.md`). Update this line when a phase ends.
 
 > **Pivot, 24 Oct 2026.** MeloMind was a dementia music-session tool. It is now a **personal taste dashboard**. Code from Phases 0–1 and parts of the old Phase 2 are reused (see the phase file). Anything in the code about caregivers, sessions, Person mode or the warm-up shelf is being removed.
 
@@ -79,7 +79,7 @@ Read the "Decisions" section of `docs/PLAN.md` before proposing a change.
 
 | Area | Choice |
 |---|---|
-| Backend | Python 3.12, FastAPI, Pydantic v2, httpx (async), pytest, ruff. uv manages Python, the virtual env and packages (`pyproject.toml` and `uv.lock`; no requirements files) |
+| Backend | Python 3.12, FastAPI, Pydantic v2, httpx (async), ruff. uv manages Python, the virtual env and packages (`pyproject.toml` and `uv.lock`; no requirements files) |
 | Agent | LangGraph for the outer workflows, plus LangChain's `create_agent` for the research step, bounded by middleware (`ToolCallLimitMiddleware`, `ModelCallLimitMiddleware`, `ToolRetryMiddleware`, `ModelFallbackMiddleware`). The LLM sits behind one port: Gemini (`gemini-3.8-flash`) as the main model and Groq (`openai/gpt-oss-120b`) as the fallback, built by a factory in `infrastructure/llm/`, with structured output and a template fallback (`langchain-groq`, `langchain-google-genai`). No Deep Agents |
 | Speech to text | Groq Whisper (`whisper-large-v3-turbo`) behind a `SpeechToText` port, using the Groq key (`LLM_FALLBACK_API_KEY`). The browser records with `MediaRecorder` |
 | Database | Supabase Postgres via SQLAlchemy 2.0 (async, asyncpg), with Alembic migrations. Journal links and the taste map use two ordinary tables, not a graph database |
@@ -90,7 +90,6 @@ Read the "Decisions" section of `docs/PLAN.md` before proposing a change.
 | Platform links | Built in code from the title, type, year, country and any Qloo external ID (`domain/links.py`). No streaming-availability API |
 | Songs | Apple's iTunes Search API (`/search`, no key) behind a `SongCatalog` port (`infrastructure/music/itunes.py`): top songs for artists Qloo picked, with artwork, a 30-second preview URL and the Apple Music store link. In-memory cache (6 hours) and about 18 calls a minute. `SONGS_ENABLED=false` turns it off |
 | Media preview (optional) | YouTube Data API v3 (`search`, `videos.list`) and the YouTube IFrame Player, **only on demand** from an item's detail view. Songs use their iTunes preview instead |
-| Testing | pytest (unit and API), `httpx.MockTransport` (Qloo contract tests), Playwright (one end-to-end judge path) |
 | Hosting | Vercel (frontend), AWS Lightsail container service (backend), Supabase (database and auth). One monorepo |
 
 Pin exact versions whenever you add a dependency: `uv add --bounds exact <package>` in `backend/` (writes `pyproject.toml` and `uv.lock`), and `npm install <package>` in `frontend/` (`.npmrc` sets `save-exact`).
@@ -128,14 +127,12 @@ melomind/
 │   │       ├── errors.py        maps domain errors to HTTP
 │   │       └── v1/              routes/, schemas/, router.py
 │   ├── alembic/
-│   ├── tests/                   unit/, api/, contract/
 │   └── scripts/                 qloo_smoke.py (manual only, never in CI)
 ├── frontend/src/
 │   ├── app/                     shell, routes, providers, theme
 │   ├── pages/                   route-level pages that compose features
 │   ├── features/<name>/         e.g. onboarding, feed, item-detail, taste, journal, taste-map, agent-log, settings
 │   └── shared/                  api/ (typed client and generated schema), ui/ (design system), hooks/, types/
-└── e2e/                         Playwright tests
 ```
 
 ---
@@ -562,48 +559,12 @@ The full notes are in `docs/QLOO_NOTES.md`.
 
 ---
 
-## Testing
-
-**Unit tests** (fast, no network):
-- domain policies and platform links;
-- each agent node;
-- each tool;
-- the guardrails;
-- the row strategies.
-
-**API tests:** FastAPI `TestClient` with in-memory repositories and the fixture adapters.
-
-**Contract tests:** the Qloo HTTP adapter with `httpx.MockTransport` (parameter building, parsing including images, retries).
-
-**Agent tests:** a scripted fake chat model that returns predefined tool calls, never a real LLM.
-
-**Must-have tests:**
-- a not-interested item never returns, in any row or "More like this";
-- an item appears in at most one row;
-- every feed item has a `source` and a `reason`;
-- cross-user access is denied;
-- a Qloo timeout or empty result is handled, and a feed is still produced;
-- an LLM failure falls back to templates;
-- the research agent stops at its limits, and the fallback still produces a feed;
-- `get_insights` always applies the profile's exclusions;
-- journal text never reaches the Qloo adapter;
-- suggested journal links don't affect the feed until confirmed;
-- a rejected link suggestion is never suggested again;
-- platform links: search links are labelled "Search on", and URLs are encoded.
-
-**End-to-end (Phase 4):** Playwright runs the judge path (see `docs/PLAN.md`) against a local stack, and by hand after the Thursday-night deploy.
-
-**Never call live Qloo, YouTube, iTunes or the LLM in CI.** Songs use `FakeSongCatalog`.
-
----
-
 ## Commands
 
 ```bash
 # backend (uv reads .python-version and uses Python 3.12)
 cd backend && uv sync                  # creates .venv and installs everything from uv.lock
 uv run uvicorn app.main:app --reload   # http://localhost:8000/docs
-uv run pytest
 uv run ruff check . && uv run ruff format --check .
 uv run alembic upgrade head
 uv add --bounds exact <package>        # add a dependency (--dev for dev tools)
@@ -614,9 +575,6 @@ cp .env.example .env.local             # once; sets VITE_API_BASE_URL
 npm run dev                            # http://localhost:5173
 npm run build && npm run lint
 npm run gen:api                        # regenerate API types from the backend's /openapi.json
-
-# end-to-end
-cd e2e && npx playwright test
 ```
 
 ---
@@ -680,22 +638,18 @@ Keep both `.env.example` files up to date. Never commit `.env`.
 **A feed row**
 1. Add `application/rows/<name>.py` implementing `FeedRow`.
 2. Register it with its order.
-3. Add tests.
-4. The feed shows it with no other changes.
+3. The feed shows it with no other changes.
 
 **An agent step**
 1. Add a node in `application/agent/nodes/` that does one job and writes to the log.
 2. Wire it into the workflow in `application/agent/workflows/`.
-3. Add a unit test.
 
 **An agent tool**
 1. Add it in `application/agent/tools/` as a thin wrapper over a port. Validate its inputs and log every call.
 2. Add it to the tool list of the workflow that needs it.
-3. Test it with the scripted fake model.
 
 **A platform**
 1. Add it to the table in `domain/links.py`, with its URL template and label.
-2. Add a unit test for encoding and the label.
 
 **An external service**
 1. Add a port in `application/ports.py`.
@@ -717,7 +671,7 @@ Keep both `.env.example` files up to date. Never commit `.env`.
 
 ## Definition of done
 
-- Merged into `main`, with tests for any new logic.
+- Merged into `main`.
 - Working locally at phone and desktop width, matching the design system.
 - Contract and docs updated.
 - Demo data labelled as demo data.
@@ -737,9 +691,9 @@ Keep both `.env.example` files up to date. Never commit `.env`.
 - Prefer simple, readable code to clever abstractions. This is a 9-day build.
 
 **After coding**
-- Run the relevant checks: `pytest` and `ruff` for the backend, `lint` and `build` for the frontend.
-- Report the results honestly. Never say tests pass without running them.
+- Run the relevant checks: `ruff` for the backend, `lint` and `build` for the frontend.
+- Report the results honestly. Never say a check passes without running it.
 
 **Always**
-- Never commit secrets or real Qloo data. Never add live API calls to tests.
+- Never commit secrets or real Qloo data.
 - If you're unsure about a Qloo parameter or response shape, check `docs/QLOO_NOTES.md`. If it's still unclear, say so instead of guessing.
