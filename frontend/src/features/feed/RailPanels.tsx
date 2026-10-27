@@ -4,20 +4,33 @@ import {
   Music2,
   NotebookPen,
   RefreshCw,
+  Shuffle,
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 
+import type { Mood } from "@/shared/api/ask";
 import { Button } from "@/shared/ui/button";
 import { ToggleChip } from "@/shared/ui/chip";
 
-const MOODS = ["Chill", "Happy", "Focused", "Melancholy", "Energetic"];
+const MOODS: { value: Mood; label: string }[] = [
+  { value: "chill", label: "Chill" },
+  { value: "happy", label: "Happy" },
+  { value: "focused", label: "Focused" },
+  { value: "melancholy", label: "Melancholy" },
+  { value: "energetic", label: "Energetic" },
+];
 
-/** "Your vibe today": pick a mood. Mood rows arrive with the agent's Ask feature (Phase 4), so
- * the button says so plainly instead of pretending. */
-export function VibePanel() {
-  const [mood, setMood] = useState<string | null>(null);
+/** "Your vibe today": pick a mood and the agent builds a row of picks to match. */
+export function VibePanel({
+  busy,
+  onGo,
+}: {
+  busy: boolean;
+  onGo: (mood: Mood, label: string) => void;
+}) {
+  const [mood, setMood] = useState<Mood | null>(null);
   return (
     <section
       aria-labelledby="vibe-title"
@@ -30,16 +43,25 @@ export function VibePanel() {
       <div className="mt-3 flex flex-wrap gap-2">
         {MOODS.map((option) => (
           <ToggleChip
-            key={option}
-            selected={mood === option}
-            onClick={() => setMood(mood === option ? null : option)}
+            key={option.value}
+            selected={mood === option.value}
+            onClick={() => setMood(mood === option.value ? null : option.value)}
           >
-            {option}
+            {option.label}
           </ToggleChip>
         ))}
       </div>
-      <Button variant="secondary" className="mt-4 w-full" disabled>
-        <Sparkles /> Mood picks are coming soon
+      <Button
+        className="mt-4 w-full"
+        disabled={mood === null || busy}
+        onClick={() => {
+          const chosen = MOODS.find((option) => option.value === mood);
+          if (chosen) {
+            onGo(chosen.value, `${chosen.label} picks`);
+          }
+        }}
+      >
+        <Sparkles /> {busy ? "The agent is working…" : "Get recommendations"}
       </Button>
     </section>
   );
@@ -56,12 +78,15 @@ export function QuickActions({
   onJump,
   onRefresh,
   onJournal,
+  onSurprise,
 }: {
   onJump: (rowKey: string) => void;
   onRefresh: () => void;
   onJournal: () => void;
+  onSurprise: () => void;
 }) {
   const actions: QuickAction[] = [
+    { label: "Surprise me", icon: Shuffle, onSelect: onSurprise },
     { label: "Watch something new", icon: Clapperboard, onSelect: () => onJump("films") },
     { label: "Find a book to read", icon: BookOpen, onSelect: () => onJump("books") },
     { label: "Play new music", icon: Music2, onSelect: () => onJump("music") },

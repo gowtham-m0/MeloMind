@@ -1,13 +1,17 @@
 import { cn } from "cn";
-import { ChevronDown, LogOut, Search, Settings, Users } from "lucide-react";
+import { ChevronDown, LogOut, Save, Search, Settings, Sparkles, Users } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { useState, type RefObject } from "react";
 import { useNavigate } from "react-router";
 
+import { Button } from "@/shared/ui/button";
 import { LogoMark } from "@/shared/ui/logo";
+
+import { useAsk } from "../ask/useAsk";
 
 import { avatarColour, useProfile } from "../profiles/hooks";
 import { useSignOut } from "../session/auth";
+import { useAccount } from "../session/useAccount";
 
 import { SearchBox } from "./SearchBox";
 
@@ -20,7 +24,9 @@ interface TopBarProps {
 export function TopBar({ profileId, searchRef }: TopBarProps) {
   const profile = useProfile(profileId);
   const signOut = useSignOut();
+  const account = useAccount();
   const navigate = useNavigate();
+  const { openComposer } = useAsk();
   const [searchOpen, setSearchOpen] = useState(false);
   const name = profile.data?.display_name ?? "";
 
@@ -45,8 +51,11 @@ export function TopBar({ profileId, searchRef }: TopBarProps) {
         >
           <Search className="size-5" />
         </button>
+        <Button variant="secondary" size="sm" className="h-11 md:ml-auto" onClick={openComposer}>
+          <Sparkles className="text-primary-ink" /> Ask
+        </Button>
         <DropdownMenu.Root>
-          <DropdownMenu.Trigger className="flex h-11 items-center gap-2.5 rounded-full py-1 pr-2 pl-1 transition-colors hover:bg-surface-2 md:ml-auto">
+          <DropdownMenu.Trigger className="flex h-11 items-center gap-2.5 rounded-full py-1 pr-2 pl-1 transition-colors hover:bg-surface-2">
             <span
               className={cn(
                 "grid size-9 place-items-center rounded-full font-display text-base font-semibold text-ink",
@@ -66,6 +75,19 @@ export function TopBar({ profileId, searchRef }: TopBarProps) {
               sideOffset={8}
               className="rise-in z-50 min-w-52 rounded-xl border border-hairline bg-surface p-1.5 shadow-lift"
             >
+              {account.email && (
+                <DropdownMenu.Label className="truncate px-3 pt-2 pb-1.5 text-sm text-muted">
+                  {account.email}
+                </DropdownMenu.Label>
+              )}
+              {account.isGuest && (
+                <DropdownMenu.Item
+                  onSelect={() => void navigate("/sign-in")}
+                  className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg bg-primary-tint px-3 py-1.5 text-[15px] font-semibold text-ink outline-none data-highlighted:bg-primary/25"
+                >
+                  <Save className="size-4 text-primary-ink" /> Save your profiles
+                </DropdownMenu.Item>
+              )}
               <DropdownMenu.Item
                 onSelect={() => void navigate(`/p/${profileId}/settings`)}
                 className="flex h-11 cursor-pointer items-center gap-3 rounded-lg px-3 text-[15px] text-ink outline-none data-highlighted:bg-surface-2"
@@ -84,6 +106,11 @@ export function TopBar({ profileId, searchRef }: TopBarProps) {
               >
                 <LogOut className="size-4 text-muted" /> Sign out
               </DropdownMenu.Item>
+              {account.isGuest && (
+                <p className="px-3 pt-0.5 pb-2 text-xs text-muted">
+                  Guest profiles are lost when you sign out.
+                </p>
+              )}
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
         </DropdownMenu.Root>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { useMutation } from "@tanstack/react-query";
 
 import { ensureSignedIn, useTryDemo } from "@/features/session/auth";
+import { useAccount } from "@/features/session/useAccount";
 import { useSession } from "@/features/session/useSession";
 import { Button } from "@/shared/ui/button";
 import { Logo } from "@/shared/ui/logo";
@@ -18,6 +19,7 @@ const EXAMPLE: { type: ItemType; title: string; note: string }[] = [
 /** The signed-out front door: what MeloMind does, shown as a taste thread, and two ways in. */
 export function LandingPage() {
   const { session } = useSession();
+  const { isGuest } = useAccount();
   const tryDemo = useTryDemo();
   const navigate = useNavigate();
   const startFresh = useMutation({
@@ -30,11 +32,18 @@ export function LandingPage() {
     <div className="min-h-dvh bg-surface">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 md:px-8">
         <Logo />
-        {session && (
-          <Button asChild variant="secondary" size="sm">
-            <Link to="/profiles">Your profiles</Link>
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {session && (
+            <Button asChild variant="secondary" size="sm">
+              <Link to="/profiles">Your profiles</Link>
+            </Button>
+          )}
+          {!(session && !isGuest) && (
+            <Button asChild variant={session ? "ghost" : "secondary"} size="sm">
+              <Link to="/sign-in">{isGuest ? "Save your profiles" : "Sign in"}</Link>
+            </Button>
+          )}
+        </div>
       </header>
 
       <main className="mx-auto grid max-w-6xl items-center gap-12 px-5 pt-6 pb-20 md:grid-cols-[1.1fr_1fr] md:px-8 md:pt-16">
@@ -68,7 +77,7 @@ export function LandingPage() {
             </p>
           )}
           <p className="text-sm text-muted">
-            No sign-up. The demo gives you a private space to play in.
+            No sign-up needed to look around. Sign in later to keep what you build.
           </p>
         </section>
 

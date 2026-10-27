@@ -3,6 +3,7 @@ import { Bookmark, Compass, Home, NotebookPen, Sparkles, type LucideIcon } from 
 import { useRef } from "react";
 import { NavLink, Outlet, useParams } from "react-router";
 
+import { AskProvider } from "../ask/AskProvider";
 import { ItemSheet } from "../item-detail/ItemSheet";
 import { RequireSession } from "../session/RequireSession";
 
@@ -32,44 +33,46 @@ export function AppShell() {
 
   return (
     <RequireSession>
-      <div className="flex min-h-dvh bg-surface">
-        <Sidebar profileId={profileId} onAddTaste={() => searchRef.current?.focus()} />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar profileId={profileId} searchRef={searchRef} />
-          <main className="flex-1 px-4 pt-5 pb-28 md:px-6 lg:pb-10">
-            <Outlet />
-          </main>
+      <AskProvider key={profileId} profileId={profileId}>
+        <div className="flex min-h-dvh bg-surface">
+          <Sidebar profileId={profileId} onAddTaste={() => searchRef.current?.focus()} />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <TopBar profileId={profileId} searchRef={searchRef} />
+            <main className="flex-1 px-4 pt-5 pb-28 md:px-6 lg:pb-10">
+              <Outlet />
+            </main>
+          </div>
         </div>
-      </div>
-      <nav
-        aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg lg:hidden"
-      >
-        <ul className="grid grid-cols-5">
-          {tabs.map((tab) => (
-            <li key={tab.label}>
-              <NavLink
-                to={tab.to}
-                end={tab.end}
-                className={({ isActive }) =>
-                  cn(
-                    "flex h-16 flex-col items-center justify-center gap-1 text-xs font-semibold",
-                    isActive ? "text-ink" : "text-muted",
-                  )
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <tab.icon className={cn("size-[22px]", isActive && "text-primary-ink")} />
-                    {tab.label}
-                  </>
-                )}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      <ItemSheet profileId={profileId} />
+        <nav
+          aria-label="Main"
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-hairline bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg lg:hidden"
+        >
+          <ul className="grid grid-cols-5">
+            {tabs.map((tab) => (
+              <li key={tab.label}>
+                <NavLink
+                  to={tab.to}
+                  end={tab.end}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex h-16 flex-col items-center justify-center gap-1 text-xs font-semibold",
+                      isActive ? "text-ink" : "text-muted",
+                    )
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <tab.icon className={cn("size-[22px]", isActive && "text-primary-ink")} />
+                      {tab.label}
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <ItemSheet profileId={profileId} />
+      </AskProvider>
     </RequireSession>
   );
 }

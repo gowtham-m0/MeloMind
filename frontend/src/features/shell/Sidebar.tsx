@@ -5,10 +5,12 @@ import {
   Clapperboard,
   Compass,
   Home,
+  HelpCircle,
   Music2,
   NotebookPen,
   Settings,
   Sparkles,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { NavLink } from "react-router";
@@ -34,8 +36,10 @@ function navItems(base: string): NavItem[] {
     { label: "Books", icon: BookOpen, to: `${base}/discover/book` },
     { label: "Saved", icon: Bookmark, to: `${base}/saved` },
     { label: "Journal", icon: NotebookPen, to: `${base}/journal` },
-    { label: "Taste", icon: Sparkles, to: `${base}/taste` },
+    { label: "Taste", icon: Sparkles, to: `${base}/taste`, end: true },
+    { label: "Taste match", icon: Users, to: `${base}/taste/match` },
     { label: "Settings", icon: Settings, to: `${base}/settings` },
+    { label: "How it works", icon: HelpCircle, to: "/how-it-works" },
   ];
 }
 

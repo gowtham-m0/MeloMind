@@ -13,6 +13,10 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <LandingPage /> },
       {
+        path: "/sign-in",
+        lazy: async () => ({ Component: (await import("@/pages/SignInPage")).SignInPage }),
+      },
+      {
         path: "/profiles",
         lazy: async () => ({ Component: (await import("@/pages/ProfilesPage")).ProfilesPage }),
       },
@@ -47,6 +51,10 @@ export const router = createBrowserRouter([
             lazy: async () => ({ Component: (await import("@/pages/TastePage")).TastePage }),
           },
           {
+            path: "taste/match",
+            lazy: async () => ({ Component: (await import("@/pages/MatchPage")).MatchPage }),
+          },
+          {
             path: "saved",
             lazy: async () => ({ Component: (await import("@/pages/SavedPage")).SavedPage }),
           },
@@ -55,6 +63,12 @@ export const router = createBrowserRouter([
             lazy: async () => ({ Component: (await import("@/pages/SettingsPage")).SettingsPage }),
           },
         ],
+      },
+      {
+        path: "/how-it-works",
+        lazy: async () => ({
+          Component: (await import("@/pages/HowItWorksPage")).HowItWorksPage,
+        }),
       },
       {
         path: "/styleguide",

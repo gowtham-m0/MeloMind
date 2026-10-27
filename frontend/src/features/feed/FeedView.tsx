@@ -4,6 +4,8 @@ import { useNavigate } from "react-router";
 import type { FeedItem, FeedRow } from "@/shared/api/feed";
 import { ErrorState } from "@/shared/ui/states";
 
+import { AskRow } from "../ask/AskRow";
+import { useAsk } from "../ask/useAsk";
 import { useItemParam } from "../item-detail/useItemParam";
 import { useProfile } from "../profiles/hooks";
 
@@ -33,6 +35,7 @@ export function FeedView({ profileId }: { profileId: string }) {
   const { open } = useItemParam();
   const profile = useProfile(profileId);
   const [logOpen, setLogOpen] = useState(false);
+  const asking = useAsk();
 
   if (feed.isError) {
     return <ErrorState error={feed.error} onRetry={() => void feed.refetch()} />;
@@ -84,6 +87,7 @@ export function FeedView({ profileId }: { profileId: string }) {
             onOpened={actions.opened}
           />
         )}
+        <AskRow {...cardActions} />
         <CategoryTiles feed={data} profileId={profileId} />
         {rail && (
           <div className="xl:hidden">
@@ -115,8 +119,9 @@ export function FeedView({ profileId }: { profileId: string }) {
           onJump={jump}
           onRefresh={refresh}
           onJournal={() => void navigate(`/p/${profileId}/journal?compose`)}
+          onSurprise={() => asking.ask({ kind: "surprise" }, "A surprise")}
         />
-        <VibePanel />
+        <VibePanel busy={asking.running} onGo={(mood, label) => asking.ask({ mood }, label)} />
       </aside>
 
       <BuildLogSheet
