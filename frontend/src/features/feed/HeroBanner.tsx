@@ -55,7 +55,7 @@ export function HeroBanner({ item, onWhy, onLike, onOpened }: HeroBannerProps) {
       <div className="flex min-h-[340px] flex-col justify-end gap-4 p-6 md:min-h-[300px] md:max-w-[60%] md:justify-center md:p-10">
         <h1
           id="hero-title"
-          className="text-[34px] leading-[1.05] font-semibold text-white md:text-[46px]"
+          className="line-clamp-3 text-[34px] leading-[1.05] font-semibold text-balance text-white md:text-[46px]"
         >
           <span className="text-primary">{VERB_PHRASE[type]}</span> {item.title}
         </h1>

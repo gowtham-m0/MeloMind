@@ -210,7 +210,6 @@ export function TastePage() {
   return (
     <div className="flex flex-col gap-10">
       <header className="flex flex-col gap-5">
-        <p className="text-sm font-semibold tracking-wide text-muted uppercase">Your taste</p>
         <h1 className="max-w-[24ch] text-[34px] leading-[1.1] font-semibold md:text-[48px]">
           {data.sentence}
         </h1>

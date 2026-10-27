@@ -23,8 +23,8 @@ export function FeedStatusBar({ feed, building, run, onRefresh, onShowLog }: Fee
     <div className="flex flex-wrap items-center justify-between gap-3">
       <p aria-live="polite" className="min-w-0 flex-1 text-[15px] text-body">
         {building ? (
-          <span className="inline-flex items-center gap-2">
-            <RefreshCw className="size-4 animate-spin text-primary-ink" aria-hidden />
+          <span className="flex min-w-0 items-center gap-2">
+            <RefreshCw className="size-4 shrink-0 animate-spin text-primary-ink" aria-hidden />
             <span className="truncate">{lastStep ?? "Rebuilding your feed…"}</span>
           </span>
         ) : (
