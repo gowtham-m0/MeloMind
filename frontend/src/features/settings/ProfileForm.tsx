@@ -37,11 +37,15 @@ export function ProfileForm({ profile }: { profile: Profile }) {
     if (!trimmed || !yearOk || !changed) {
       return;
     }
-    await update.mutateAsync({
-      display_name: trimmed,
-      country_code: country || null,
-      birth_year: parseBirthYear(birthYear),
-    });
+    try {
+      await update.mutateAsync({
+        display_name: trimmed,
+        country_code: country || null,
+        birth_year: parseBirthYear(birthYear),
+      });
+    } catch {
+      return; // The error shows under the form.
+    }
     toast.show("Saved. Refresh your feed to see the change.");
   }
 

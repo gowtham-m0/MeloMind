@@ -20,7 +20,7 @@ interface FeedCardProps {
 }
 
 const iconButton =
-  "grid size-9 place-items-center rounded-full bg-white/90 text-ink shadow-soft backdrop-blur transition-[background-color,color,transform] duration-150 hover:bg-white active:scale-95";
+  "grid size-9 pointer-coarse:size-11 place-items-center rounded-full bg-white/90 text-ink shadow-soft backdrop-blur transition-[background-color,color,transform] duration-150 hover:bg-white active:scale-95";
 
 /**
  * One recommendation: image, type, title, year, and the taste thread back to its source (or its
@@ -129,7 +129,7 @@ export function FeedCard({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => onOpened?.(item, store.platform)}
-            className="inline-flex min-h-8 items-center gap-1 self-start text-[13px] font-semibold text-primary-ink hover:underline"
+            className="inline-flex min-h-8 pointer-coarse:min-h-11 items-center gap-1 self-start text-[13px] font-semibold text-primary-ink hover:underline"
           >
             {store.kind === "direct" ? "Apple Music" : "Find on Apple Music"}
             <ArrowUpRight className="size-3.5" />

@@ -118,7 +118,7 @@ interface PreviewButtonProps {
   className?: string;
 }
 
-const SIZES = { sm: "size-9", md: "size-11", lg: "size-14" };
+const SIZES = { sm: "size-11", md: "size-11", lg: "size-14" };
 const RING = 2 * Math.PI * 46;
 
 /**

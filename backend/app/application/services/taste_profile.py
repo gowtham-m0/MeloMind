@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from app.application.agent.cards import GENERIC_TAGS, tag_key
 from app.application.ports import (
     CatalogRepository,
+    ExclusionRepository,
     FeedbackRepository,
     JournalRepository,
     LanguageModel,
@@ -27,7 +28,7 @@ from app.application.services.library import LibraryService
 from app.application.services.profiles import ProfileService
 from app.core.errors import UpstreamError
 from app.domain.feed import FeedItem, favourite_ref, is_qloo_ref
-from app.domain.feedback import Feedback
+from app.domain.feedback import Blocklist, Feedback
 from app.domain.journal import (
     MEDIA_KINDS,
     JournalLink,
@@ -127,7 +128,9 @@ class TasteProfileService:
         taste: TasteGraph,
         max_map_nodes: int,
         language_model: LanguageModel | None = None,
+        exclusions: ExclusionRepository | None = None,
     ) -> None:
+        self._exclusions = exclusions
         self._profiles = profiles
         self._feedback = feedback
         self._catalog = catalog
@@ -143,7 +146,7 @@ class TasteProfileService:
         profile = await self._profiles.get(owner_id, profile_id)
         feedback = await self._feedback.list_for_profile(profile.id)
         weights = learned_weights(feedback)
-        strong = [ref for ref in signal_refs(feedback) if is_qloo_ref(ref)]
+        strong = await self._strong_refs(profile, feedback)
         known = await self._catalog.get_many(strong)
         tags = await self._top_tags(profile, strong, weights, known)
         by_type = await self._by_type(profile, strong, feedback)
@@ -206,7 +209,7 @@ class TasteProfileService:
                     seen_at=favourite.created_at,
                 ),
             )
-        strong = [ref for ref in signal_refs(feedback) if is_qloo_ref(ref)]
+        strong = await self._strong_refs(profile, feedback)
         known = await self._catalog.get_many(strong)
         latest = {entry.item_ref: entry for entry in feedback}
         for ref in strong:
@@ -232,6 +235,16 @@ class TasteProfileService:
         journal_links = await self._journal.list_links(profile.id)
         links.extend(_journal_part(nodes, journal_nodes, journal_links))
         return _cap(nodes, links, self._max_map_nodes)
+
+    async def _strong_refs(self, profile: Profile, feedback: Sequence[Feedback]) -> list[str]:
+        """Qloo refs whose signal reached the threshold, leaving out what the user dismissed
+        (rule 3)."""
+        refs = [ref for ref in signal_refs(feedback) if is_qloo_ref(ref)]
+        if self._exclusions is None:
+            return refs
+        blocklist = Blocklist.from_exclusions(await self._exclusions.list_for_profile(profile.id))
+        titles = {entry.item_ref: entry.title for entry in feedback}
+        return [ref for ref in refs if not blocklist.blocks(ref, titles.get(ref, ""))]
 
     async def _top_tags(
         self,

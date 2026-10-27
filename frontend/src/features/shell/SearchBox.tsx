@@ -41,12 +41,17 @@ export const SearchBox = forwardRef<HTMLInputElement, { profileId: string; class
     const open = query.trim().length >= MIN_QUERY;
 
     async function add(match: EntityMatch) {
-      await addFavourite.mutateAsync({
-        name: match.name,
-        kind: match.type as FavouriteKind,
-        entity_id: match.entity_id,
-        image_url: match.image_url,
-      });
+      try {
+        await addFavourite.mutateAsync({
+          name: match.name,
+          kind: match.type as FavouriteKind,
+          entity_id: match.entity_id,
+          image_url: match.image_url,
+        });
+      } catch (error) {
+        toast.show(error instanceof Error ? error.message : "Couldn't add that. Try again?");
+        return;
+      }
       setAdded((current) => new Set(current).add(match.entity_id));
       queryClient.setQueryData<Feed | null>(feedKey(profileId), (feed) =>
         feed ? { ...feed, stale: true } : feed,
@@ -66,6 +71,7 @@ export const SearchBox = forwardRef<HTMLInputElement, { profileId: string; class
             ref={ref}
             type="search"
             role="combobox"
+            aria-keyshortcuts="/"
             aria-expanded={open}
             aria-controls={listId}
             value={query}
@@ -79,7 +85,7 @@ export const SearchBox = forwardRef<HTMLInputElement, { profileId: string; class
               type="button"
               onClick={() => setQuery("")}
               aria-label="Clear search"
-              className="absolute right-1.5 grid size-8 place-items-center rounded-lg text-muted hover:bg-surface-3"
+              className="absolute right-0.5 grid size-10 place-items-center rounded-lg text-muted hover:bg-surface-3"
             >
               <X className="size-4" />
             </button>
@@ -134,7 +140,7 @@ export const SearchBox = forwardRef<HTMLInputElement, { profileId: string; class
                         disabled={done || addFavourite.isPending}
                         onClick={() => void add(match)}
                         className={cn(
-                          "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors",
+                          "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors pointer-coarse:h-11",
                           done
                             ? "text-book-ink"
                             : "bg-primary-tint text-primary-ink hover:bg-primary hover:text-ink",

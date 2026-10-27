@@ -1,13 +1,23 @@
 """Comparing names of artists, films and books, the way people type them."""
 
 import re
+import unicodedata
 
-_NON_WORD = re.compile(r"[\W_]+")
+_NON_WORD = re.compile(r"\s+")
+
+
+def _is_word_char(char: str) -> bool:
+    """Letters and digits in any script, plus combining marks: the vowel signs and the anusvara
+    of Devanagari, Tamil and other Indic scripts are marks, which `str.isalnum` rejects."""
+    return char.isalnum() or unicodedata.category(char).startswith("M")
 
 
 def normalise_name(name: str) -> str:
-    """Lower-case, punctuation turned into spaces: "T.M. Soundararajan" → "t m soundararajan"."""
-    return _NON_WORD.sub(" ", name.casefold()).strip()
+    """Lower-case, punctuation turned into spaces: "T.M. Soundararajan" → "t m soundararajan".
+    Indic scripts keep their combining marks, so "दंगल" stays one word."""
+    folded = unicodedata.normalize("NFC", name.casefold())
+    spaced = "".join(char if _is_word_char(char) else " " for char in folded)
+    return _NON_WORD.sub(" ", spaced).strip()
 
 
 def names_match(a: str, b: str) -> bool:
@@ -16,9 +26,12 @@ def names_match(a: str, b: str) -> bool:
 
 
 # Spellings that differ between transliterations of Indian names: "Arijith" for "Arijit",
-# "Raheem" for "Rahim", "Shaan"-style double vowels.
+# "Kanthara" for "Kantara", "Rehman" for "Rahman", "Raheem" for "Rahim", double vowels.
 _SPELLING_RULES = (
-    (re.compile(r"(?<=t)h\b", re.IGNORECASE), ""),
+    (re.compile(r"(?<=[td])h\b", re.IGNORECASE), ""),
+    (re.compile(r"(?<=\Bt)h(?=a)", re.IGNORECASE), ""),
+    (re.compile(r"rehman", re.IGNORECASE), "rahman"),
+    (re.compile(r"sharukh", re.IGNORECASE), "shahrukh"),
     (re.compile(r"ee", re.IGNORECASE), "i"),
     (re.compile(r"oo", re.IGNORECASE), "u"),
     (re.compile(r"aa", re.IGNORECASE), "a"),

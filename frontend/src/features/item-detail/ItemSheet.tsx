@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "cn";
-import { ArrowUpRight, Bookmark, Heart, Play, X } from "lucide-react";
+import { ArrowUpRight, Bookmark, Heart, Play, ThumbsDown, X } from "lucide-react";
+import { useState } from "react";
 
 import { getItem, previewItem, type Feed, type FeedItem } from "@/shared/api/feed";
 import { Button } from "@/shared/ui/button";
@@ -32,7 +33,13 @@ export function ItemSheet({ profileId }: { profileId: string }) {
   return (
     <Sheet open={openRef !== null} onOpenChange={(next) => !next && close()} title="Item details">
       {openRef && (
-        <ItemDetailBody profileId={profileId} itemRef={openRef} onOpen={open} onClose={close} />
+        <ItemDetailBody
+          key={openRef}
+          profileId={profileId}
+          itemRef={openRef}
+          onOpen={open}
+          onClose={close}
+        />
       )}
     </Sheet>
   );
@@ -54,6 +61,7 @@ function ItemDetailBody({ profileId, itemRef, onOpen, onClose }: BodyProps) {
     queryFn: () => getItem(profileId, itemRef),
   });
   const preview = useMutation({ mutationFn: () => previewItem(profileId, itemRef) });
+  const [lessLikeThis, setLessLikeThis] = useState(false);
 
   const item: FeedItem | undefined = detail.data ?? cached;
   if (!item) {
@@ -101,13 +109,18 @@ function ItemDetailBody({ profileId, itemRef, onOpen, onClose }: BodyProps) {
 
       <div className="-mt-10 flex flex-col gap-6 px-5 pb-8 md:px-7">
         <header className="relative flex flex-col gap-2">
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
             <TypeChip type={type} />
             {item.year && <span className="tabular text-sm text-muted">{item.year}</span>}
             <SourceBadge source={item.source} />
           </div>
           <h2 className="text-[30px] leading-[1.1] font-semibold">{item.title}</h2>
           {item.creator && <p className="text-lg text-body">{item.creator}</p>}
+          {item.description && type !== "song" && (
+            <p className="line-clamp-6 max-w-prose text-[15px] leading-relaxed text-body">
+              {item.description}
+            </p>
+          )}
           {item.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {item.tags.map((tag) => (
@@ -211,6 +224,14 @@ function ItemDetailBody({ profileId, itemRef, onOpen, onClose }: BodyProps) {
           >
             <Bookmark className={cn(liveItem.saved && "fill-primary text-primary-ink")} />{" "}
             {liveItem.saved ? "Saved" : "Save"}
+          </Button>
+          <Button
+            variant="ghost"
+            aria-pressed={lessLikeThis}
+            disabled={lessLikeThis}
+            onClick={() => void actions.dislike(item).then((saved) => setLessLikeThis(saved))}
+          >
+            <ThumbsDown /> {lessLikeThis ? "Noted" : "Less like this"}
           </Button>
           <Button
             variant="ghost"
@@ -357,7 +378,7 @@ function TopSongs({ songs, artist, onOpen, onOpened }: TopSongsProps) {
                   size="sm"
                 />
               ) : (
-                <span className="size-9 shrink-0" />
+                <span className="size-11 shrink-0" />
               )}
               <button
                 type="button"

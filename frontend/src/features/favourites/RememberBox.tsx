@@ -34,6 +34,7 @@ export function RememberBox({ profileId, onAdded }: { profileId: string; onAdded
   const [kind, setKind] = useState<FavouriteKind | undefined>(undefined);
   const [runId, setRunId] = useState<string | null>(null);
   const [added, setAdded] = useState<string | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
   const addFavourite = useAddFavourite(profileId);
 
   const start = useMutation({
@@ -45,6 +46,7 @@ export function RememberBox({ profileId, onAdded }: { profileId: string; onAdded
       }),
     onSuccess: ({ agent_run_id }) => {
       setAdded(null);
+      setSaveFailed(false);
       setRunId(agent_run_id);
     },
   });
@@ -70,22 +72,34 @@ export function RememberBox({ profileId, onAdded }: { profileId: string; onAdded
   }
 
   async function confirm(proposal: ResolveProposal) {
-    await addFavourite.mutateAsync({
-      name: proposal.name,
-      kind: proposal.kind,
-      entity_id: proposal.entity_id,
-      image_url: proposal.image_url,
-      song_title: proposal.song_title,
-    });
+    setSaveFailed(false);
+    try {
+      await addFavourite.mutateAsync({
+        name: proposal.name,
+        kind: proposal.kind,
+        entity_id: proposal.entity_id,
+        image_url: proposal.image_url,
+        song_title: proposal.song_title,
+      });
+    } catch {
+      setSaveFailed(true);
+      return;
+    }
     reset(proposal.song_title ? `${proposal.song_title} by ${proposal.name}` : proposal.name);
   }
 
   async function keepAsText(favourite: TextFavourite) {
-    await addFavourite.mutateAsync({
-      name: favourite.name,
-      kind: favourite.kind,
-      song_title: favourite.song_title,
-    });
+    setSaveFailed(false);
+    try {
+      await addFavourite.mutateAsync({
+        name: favourite.name,
+        kind: favourite.kind,
+        song_title: favourite.song_title,
+      });
+    } catch {
+      setSaveFailed(true);
+      return;
+    }
     reset(favourite.song_title ?? favourite.name);
   }
 
@@ -157,6 +171,11 @@ export function RememberBox({ profileId, onAdded }: { profileId: string; onAdded
         {(start.isError || status === "failed") && (
           <p role="alert" className="mt-3 text-sm text-danger">
             Couldn't look that up just now. Try again.
+          </p>
+        )}
+        {saveFailed && (
+          <p role="alert" className="mt-3 text-sm text-danger">
+            Couldn't save that favourite. Try again.
           </p>
         )}
 

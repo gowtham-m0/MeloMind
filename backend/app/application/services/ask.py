@@ -107,7 +107,7 @@ class AskService:
             blocklist = Blocklist.from_exclusions(
                 await self._exclusions.list_for_profile(request.profile.id)
             )
-            items = tuple(i for i in row.items if not blocklist.blocks(i.ref, i.title))
+            items = tuple(i for i in row.items if not blocklist.blocks_item(i))
             row = FeedRow(
                 key=row.key,
                 title=row.title,

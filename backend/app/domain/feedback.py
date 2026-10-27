@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from app.domain.feed import is_favourite_ref, is_qloo_ref
+from app.domain.feed import FeedItem, is_favourite_ref, is_qloo_ref
 from app.domain.models import EntityType, utc_now
 from app.domain.names import normalise_name
 
@@ -76,6 +76,13 @@ class Blocklist:
         if ref in self.refs:
             return True
         return is_favourite_ref(ref) and normalise_name(title) in self.titles
+
+    def blocks_item(self, item: FeedItem) -> bool:
+        """True when the card must not appear: it was excluded itself or, for a song, its artist
+        was."""
+        if self.blocks(item.ref, item.title):
+            return True
+        return bool(item.parent_ref) and self.blocks(item.parent_ref or "", item.parent_title or "")
 
     @property
     def qloo_ids(self) -> tuple[str, ...]:

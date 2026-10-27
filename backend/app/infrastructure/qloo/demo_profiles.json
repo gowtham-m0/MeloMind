@@ -64,6 +64,114 @@
       ]
     },
     {
+      "key": "rohan",
+      "display_name": "Rohan",
+      "birth_year": 1988,
+      "country_code": "IN",
+      "places_lived": ["Mumbai", "Delhi"],
+      "languages": ["Hindi", "English"],
+      "favourites": [
+        { "name": "Arijit Singh", "kind": "song", "song_title": "Tum Hi Ho" },
+        { "name": "A. R. Rahman", "kind": "artist" },
+        { "name": "Dangal", "kind": "movie" },
+        { "name": "3 Idiots", "kind": "movie" },
+        { "name": "Sacred Games", "kind": "tv_show" },
+        { "name": "Five Point Someone: What Not to Do at IIT", "kind": "book" }
+      ],
+      "likes": [
+        { "name": "Pritam", "kind": "artist" },
+        { "name": "Gully Boy", "kind": "movie" }
+      ],
+      "not_interested": [{ "name": "Bigg Boss", "kind": "tv_show" }],
+      "journal": [
+        {
+          "demo": true,
+          "days_ago": 1,
+          "text": "Aaj raat Dangal dobara dekhi, utna hi goosebumps aaye jitna pehli baar. Phir Mumbai local mein ghar aate hue Arijit Singh ke gaane sune.",
+          "mood": "energetic",
+          "links": [
+            { "name": "Dangal", "kind": "movie" },
+            { "name": "Arijit Singh", "kind": "artist" },
+            { "name": "Mumbai", "kind": "place" }
+          ]
+        },
+        {
+          "demo": true,
+          "days_ago": 4,
+          "text": "Weekend pe Sacred Games ka dusra season khatam kiya. Itna dark show, par ek baar shuru karo toh rukta nahi.",
+          "mood": "focused",
+          "links": [
+            { "name": "Sacred Games", "kind": "tv_show" }
+          ]
+        },
+        {
+          "demo": true,
+          "days_ago": 8,
+          "text": "Delhi ki sardi mein A. R. Rahman ka purana playlist, aur Five Point Someone phir se padhna shuru kiya. Hostel ke din yaad aa gaye.",
+          "mood": "nostalgic",
+          "links": [
+            { "name": "A. R. Rahman", "kind": "artist" },
+            { "name": "Five Point Someone: What Not to Do at IIT", "kind": "book" },
+            { "name": "Delhi", "kind": "place" }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "karthik",
+      "display_name": "Karthik",
+      "birth_year": 1995,
+      "country_code": "IN",
+      "places_lived": ["Chennai", "Hyderabad"],
+      "languages": ["Tamil", "Telugu", "English"],
+      "favourites": [
+        { "name": "Anirudh Ravichander", "kind": "artist" },
+        { "name": "Sid Sriram", "kind": "artist" },
+        { "name": "RRR", "kind": "movie" },
+        { "name": "Kantara", "kind": "movie" },
+        { "name": "Premam", "kind": "movie" },
+        { "name": "Ponniyin Selvan - The Crown", "kind": "book" }
+      ],
+      "likes": [
+        { "name": "Vikram", "kind": "movie" },
+        { "name": "Ilaiyaraaja", "kind": "artist" }
+      ],
+      "not_interested": [],
+      "journal": [
+        {
+          "demo": true,
+          "days_ago": 2,
+          "text": "Chennai la mazhai, Anirudh playlist pottutu office ku pona. Vikram background score innum goosebumps tharuthu.",
+          "mood": "energetic",
+          "links": [
+            { "name": "Anirudh Ravichander", "kind": "artist" },
+            { "name": "Vikram", "kind": "movie" },
+            { "name": "Chennai", "kind": "place" }
+          ]
+        },
+        {
+          "demo": true,
+          "days_ago": 6,
+          "text": "Finally watched Kantara on the big screen with friends in Hyderabad. The climax was unreal, still thinking about it.",
+          "mood": "happy",
+          "links": [
+            { "name": "Kantara", "kind": "movie" },
+            { "name": "Hyderabad", "kind": "place" }
+          ]
+        },
+        {
+          "demo": true,
+          "days_ago": 11,
+          "text": "Rewatched Premam for the nth time. Some films just feel like home, and Sid Sriram songs on the way back made it better.",
+          "mood": "nostalgic",
+          "links": [
+            { "name": "Premam", "kind": "movie" },
+            { "name": "Sid Sriram", "kind": "artist" }
+          ]
+        }
+      ]
+    },
+    {
       "key": "leo",
       "display_name": "Leo",
       "birth_year": 1950,

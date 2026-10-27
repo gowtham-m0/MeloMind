@@ -117,7 +117,7 @@ export function StepFavourites({ profileId, name, onNext }: StepFavouritesProps)
               type="button"
               onClick={() => setQuery("")}
               aria-label="Clear search"
-              className="absolute right-1.5 grid size-9 place-items-center rounded-lg text-muted hover:bg-surface-3"
+              className="absolute right-1 grid size-11 place-items-center rounded-lg text-muted hover:bg-surface-3"
             >
               <X className="size-4" />
             </button>
@@ -131,7 +131,7 @@ export function StepFavourites({ profileId, name, onNext }: StepFavouritesProps)
               aria-pressed={filter === option}
               onClick={() => setFilter(option)}
               className={cn(
-                "inline-flex h-10 items-center rounded-full border px-4 text-sm font-medium transition-colors duration-200",
+                "inline-flex h-11 items-center rounded-full border px-4 text-sm font-medium transition-colors duration-200",
                 filter === option
                   ? "border-primary bg-primary text-ink"
                   : "border-line bg-surface text-body hover:border-[#c9c9c9] hover:text-ink",
@@ -154,7 +154,7 @@ export function StepFavourites({ profileId, name, onNext }: StepFavouritesProps)
                   key={example}
                   type="button"
                   onClick={() => setQuery(example)}
-                  className="inline-flex h-9 items-center rounded-full border border-line bg-surface px-3.5 text-sm text-body transition-colors hover:border-[#c9c9c9] hover:text-ink"
+                  className="inline-flex h-11 items-center rounded-full border border-line bg-surface px-4 text-sm text-body transition-colors hover:border-[#c9c9c9] hover:text-ink"
                 >
                   {example}
                 </button>

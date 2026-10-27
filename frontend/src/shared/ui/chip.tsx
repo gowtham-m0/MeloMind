@@ -42,7 +42,7 @@ export function ToggleChip({ selected, className, ...props }: ToggleChipProps) {
       type="button"
       aria-pressed={selected}
       className={cn(
-        "inline-flex h-10 items-center rounded-full border px-4 text-sm font-medium transition-colors duration-200",
+        "inline-flex h-11 items-center rounded-full border px-4 text-sm font-medium transition-colors duration-200",
         selected
           ? "border-primary bg-primary text-ink"
           : "border-line bg-surface text-body hover:border-[#c9c9c9] hover:text-ink",

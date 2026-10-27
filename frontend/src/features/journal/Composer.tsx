@@ -109,6 +109,12 @@ export function Composer({ profileId, onSaved, textRef }: ComposerProps) {
           value={text}
           maxLength={TEXT_MAX}
           onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !recording) {
+              event.preventDefault();
+              save();
+            }
+          }}
           rows={4}
           placeholder="Rewatched Interstellar tonight, then had Glass Animals on repeat…"
           className="min-h-32 w-full resize-y rounded-xl border border-transparent bg-surface-2 p-4 text-base leading-relaxed text-ink placeholder:text-muted focus:border-primary focus:bg-surface"
@@ -166,7 +172,7 @@ export function Composer({ profileId, onSaved, textRef }: ComposerProps) {
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <p className="flex flex-1 items-center gap-2 text-sm text-muted">
           <Lock className="size-4 shrink-0" aria-hidden />
-          Your journal is private. It's never shared.
+          Your journal is private. It's never shared. Press Ctrl+Enter to save.
         </p>
         {create.isError && (
           <p role="alert" className="text-sm text-danger">

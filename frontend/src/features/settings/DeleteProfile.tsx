@@ -20,7 +20,11 @@ export function DeleteProfile({ profile, children }: { profile: Profile; childre
   const toast = useToast();
 
   async function confirm() {
-    await remove.mutateAsync();
+    try {
+      await remove.mutateAsync();
+    } catch {
+      return; // The error shows in the dialog.
+    }
     toast.show(`${profile.display_name}'s profile is deleted.`);
     await navigate("/profiles");
   }

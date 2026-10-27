@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router";
 
 import { LandingPage } from "@/pages/LandingPage";
+import { RouteErrorPage } from "@/pages/RouteErrorPage";
 
 /**
  * Every route. A profile's screens share the app shell under `/p/:profileId`. Everything past
@@ -10,6 +11,7 @@ export const router = createBrowserRouter([
   {
     // A blank page while a lazy route's code arrives on a direct visit.
     hydrateFallbackElement: <div className="min-h-dvh bg-surface" />,
+    errorElement: <RouteErrorPage />,
     children: [
       { path: "/", element: <LandingPage /> },
       {

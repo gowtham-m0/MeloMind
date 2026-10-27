@@ -102,7 +102,7 @@ function FriendPicker({
                   onChange(chosen.filter((item) => item.entity_id !== match.entity_id))
                 }
                 aria-label={`Remove ${match.name}`}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-primary bg-primary-tint pr-2.5 pl-3.5 text-sm font-medium text-ink"
+                className="inline-flex h-11 items-center gap-1.5 rounded-full border border-primary bg-primary-tint pr-3 pl-4 text-sm font-medium text-ink"
               >
                 {match.name} <X className="size-3.5" />
               </button>
@@ -236,7 +236,7 @@ export function MatchView({ profileId }: { profileId: string }) {
               compare.reset();
             }}
             className={cn(
-              "h-10 rounded-full px-4 text-sm font-semibold transition-colors",
+              "h-11 rounded-full px-4 text-sm font-semibold transition-colors",
               mode === value ? "bg-surface text-ink shadow-soft" : "text-muted",
             )}
           >

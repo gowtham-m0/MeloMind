@@ -27,6 +27,8 @@ _AMAZON_DOMAINS = {
     "FR": "amazon.fr",
     "JP": "amazon.co.jp",
 }
+# Music services that matter in one country, as search links added after Spotify.
+_LOCAL_MUSIC = {"IN": ("jiosaavn", "JioSaavn", "https://www.jiosaavn.com/search/{path}")}
 DEFAULT_COUNTRY = "US"
 
 
@@ -43,7 +45,16 @@ def _country(country_code: str | None) -> str:
     return code if len(code) == 2 and code.isalpha() else DEFAULT_COUNTRY
 
 
-def _music_links(query: str, external: Mapping[str, str]) -> list[PlatformLink]:
+def _local_music(query: str, country: str) -> list[PlatformLink]:
+    """The country's own music service (JioSaavn in India), as a search link."""
+    local = _LOCAL_MUSIC.get(country)
+    if local is None:
+        return []
+    platform, name, template = local
+    return [_search(platform, name, template.format(path=quote(query)))]
+
+
+def _music_links(query: str, external: Mapping[str, str], country: str) -> list[PlatformLink]:
     q = quote_plus(query)
     links = [_search("youtube", "YouTube", f"https://www.youtube.com/results?search_query={q}")]
     spotify_id = external.get("spotify", "")
@@ -58,6 +69,7 @@ def _music_links(query: str, external: Mapping[str, str]) -> list[PlatformLink]:
         links.append(
             _search("spotify", "Spotify", f"https://open.spotify.com/search/{quote(query)}")
         )
+    links.extend(_local_music(query, country))
     links.append(
         _search("youtube_music", "YouTube Music", f"https://music.youtube.com/search?q={q}")
     )
@@ -65,7 +77,9 @@ def _music_links(query: str, external: Mapping[str, str]) -> list[PlatformLink]:
     return links
 
 
-def _song_links(title: str, creator: str | None, store_url: str | None) -> list[PlatformLink]:
+def _song_links(
+    title: str, creator: str | None, store_url: str | None, country: str
+) -> list[PlatformLink]:
     """Apple Music first: the catalogue that gave us the song, a direct link (rule 5)."""
     query = f"{title} {creator}" if creator else title
     q = quote_plus(query)
@@ -78,6 +92,7 @@ def _song_links(title: str, creator: str | None, store_url: str | None) -> list[
         )
     links.append(_search("youtube", "YouTube", f"https://www.youtube.com/results?search_query={q}"))
     links.append(_search("spotify", "Spotify", f"https://open.spotify.com/search/{quote(query)}"))
+    links.extend(_local_music(query, country))
     links.append(
         _search("youtube_music", "YouTube Music", f"https://music.youtube.com/search?q={q}")
     )
@@ -178,7 +193,7 @@ def platform_links(
         case EntityType.ARTIST:
             query = f"{song_title} {name}" if song_title else name
             # A song search finds the song; an artist search finds their best-known songs.
-            links = _music_links(query if song_title else f"{name} songs", ids)
+            links = _music_links(query if song_title else f"{name} songs", ids, country)
             if song_title:
                 links = [link for link in links if link.kind == "search"]
             return tuple(links)
@@ -187,4 +202,4 @@ def platform_links(
         case EntityType.BOOK:
             return tuple(_book_links(name, country, ids, isbn13))
         case EntityType.SONG:
-            return tuple(_song_links(name, creator, store_url))
+            return tuple(_song_links(name, creator, store_url, country))

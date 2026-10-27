@@ -9,6 +9,7 @@ import {
   refreshFeed,
   removeExclusion,
   sendFeedback,
+  type AgentRun,
   type Feed,
   type FeedItem,
 } from "@/shared/api/feed";
@@ -117,6 +118,18 @@ function withoutItem(feed: Feed, ref: string): Feed {
   };
 }
 
+/** An ask run's extra row lives in its result, so likes and dismissals patch it there too. */
+function mapRunItems(
+  run: AgentRun | undefined,
+  update: (items: FeedItem[]) => FeedItem[],
+): AgentRun | undefined {
+  const items = run?.result?.items;
+  if (!run || !run.result || !Array.isArray(items)) {
+    return run;
+  }
+  return { ...run, result: { ...run.result, items: update(items as FeedItem[]) } };
+}
+
 type Toggle = "liked" | "saved";
 
 /**
@@ -143,6 +156,11 @@ export function useItemActions(profileId: string) {
       );
       queryClient.setQueriesData<FeedItem>({ queryKey: ["item", profileId, ref] }, (item) =>
         item ? { ...item, [flag]: value } : item,
+      );
+      queryClient.setQueriesData<AgentRun>({ queryKey: ["run"] }, (run) =>
+        mapRunItems(run, (items) =>
+          items.map((item) => (item.ref === ref ? { ...item, [flag]: value } : item)),
+        ),
       );
     },
     [patchFeed, profileId, queryClient],
@@ -177,9 +195,25 @@ export function useItemActions(profileId: string) {
   const notInterested = useCallback(
     async (item: FeedItem) => {
       const before = queryClient.getQueryData<Feed | null>(feedKey(profileId));
+      const runsBefore = queryClient.getQueriesData<AgentRun>({ queryKey: ["run"] });
+      const restore = () => {
+        if (before) {
+          queryClient.setQueryData(feedKey(profileId), before);
+        }
+        for (const [key, run] of runsBefore) {
+          queryClient.setQueryData(key, run);
+        }
+      };
       patchFeed((feed) => ({ ...withoutItem(feed, item.ref), stale: true }));
+      queryClient.setQueriesData<AgentRun>({ queryKey: ["run"] }, (run) =>
+        mapRunItems(run, (items) => items.filter((known) => known.ref !== item.ref)),
+      );
       try {
         await sendFeedback(profileId, item, "not_interested");
+        if (item.entity_type === "artist") {
+          // Their songs go too, and only the server knows which cards are theirs.
+          void queryClient.invalidateQueries({ queryKey: feedKey(profileId) });
+        }
         toast.show(`Got it, no more ${item.title}`, () => {
           void (async () => {
             const entries = await listExclusions(profileId);
@@ -187,19 +221,32 @@ export function useItemActions(profileId: string) {
             if (entry) {
               await removeExclusion(profileId, entry.id);
             }
-            if (before) {
-              queryClient.setQueryData(feedKey(profileId), before);
-            }
+            restore();
           })();
         });
       } catch {
-        if (before) {
-          queryClient.setQueryData(feedKey(profileId), before);
-        }
+        restore();
         toast.show("Couldn't hide that one. Try again?");
       }
     },
     [patchFeed, profileId, queryClient, toast],
+  );
+
+  const dislike = useCallback(
+    async (item: FeedItem): Promise<boolean> => {
+      try {
+        const result = await sendFeedback(profileId, item, "disliked");
+        if (result.stale) {
+          patchFeed((feed) => ({ ...feed, stale: true }));
+        }
+        toast.show(`Noted. Fewer picks like ${item.title}.`);
+        return true;
+      } catch {
+        toast.show("That didn't save. Try again?");
+        return false;
+      }
+    },
+    [patchFeed, profileId, toast],
   );
 
   const opened = useCallback(
@@ -213,6 +260,7 @@ export function useItemActions(profileId: string) {
     toggleLike: (item: FeedItem) => toggle(item, "liked"),
     toggleSave: (item: FeedItem) => toggle(item, "saved"),
     notInterested,
+    dislike,
     opened,
   };
 }

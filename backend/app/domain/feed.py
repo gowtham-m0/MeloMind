@@ -152,13 +152,18 @@ class Feed:
         return next((item for item in self.items() if item.ref == ref), None)
 
     def without(self, ref: str) -> bool:
-        """Remove an item everywhere at once (a "not interested"). True when it was there."""
-        removed = self.hero is not None and self.hero.ref == ref
+        """Remove an item everywhere at once (a "not interested"), and with an artist its songs.
+        True when it was there."""
+
+        def hidden(item: FeedItem) -> bool:
+            return item.ref == ref or item.parent_ref == ref
+
+        removed = self.hero is not None and hidden(self.hero)
         if removed:
             self.hero = None
         rows: list[FeedRow] = []
         for row in self.rows:
-            kept = tuple(item for item in row.items if item.ref != ref)
+            kept = tuple(item for item in row.items if not hidden(item))
             removed = removed or len(kept) != len(row.items)
             rows.append(replace(row, items=kept) if len(kept) != len(row.items) else row)
         self.rows = [row for row in rows if row.items]

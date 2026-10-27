@@ -29,6 +29,10 @@ INTERPRET_SYSTEM = (
     "- singer / composer / film / actor: for a song, who sings it, who composed it, the film it "
     "comes from and that film's lead actor.\n"
     '- tag: a genre or region when that is all you can tell, such as "Tamil film music".\n'
+    "- They may write in English, Hindi, Tamil, Telugu, Malayalam, Punjabi or mixed (Hinglish), in "
+    "Roman or native script. A lyric in Roman script, such as a Hindi or Tamil line, is "
+    "common: recognise the song from it. Give singer, composer, film, actor and title in "
+    "English letters, spelt the way a film or music database would.\n"
     "- Never repeat the lyric or the description in any field. Names only.\n"
     "- Never include anyone's personal details."
 )
@@ -81,13 +85,24 @@ def hints_from(answer: Interpretation, text: str, kind: FavouriteKind | None) ->
         kind=chosen,
         title=_name_like(answer.title, text) if chosen is not FavouriteKind.SONG else None,
         song_title=_name_like(answer.song_title, text),
-        singer=_name_like(answer.singer, text),
-        composer=_name_like(answer.composer, text),
+        singer=_name_like(_lead(answer.singer), text),
+        composer=_name_like(_lead(answer.composer), text),
         film=_name_like(answer.film, text),
-        actor=_name_like(answer.actor, text),
+        actor=_name_like(_lead(answer.actor), text),
         year=answer.year,
         tag=_name_like(answer.tag, text),
     )
+
+
+_CREDITS = re.compile(r"\s*(?:,|;|\bfeat\.|\bfeat\b|\bft\.|\bft\b)\s*", re.IGNORECASE)
+
+
+def _lead(names: str | None) -> str | None:
+    """The first of several credited people ("A. R. Rahman, Javed Ali" → "A. R. Rahman"), since
+    one Qloo search for all of them finds none."""
+    if not names:
+        return names
+    return next((part for part in _CREDITS.split(names) if part.strip()), None)
 
 
 def template_hints(text: str, kind: FavouriteKind | None, hint: str | None) -> Hints:

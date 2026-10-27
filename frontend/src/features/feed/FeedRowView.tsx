@@ -44,7 +44,7 @@ export function FeedRowView({ row, seeAll, ...actions }: FeedRowViewProps) {
           {seeAll && (
             <Link
               to={seeAll}
-              className="mr-1 inline-flex h-9 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-primary-ink hover:bg-primary-tint"
+              className="mr-1 inline-flex h-9 pointer-coarse:h-11 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-primary-ink hover:bg-primary-tint"
             >
               See all <ArrowRight className="size-4" />
             </Link>

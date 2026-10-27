@@ -3,10 +3,10 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.application.ports import CatalogRepository, FeedbackRepository
+from app.application.ports import CatalogRepository, ExclusionRepository, FeedbackRepository
 from app.application.services.profiles import ProfileService
 from app.domain.feed import FeedItem, ItemSource, is_favourite_ref
-from app.domain.feedback import Feedback, Signal
+from app.domain.feedback import Blocklist, Feedback, Signal
 from app.domain.links import platform_links
 from app.domain.models import EntityType
 from app.domain.policies import item_states
@@ -29,14 +29,17 @@ class LibraryService:
         feedback: FeedbackRepository,
         catalog: CatalogRepository,
         source: ItemSource,
+        exclusions: ExclusionRepository,
     ) -> None:
         self._profiles = profiles
         self._feedback = feedback
         self._catalog = catalog
         self._source = source
+        self._exclusions = exclusions
 
     async def library(self, owner_id: UUID, profile_id: UUID) -> Library:
-        """Liked and saved items, each as a card."""
+        """Liked and saved items, each as a card. Anything marked "not interested" is left out
+        (rule 3)."""
         profile = await self._profiles.get(owner_id, profile_id)
         feedback = await self._feedback.list_for_profile(profile.id)
         states = item_states(feedback)
@@ -49,9 +52,11 @@ class LibraryService:
             ref: known.get(ref) or _fallback_card(latest[ref], profile.country_code, self._source)
             for ref in order
         }
+        blocklist = Blocklist.from_exclusions(await self._exclusions.list_for_profile(profile.id))
+        shown = [ref for ref in order if not blocklist.blocks_item(cards[ref])]
         return Library(
-            liked=[cards[ref] for ref in order if Signal.LIKED in states[ref]],
-            saved=[cards[ref] for ref in order if Signal.SAVED in states[ref]],
+            liked=[cards[ref] for ref in shown if Signal.LIKED in states[ref]],
+            saved=[cards[ref] for ref in shown if Signal.SAVED in states[ref]],
         )
 
 

@@ -1,6 +1,6 @@
 import { cn } from "cn";
 import { Bookmark, Compass, Home, NotebookPen, Sparkles, type LucideIcon } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { NavLink, Outlet, useParams } from "react-router";
 
 import { AskProvider } from "../ask/AskProvider";
@@ -23,6 +23,26 @@ export function AppShell() {
   const { profileId = "" } = useParams();
   const searchRef = useRef<HTMLInputElement>(null);
   const base = `/p/${profileId}`;
+
+  // "/" jumps to search, as on most sites, unless you're already typing somewhere.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target?.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName ?? "");
+      if (event.key === "/" && !typing && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        const field = searchRef.current;
+        if (field && field.offsetParent !== null) {
+          event.preventDefault();
+          field.focus();
+        }
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const tabs: Tab[] = [
     { label: "Home", icon: Home, to: base, end: true },
     { label: "Discover", icon: Compass, to: `${base}/discover` },

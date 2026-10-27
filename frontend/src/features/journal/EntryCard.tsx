@@ -111,6 +111,11 @@ export function EntryCard({ profileId, entry, runId, onRun, onSuggestAgain }: En
                 onChange={(event) => setDraft(event.target.value)}
                 className="w-full resize-y rounded-xl border border-primary bg-surface p-3 text-base leading-relaxed text-ink"
               />
+              {save.isError && (
+                <p role="alert" className="text-sm text-danger">
+                  {save.error.message}
+                </p>
+              )}
               <div className="flex gap-2">
                 <Button
                   size="sm"
@@ -132,7 +137,9 @@ export function EntryCard({ profileId, entry, runId, onRun, onSuggestAgain }: En
               </div>
             </div>
           ) : (
-            <p className="text-[17px] leading-relaxed whitespace-pre-wrap text-ink">{entry.text}</p>
+            <p className="text-[17px] leading-relaxed break-words whitespace-pre-wrap text-ink">
+              {entry.text}
+            </p>
           )}
         </div>
         {!editing && (
@@ -177,6 +184,11 @@ export function EntryCard({ profileId, entry, runId, onRun, onSuggestAgain }: En
           <Button size="sm" variant="ghost" onClick={() => setConfirmingDelete(false)}>
             Keep it
           </Button>
+          {remove.isError && (
+            <p role="alert" className="w-full text-sm text-danger">
+              {remove.error.message}
+            </p>
+          )}
         </div>
       )}
 

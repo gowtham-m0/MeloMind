@@ -141,12 +141,12 @@ class FeedService:
                 title=row.title,
                 subtitle=row.subtitle,
                 placement=row.placement,
-                items=tuple(i for i in row.items if not blocklist.blocks(i.ref, i.title)),
+                items=tuple(i for i in row.items if not blocklist.blocks_item(i)),
             )
             for row in result.rows
         ]
         hero = result.hero
-        if hero is not None and blocklist.blocks(hero.ref, hero.title):
+        if hero is not None and blocklist.blocks_item(hero):
             hero = None
         feed.hero = hero
         feed.rows = [row for row in rows if row.items]

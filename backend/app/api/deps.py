@@ -212,7 +212,11 @@ def wire(
         profiles, adapters.feedback, adapters.exclusions, feeds, catalog=adapters.catalog
     )
     library = LibraryService(
-        profiles, adapters.feedback, adapters.catalog, ItemSource(adapters.taste_graph.source)
+        profiles,
+        adapters.feedback,
+        adapters.catalog,
+        ItemSource(adapters.taste_graph.source),
+        adapters.exclusions,
     )
     journal = JournalService(
         profiles,
@@ -289,6 +293,7 @@ def wire(
             adapters.taste_graph,
             settings.taste_map_max_nodes,
             adapters.language_model,
+            exclusions=adapters.exclusions,
         ),
         ask=AskService(
             profiles,

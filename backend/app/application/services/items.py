@@ -80,7 +80,7 @@ class ItemService:
         profile = await self._profiles.get(owner_id, profile_id)
         blocklist = Blocklist.from_exclusions(await self._exclusions.list_for_profile(profile.id))
         item = await self._find(profile, ref)
-        if item is None or blocklist.blocks(item.ref, item.title):
+        if item is None or blocklist.blocks_item(item):
             raise NotFoundError("Item not found.")
         country = profile.country_code
         if item.entity_type is EntityType.SONG:
@@ -212,7 +212,7 @@ class ItemService:
             )
             for song in found
         ]
-        cards = [card for card in cards if not blocklist.blocks(card.ref, card.title)]
+        cards = [card for card in cards if not blocklist.blocks_item(card)]
         await self._catalog.put_many(cards)
         return cards
 

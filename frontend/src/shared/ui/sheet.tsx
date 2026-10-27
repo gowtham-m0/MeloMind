@@ -31,7 +31,7 @@ export function Sheet({ open, onOpenChange, title, children }: SheetProps) {
           <Dialog.Title className="sr-only">{title}</Dialog.Title>
           <div aria-hidden className="mx-auto mt-2.5 h-1.5 w-10 rounded-full bg-line md:hidden" />
           <Dialog.Close
-            className="absolute top-3 right-3 z-10 grid size-10 place-items-center rounded-full bg-surface/90 text-ink shadow-soft backdrop-blur transition-colors hover:bg-surface-2"
+            className="absolute top-3 right-3 z-10 grid size-11 place-items-center rounded-full bg-surface/90 text-ink shadow-soft backdrop-blur transition-colors hover:bg-surface-2"
             aria-label="Close"
           >
             <X className="size-5" />

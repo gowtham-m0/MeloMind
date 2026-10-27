@@ -271,6 +271,7 @@ class ThrowbackRow:
                         entity_type=entity_type,
                         signal_ids=signals,
                         popularity_min=THROWBACK_FLOOR,
+                        country_code=None if signals else context.country_code,
                         year_min=start,
                         year_max=end,
                         take=TOPUP_TAKE,

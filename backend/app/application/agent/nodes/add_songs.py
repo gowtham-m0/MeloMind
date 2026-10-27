@@ -40,13 +40,11 @@ async def add_songs(state: FeedState, deps: FeedDeps) -> FeedState:
     artists = feed_artists(state.get("hero"), drafts, context)
     if not artists:
         return {}
-    try:
-        found = await asyncio.wait_for(
-            _lookup_all(deps.songs, artists, context.country_code), SONGS_TIMEOUT_SECONDS
+    found, timed_out = await _lookup_all(deps.songs, artists, context.country_code)
+    if timed_out:
+        await deps.log.warn(
+            NODE, f"The song catalogue was slow for {timed_out} artists, so they were skipped."
         )
-    except TimeoutError:
-        await deps.log.warn(NODE, "The song catalogue was too slow, so no songs row this time.")
-        return {}
     picks = pick_songs(artists, found, context, deps.limits.row_size)
     names = ", ".join(artist.name for artist in artists[:3])
     if len(picks) < MIN_SONGS:
@@ -98,10 +96,18 @@ def feed_artists(
 
 async def _lookup_all(
     catalog: SongCatalog, artists: Sequence[Candidate], country_code: str | None
-) -> list[list[Song]]:
-    return list(
-        await asyncio.gather(*(_lookup(catalog, artist.name, country_code) for artist in artists))
-    )
+) -> tuple[list[list[Song]], int]:
+    """Each artist's songs, in order, and how many lookups ran out of time. A slow lookup (the
+    catalogue's rate limit is shared by every feed building at once) counts as no songs, so the
+    artists that did answer still make a row."""
+    tasks = [
+        asyncio.ensure_future(_lookup(catalog, artist.name, country_code)) for artist in artists
+    ]
+    _, pending = await asyncio.wait(tasks, timeout=SONGS_TIMEOUT_SECONDS)
+    for task in pending:
+        task.cancel()
+    found = [[] if task in pending else task.result() for task in tasks]
+    return found, len(pending)
 
 
 async def _lookup(catalog: SongCatalog, artist: str, country_code: str | None) -> list[Song]:

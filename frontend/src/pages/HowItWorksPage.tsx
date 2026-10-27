@@ -137,7 +137,7 @@ export function HowItWorksPage() {
         <Section icon={<Link2 className="size-5" />} title="Honest links">
           <p className="max-w-prose text-body">
             A button that says <strong>Search on Netflix</strong> opens a search, because we can't
-            promise it's there. <strong>Watch on</strong> and <strong>Listen on</strong> only appear
+            promise it's there. <strong>Open on</strong> and <strong>Listen on</strong> only appear
             when we have a direct link to that exact title. Nothing plays until you tap.
           </p>
         </Section>

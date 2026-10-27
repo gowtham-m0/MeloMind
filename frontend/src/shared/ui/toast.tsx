@@ -60,7 +60,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             {toast.undo && (
               <button
                 type="button"
-                className="h-9 rounded-lg px-3 font-semibold text-primary transition-colors hover:bg-white/10"
+                className="h-11 rounded-lg px-3.5 font-semibold text-primary transition-colors hover:bg-white/10"
                 onClick={() => {
                   toast.undo?.();
                   dismiss(toast.id);

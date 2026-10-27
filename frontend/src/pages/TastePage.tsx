@@ -88,7 +88,7 @@ function FavouriteTile({ favourite, onRemove }: { favourite: Favourite; onRemove
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${title} from your favourites`}
-        className="absolute top-2 right-2 grid size-9 place-items-center rounded-full bg-white/90 text-ink shadow-soft transition-opacity duration-200 hover:bg-white md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
+        className="absolute top-2 right-2 grid size-9 pointer-coarse:size-11 place-items-center rounded-full bg-white/90 text-ink shadow-soft transition-opacity duration-200 hover:bg-white md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100"
       >
         <X className="size-4" />
       </button>
@@ -252,7 +252,7 @@ export function TastePage() {
                 aria-pressed={view === option}
                 onClick={() => setView(option)}
                 className={cn(
-                  "flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition-colors",
+                  "flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition-colors pointer-coarse:h-11",
                   view === option ? "bg-surface text-ink shadow-soft" : "text-muted",
                 )}
               >
